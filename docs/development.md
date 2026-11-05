@@ -52,6 +52,17 @@ yarn workspace @raon/api db:generate
 yarn workspace @raon/api db:reset   # 개발 DB를 지우고 다음 실행 때 시드로 다시 만듭니다.
 ```
 
+## 예약 공개와 뱃지
+
+- 예약 회차는 `status = PUBLISHED`이고 `published_at`이 미래입니다. 독자용 쿼리는 모두 공개 시각이 지났는지까지 확인합니다. 작품 목록과 상세는 캐시하므로 시각이 지나도 몇 분 늦게 보일 수 있습니다.
+- 뱃지는 API가 계산합니다. 인기는 조회 30,000 이상, 신작은 첫 공개 14일 이내, 새 회차는 최근 공개 3일 이내입니다.
+
+## 표지와 쿠키
+
+- 표지는 파일 서버 없이 실행되도록 DB(`work_covers`)에 둡니다. 파일 이름이나 Content-Type이 아니라 내용으로 JPG, PNG, WebP를 판별하고, SVG는 받지 않습니다. 브라우저는 `/api/covers/[workId]`를 통해 받습니다.
+- 테마와 뷰어 설정은 js-cookie로 쿠키에 저장합니다(`shared/lib/preferences.ts`). 첫 화면 전에 적용하는 인라인 스크립트(`PREFERENCES_SCRIPT`)도 같은 쿠키를 읽습니다.
+- 세션 토큰은 httpOnly 쿠키로만 다루고, 원고 백업은 크기 때문에 `localStorage`에 둡니다.
+
 ## 회차 원고 보호
 
 - 초안은 입력이 멈추면 자동 저장하고, 실패하면 15초 뒤 다시 시도합니다. 화면을 떠날 때 남은 변경 사항도 저장합니다.

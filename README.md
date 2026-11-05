@@ -1,7 +1,7 @@
 # RAON - 웹소설 연재·감상 플랫폼
 
 [![CI](https://github.com/ryushin01/RAON-Monorepo/actions/workflows/ci.yml/badge.svg)](https://github.com/ryushin01/RAON-Monorepo/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.2.0-0a0a0a)
+![version](https://img.shields.io/badge/version-0.3.0-0a0a0a)
 
 작가는 에디터로 작품을 연재하고, 독자는 회차나 작품을 코인으로 구매해 뷰어에서 읽는 웹소설 플랫폼의 모노레포입니다. **라온**은 ‘즐거운’을 뜻하는 우리말입니다.
 
@@ -37,24 +37,24 @@
 
 ## 주요 기능
 
-| 사용자    | 기능                                                                                                                             |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 공통      | 일반 회원·작가 구분 가입과 로그인, 작품 검색, 장르·상태·정렬 필터, 흑백 밝은·어두운 화면                                         |
-| 일반 회원 | 무료 회차 감상, 회차 또는 완결 작품 전체를 담아 코인 결제(이미 산 회차는 차감), 가상 충전, 내 서재, 선호작, 이어 보기, 회차 댓글 |
-| 뷰어      | 배경, 글꼴, 글자 크기, 줄 간격 설정 유지, 앞뒤 회차 이동, 권한 없는 유료 본문 차단                                               |
-| 작가      | 작품 관리, 회차 에디터(서식, 초안 자동 저장, 글자 수), 회차 공개·비공개, 초안·작품 삭제, 완결 처리, 가격 설정, 판매·선호작 수    |
+| 사용자    | 기능                                                                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 공통      | 일반 회원·작가 구분 가입과 로그인, 작품 검색, 장르·상태·태그 필터, 인기·최신·별점 정렬, 메인 배너, 뱃지, 흑백 밝은·어두운 화면                   |
+| 일반 회원 | 무료 회차 감상, 회차 또는 완결 작품 전체를 담아 코인 결제(이미 산 회차는 차감), 가상 충전, 내 서재, 선호작, 이어 보기, 회차 댓글, 별점           |
+| 뷰어      | 배경, 글꼴, 글자 크기, 줄 간격 설정 유지, 앞뒤 회차 이동, 권한 없는 유료 본문 차단                                                               |
+| 작가      | 작품 관리, 표지 업로드, 태그, 회차 에디터(서식, 초안 자동 저장, 원고 백업·복원), 공개·예약 공개, 회차 순서 변경, 삭제, 완결 처리, 판매·선호작 수 |
 
 ## 기술 스택
 
 ![My Skills](https://skillicons.dev/icons?i=nextjs,react,ts,sass,nestjs,postgres,yarn,jest,storybook,docker)
 
-| 구분             | 사용 기술                                                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 모노레포         | Yarn 4 workspaces, Turborepo                                                                                       |
-| 웹 (`apps/web`)  | Next.js 16(App Router, Turbopack, `use cache`, Server Actions), React 19.2(Compiler), TanStack Query, Sass, Tiptap |
-| API (`apps/api`) | NestJS 12, Drizzle ORM, PostgreSQL(개발·테스트는 PGlite), JWT                                                      |
-| 언어             | TypeScript 7(타입 검사), TypeScript 6(도구용)                                                                      |
-| 품질             | Biome, Jest, Playwright, axe, Storybook, CodeRabbit, GitHub Actions                                                |
+| 구분             | 사용 기술                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 모노레포         | Yarn 4 workspaces, Turborepo                                                                                                  |
+| 웹 (`apps/web`)  | Next.js 16(App Router, Turbopack, `use cache`, Server Actions), React 19.2(Compiler), TanStack Query, Sass, Tiptap, js-cookie |
+| API (`apps/api`) | NestJS 12, Drizzle ORM, PostgreSQL(개발·테스트는 PGlite), JWT                                                                 |
+| 언어             | TypeScript 7(타입 검사), TypeScript 6(도구용)                                                                                 |
+| 품질             | Biome, Stylelint, Jest, Playwright, axe, Storybook, CodeRabbit, GitHub Actions                                                |
 
 ## 시작하기
 
@@ -106,4 +106,3 @@ packages/
 - 실제 결제(PG) 연동, 환불, 작가 정산
 - 비밀번호 재설정, 이메일 인증, 회원 탈퇴
 - 관리자 화면, 약관·개인정보 처리방침, 연령 등급
-- 별점, 표지 이미지 업로드, 예약 공개
