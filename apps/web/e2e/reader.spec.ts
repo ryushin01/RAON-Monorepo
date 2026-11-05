@@ -95,3 +95,32 @@ test("회차 이동 링크로 앞뒤 회차를 오간다", async ({ page }) => {
   await page.getByRole("navigation", { name: "회차 이동" }).getByRole("link", { name: /2화/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: /2화/ })).toBeVisible();
 });
+
+test("선호작에 넣고 이어 보기로 돌아오며, 댓글을 남긴다", async ({ page }) => {
+  await login(page, READER, "일반 회원");
+  await page.goto("/works?q=퇴근");
+  await page.getByRole("link", { name: "퇴근 후 던전 관리사무소" }).click();
+  await page.getByRole("button", { name: "선호작 추가" }).click();
+  await expect(page.getByRole("button", { name: "✓ 선호작" })).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("link", { name: "첫 화 보기" }).click();
+  await page.getByRole("navigation", { name: "회차 이동" }).getByRole("link", { name: /2화/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: /2화/ })).toBeVisible();
+
+  const comment = `댓글 ${Date.now()}`;
+  await page.getByRole("textbox", { name: /댓글 쓰기/ }).fill(comment);
+  await page.getByRole("button", { name: "등록" }).click();
+  await expect(page.getByText(comment)).toBeVisible();
+  await page
+    .getByRole("button", { name: /^삭제:/ })
+    .first()
+    .click();
+  await expect(page.getByText(comment)).toHaveCount(0);
+
+  await page.goto("/my");
+  await expect(
+    page.getByRole("region", { name: "선호작" }).getByRole("link", { name: "퇴근 후 던전 관리사무소" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "퇴근 후 던전 관리사무소 2화 이어 보기" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: /2화/ })).toBeVisible();
+});

@@ -38,6 +38,7 @@ export async function apiFetch<T>(path: string, { method = "GET", body, token }:
     const error = (await response.json().catch(() => null)) as Partial<ApiErrorBody> | null;
     throw new ApiError(response.status, error?.message ?? "요청을 처리하지 못했습니다.", error?.fieldErrors);
   }
+  if (response.status === 204) return null as T;
   return (await response.json()) as T;
 }
 

@@ -7,8 +7,9 @@ import { getCurrentUser, getSessionToken } from "@/entities/session/index.server
 import { WorkCover } from "@/entities/work";
 import { getWork } from "@/entities/work/index.server";
 import { EpisodePurchaseList } from "@/features/cart";
+import { FavoriteButton } from "@/features/favorite";
 import { formatCompact, formatNumber } from "@/shared/lib";
-import { Badge, ButtonLink } from "@/shared/ui";
+import { Badge, ButtonLink, Main } from "@/shared/ui";
 import styles from "./work-detail.module.scss";
 
 type Params = Promise<{ workId: string }>;
@@ -25,6 +26,8 @@ async function WorkDetailContent({ params }: { params: Params }) {
 
   const access = user && token ? await getWorkAccess(workId, token) : null;
   const first = work.episodes[0];
+  // 읽던 회차가 비공개로 바뀌었으면 처음부터 보여 준다.
+  const resume = work.episodes.find((episode) => episode.number === access?.lastReadNumber)?.number;
 
   return (
     <>
@@ -40,17 +43,23 @@ async function WorkDetailContent({ params }: { params: Params }) {
             {work.authorName} · 총 {formatNumber(work.episodeCount)}화 · 조회 {formatCompact(work.viewCount)}
           </p>
           <p className={styles.synopsis}>{work.synopsis}</p>
-          {first && (
-            <p className={styles.cta}>
-              <ButtonLink href={`/works/${work.id}/episodes/${first.number}`}>첫 화 보기</ButtonLink>
-            </p>
-          )}
+          <div className={styles.cta}>
+            {resume ? (
+              <ButtonLink href={`/works/${work.id}/episodes/${resume}`}>이어 보기: {resume}화</ButtonLink>
+            ) : (
+              first && <ButtonLink href={`/works/${work.id}/episodes/${first.number}`}>첫 화 보기</ButtonLink>
+            )}
+            {user?.role === "READER" && <FavoriteButton workId={work.id} isFavorite={access?.isFavorite ?? false} />}
+            {!user && (
+              <ButtonLink variant="secondary" href={`/login?next=${encodeURIComponent(`/works/${work.id}`)}`}>
+                로그인하고 선호작 추가
+              </ButtonLink>
+            )}
+          </div>
         </div>
       </div>
-      <section aria-labelledby="episodes-heading">
-        <h2 id="episodes-heading" className={styles.h2}>
-          회차
-        </h2>
+      <section aria-label="회차">
+        <h2 className={styles.h2}>회차</h2>
         <EpisodePurchaseList work={work} access={access} role={user?.role ?? null} />
       </section>
     </>
@@ -59,10 +68,10 @@ async function WorkDetailContent({ params }: { params: Params }) {
 
 export function WorkDetailPage({ params }: { params: Params }) {
   return (
-    <main id="main" className={`page ${styles.main}`}>
+    <Main className={`page ${styles.main}`}>
       <Suspense fallback={<div className={styles.skeleton} aria-busy="true" />}>
         <WorkDetailContent params={params} />
       </Suspense>
-    </main>
+    </Main>
   );
 }

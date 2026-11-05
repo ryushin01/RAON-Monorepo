@@ -54,7 +54,7 @@ test("README 스크린샷", async ({ page }) => {
   await page.waitForLoadState("networkidle");
   await shot(page, "studio");
   await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
-  await page.getByRole("link", { name: /1화/ }).click();
+  await page.getByRole("link", { name: /^1화/ }).click();
   await page.getByRole("textbox", { name: "본문" }).waitFor();
   await page.waitForLoadState("networkidle");
   await shot(page, "editor");

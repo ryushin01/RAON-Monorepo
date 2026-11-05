@@ -21,12 +21,15 @@ async function assertClean(page: Page, name: string) {
 }
 
 const SIZES = [
+  { name: "narrow", width: 280, height: 640 },
   { name: "phone", width: 320, height: 640 },
   { name: "desktop", width: 1280, height: 800 },
 ];
 
 for (const theme of ["light", "dark"] as const) {
   for (const size of SIZES) {
+    // 280px는 넘침만 보면 되므로 밝은 화면에서만 돈다.
+    if (size.name === "narrow" && theme === "dark") continue;
     test.describe(`${theme} ${size.name}`, () => {
       test.use({ colorScheme: theme, viewport: { width: size.width, height: size.height } });
 

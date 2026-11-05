@@ -67,7 +67,7 @@ describe("CartView", () => {
 
   it("항목마다 무엇을 뺄지 이름으로 구분된다", async () => {
     setup(cart);
-    await userEvent.click(screen.getByRole("button", { name: "작품 2화. 회차 빼기" }));
+    await userEvent.click(screen.getByRole("button", { name: "빼기: 작품 2화. 회차" }));
     await waitFor(() => expect(removeFromCart).toHaveBeenCalledWith("i1"));
   });
 

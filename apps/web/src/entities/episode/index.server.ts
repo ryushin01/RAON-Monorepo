@@ -1,1 +1,1 @@
-export { getEpisode, getWorkAccess } from "./api/queries";
+export { getComments, getEpisode, getWorkAccess } from "./api/queries";

@@ -1,0 +1,58 @@
+.section {
+  display: grid;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid currentcolor;
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.form {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+
+  > div {
+    width: 100%;
+  }
+}
+
+.list {
+  display: grid;
+  padding: 0;
+  list-style: none;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.item {
+  display: grid;
+  gap: 0.25rem;
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+
+  strong {
+    color: var(--fg);
+  }
+}
+
+.body {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}

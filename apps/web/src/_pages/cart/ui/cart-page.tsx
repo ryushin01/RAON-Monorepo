@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getCart } from "@/entities/cart/index.server";
 import { requireUser } from "@/entities/session/index.server";
 import { CartView } from "@/features/cart";
+import { Main } from "@/shared/ui";
 import styles from "./cart-page.module.scss";
 
 export const cartMetadata: Metadata = { title: "장바구니" };
@@ -14,11 +15,11 @@ async function CartContent() {
 
 export function CartPage() {
   return (
-    <main id="main" className={`page ${styles.main}`}>
+    <Main className={`page ${styles.main}`}>
       <h1 className={styles.title}>장바구니</h1>
       <Suspense fallback={<p aria-busy="true">장바구니를 불러오는 중입니다.</p>}>
         <CartContent />
       </Suspense>
-    </main>
+    </Main>
   );
 }

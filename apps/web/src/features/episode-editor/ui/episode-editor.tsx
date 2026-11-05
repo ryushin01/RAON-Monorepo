@@ -1,12 +1,14 @@
 "use client";
 
-import { countChars, EMPTY_DOC, type EpisodeDoc, type EpisodeInput, type StudioEpisode } from "@raon/contracts";
+import { countChars, type EpisodeDoc, type EpisodeInput, type StudioEpisode } from "@raon/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useId, useState } from "react";
 import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
 import { saveEpisode, setEpisodePublished } from "../api/actions";
+import { UNTITLED } from "../model/constants";
+import { useAutosave } from "../model/use-autosave";
 import styles from "./episode-editor.module.scss";
 import { editorExtensions } from "./extensions";
 
@@ -14,30 +16,38 @@ const AUTOSAVE_MS = 2000;
 
 const timeFormat = new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-interface Props {
-  workId: string;
-  /** 없으면 새 회차를 쓰는 화면이다. 처음 저장할 때 만들어진다. */
-  episode?: StudioEpisode;
+interface SaveRequest {
+  revision: number;
+  input: EpisodeInput;
+  /** 직접 누른 저장만 소리 내어 알린다. 자동 저장까지 읽어 주면 글을 쓰는 데 방해가 된다. */
+  manual: boolean;
 }
 
-export function EpisodeEditor({ workId, episode: initial }: Props) {
+export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) {
   const router = useRouter();
   const contentLabelId = useId();
   const [episode, setEpisode] = useState(initial);
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [authorNote, setAuthorNote] = useState(initial?.authorNote ?? "");
-  const [isFree, setIsFree] = useState(initial?.isFree ?? false);
-  const [dirty, setDirty] = useState(false);
+  const [title, setTitle] = useState(initial.title === UNTITLED ? "" : initial.title);
+  const [authorNote, setAuthorNote] = useState(initial.authorNote ?? "");
+  const [isFree, setIsFree] = useState(initial.isFree);
+  const [revision, setRevision] = useState(0);
+  const [savedRevision, setSavedRevision] = useState(0);
+  const [failedRevision, setFailedRevision] = useState<number | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+
+  const touch = () => setRevision((value) => value + 1);
+  const dirty = revision !== savedRevision;
+  const isDraft = episode.status !== "PUBLISHED";
 
   const editor = useEditor({
     extensions: editorExtensions,
-    content: initial?.content ?? EMPTY_DOC,
+    content: initial.content,
     immediatelyRender: false,
     editorProps: {
       attributes: { "aria-labelledby": contentLabelId, "aria-multiline": "true", role: "textbox" },
     },
-    onUpdate: () => setDirty(true),
+    onUpdate: touch,
   });
 
   const toolbar = useEditorState({
@@ -56,62 +66,66 @@ export function EpisodeEditor({ workId, episode: initial }: Props) {
   });
 
   const save = useMutation({
-    mutationFn: async (input: EpisodeInput) => {
-      const result = await saveEpisode(workId, episode?.id ?? null, input);
+    mutationFn: async ({ input }: SaveRequest) => {
+      const result = await saveEpisode(initial.id, input);
       if (!result.ok) throw new Error(result.message);
       return result.data;
     },
-    onSuccess: (saved) => {
-      const created = !episode;
+    onSuccess: (saved, { revision: sent, manual }) => {
       setEpisode(saved);
-      setDirty(false);
-      setSavedAt(new Date());
-      if (created) {
-        // 편집 상태를 유지한 채 주소만 바꾼다. 새로고침해도 이 회차로 돌아온다.
-        window.history.replaceState(null, "", `/studio/works/${workId}/episodes/${saved.id}`);
-      }
+      // 저장하는 동안 더 입력했다면 sent가 최신이 아니므로 변경 사항이 남은 상태로 둔다.
+      setSavedRevision(sent);
+      setFailedRevision(null);
+      const now = new Date();
+      setSavedAt(now);
+      if (manual) setAnnouncement(`${timeFormat.format(now)}에 저장했습니다.`);
+    },
+    onError: (_, { revision: sent }) => {
+      setFailedRevision(sent);
+      setAnnouncement("저장하지 못했습니다.");
     },
   });
 
   const publish = useMutation({
-    mutationFn: async (input: { episodeId: string; published: boolean }) => {
-      const result = await setEpisodePublished(workId, input.episodeId, input.published);
+    mutationFn: async (published: boolean) => {
+      const result = await setEpisodePublished(episode.workId, initial.id, published);
       if (!result.ok) throw new Error(result.message);
       return result.data;
     },
     onSuccess: (saved) => {
       setEpisode(saved);
+      setAnnouncement(saved.status === "PUBLISHED" ? "공개했습니다." : "비공개로 바꿨습니다.");
       router.refresh();
     },
   });
 
-  const collect = (): EpisodeInput | null =>
+  const collect = (manual: boolean): SaveRequest | null =>
     editor
       ? {
-          title: title.trim() || "제목 없음",
-          content: editor.getJSON() as EpisodeDoc,
-          authorNote: authorNote.trim() || null,
-          isFree,
+          revision,
+          manual,
+          input: {
+            title: title.trim() || UNTITLED,
+            content: editor.getJSON() as EpisodeDoc,
+            authorNote: authorNote.trim() || null,
+            isFree,
+          },
         }
       : null;
 
-  const busy = save.isPending || publish.isPending;
-
   // 초안만 자동 저장한다. 공개한 회차는 독자에게 바로 보이므로 저장 버튼으로만 반영한다.
-  const autosaveRef = useRef<() => void>(() => {});
-  useEffect(() => {
-    autosaveRef.current = () => {
-      const input = collect();
-      if (input && !save.isPending) save.mutate(input);
-    };
+  useAutosave({
+    revision,
+    savedRevision,
+    failedRevision,
+    enabled: isDraft,
+    isSaving: save.isPending,
+    delayMs: AUTOSAVE_MS,
+    save: () => {
+      const request = collect(false);
+      if (request) save.mutate(request);
+    },
   });
-  const isDraft = episode?.status !== "PUBLISHED";
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 입력이 바뀔 때마다 대기 시간을 다시 재기 위해 값들을 넣었다.
-  useEffect(() => {
-    if (!dirty || !isDraft || !title.trim()) return;
-    const timer = setTimeout(() => autosaveRef.current(), AUTOSAVE_MS);
-    return () => clearTimeout(timer);
-  }, [dirty, isDraft, title, authorNote, isFree, toolbar?.chars]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -120,22 +134,33 @@ export function EpisodeEditor({ workId, episode: initial }: Props) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  const onLeave = (event: MouseEvent) => {
+    // 초안은 떠날 때 자동 저장되므로 공개한 회차의 변경 사항만 묻는다.
+    if (dirty && !isDraft && !window.confirm("저장하지 않은 변경 사항이 있습니다. 저장하지 않고 나갈까요?")) {
+      event.preventDefault();
+    }
+  };
+
   const onSave = () => {
-    const input = collect();
-    if (input) save.mutate(input);
+    const request = collect(true);
+    if (request) save.mutate(request);
   };
 
   const onPublish = async () => {
-    const input = collect();
-    if (!input) return;
+    const request = collect(true);
+    if (!request) return;
     // 지금 화면의 내용을 먼저 저장한 뒤 공개한다.
-    const saved = dirty || !episode ? await save.mutateAsync(input).catch(() => null) : episode;
-    if (saved) publish.mutate({ episodeId: saved.id, published: true });
+    if (dirty) {
+      const saved = await save.mutateAsync(request).catch(() => null);
+      if (!saved) return;
+    }
+    publish.mutate(true);
   };
 
+  const busy = save.isPending || publish.isPending;
   const stateText = save.isPending
     ? "저장 중…"
-    : save.error
+    : failedRevision === revision
       ? "저장하지 못했습니다."
       : dirty
         ? isDraft
@@ -143,19 +168,17 @@ export function EpisodeEditor({ workId, episode: initial }: Props) {
           : "저장하지 않은 변경 사항이 있습니다."
         : savedAt
           ? `${timeFormat.format(savedAt)} 저장됨`
-          : episode
-            ? "변경 사항 없음"
-            : "아직 저장하지 않았습니다.";
+          : "변경 사항 없음";
+  const error = save.error ?? publish.error;
 
   return (
     <div className={styles.editor}>
       <div className={styles.bar}>
-        <p className={styles.state} role="status">
-          {episode ? `${episode.number}화 · ${isDraft ? "초안" : "공개 중"} · ` : "새 회차 · "}
-          {stateText}
+        <p className={styles.state}>
+          {episode.number}화 · {isDraft ? "초안" : "공개 중"} · {stateText}
         </p>
         <div className={styles.actions}>
-          <ButtonLink variant="ghost" small href={`/studio/works/${workId}`}>
+          <ButtonLink variant="ghost" small href={`/studio/works/${episode.workId}`} onClick={onLeave}>
             작품 관리로
           </ButtonLink>
           <Button variant="secondary" small onClick={onSave} disabled={busy || !editor}>
@@ -166,29 +189,26 @@ export function EpisodeEditor({ workId, episode: initial }: Props) {
               공개하기
             </Button>
           ) : (
-            <Button
-              variant="secondary"
-              small
-              disabled={busy}
-              onClick={() => episode && publish.mutate({ episodeId: episode.id, published: false })}
-            >
+            <Button variant="secondary" small disabled={busy} onClick={() => publish.mutate(false)}>
               비공개로 바꾸기
             </Button>
           )}
         </div>
       </div>
 
-      {(save.error ?? publish.error) && <Notice tone="error">{(save.error ?? publish.error)?.message}</Notice>}
-      {publish.isSuccess && !isDraft && <Notice>공개했습니다. 독자가 이 회차를 볼 수 있습니다.</Notice>}
+      <p role="status" className="visually-hidden">
+        {announcement}
+      </p>
+      {error && <Notice tone="error">{error.message}</Notice>}
 
       <TextField
         label="회차 제목"
         value={title}
         maxLength={60}
-        required
+        hint="비워 두면 ‘제목 없음’으로 저장합니다."
         onChange={(event) => {
           setTitle(event.target.value);
-          setDirty(true);
+          touch();
         }}
       />
 
@@ -239,7 +259,7 @@ export function EpisodeEditor({ workId, episode: initial }: Props) {
           checked={isFree}
           onChange={(event) => {
             setIsFree(event.target.checked);
-            setDirty(true);
+            touch();
           }}
         />
         무료 회차로 공개
@@ -252,7 +272,7 @@ export function EpisodeEditor({ workId, episode: initial }: Props) {
         hint="본문 아래에 보입니다. 비워 두어도 됩니다."
         onChange={(event) => {
           setAuthorNote(event.target.value);
-          setDirty(true);
+          touch();
         }}
       />
     </div>

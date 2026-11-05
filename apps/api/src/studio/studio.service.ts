@@ -27,6 +27,9 @@ const workColumns = {
   viewCount: works.viewCount,
   publishedEpisodeCount: countOf("PUBLISHED"),
   draftEpisodeCount: countOf("DRAFT"),
+  salesCount: sql<number>`(select count(*)::int from "order_items" o where o."work_id" = "works"."id")`,
+  salesCoins: sql<number>`(select coalesce(sum(o."price"), 0)::int from "order_items" o where o."work_id" = "works"."id")`,
+  favoriteCount: sql<number>`(select count(*)::int from "favorites" f where f."work_id" = "works"."id")`,
   updatedAt: works.updatedAt,
 };
 
@@ -175,6 +178,26 @@ export class StudioService {
       .where(eq(episodes.id, current.id))
       .returning();
     return toEpisode(row!);
+  }
+
+  /** 쓰다 만 초안을 지운다. 공개한 적 없는 내용이므로 번호에 빈자리가 생겨도 독자에게 영향이 없다. */
+  async deleteEpisode(authorId: string, episodeId: string): Promise<void> {
+    const current = await this.ownedEpisode(authorId, episodeId);
+    if (current.status === "PUBLISHED")
+      throw new ConflictException("공개 중인 회차는 비공개로 바꾼 뒤 지울 수 있습니다.");
+    await this.db.delete(episodes).where(eq(episodes.id, episodeId));
+  }
+
+  /** 판매 기록은 구매자의 권리이므로 판매한 작품은 지우지 않는다. */
+  async deleteWork(authorId: string, workId: string): Promise<void> {
+    await this.assertOwner(authorId, workId);
+    const [sold] = await this.db
+      .select({ id: orderItems.id })
+      .from(orderItems)
+      .where(eq(orderItems.workId, workId))
+      .limit(1);
+    if (sold) throw new ConflictException("판매 기록이 있는 작품은 지울 수 없습니다.");
+    await this.db.delete(works).where(eq(works.id, workId));
   }
 
   private assertPublishable(input: Pick<EpisodeInput, "content">) {

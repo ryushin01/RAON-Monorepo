@@ -5,9 +5,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioWork } from "@/entities/studio/index.server";
-import { WorkForm, WorkStatusControl } from "@/features/work-form";
-import { formatDate, formatNumber } from "@/shared/lib";
-import { Badge, ButtonLink } from "@/shared/ui";
+import { DeleteDraftButton, NewEpisodeButton } from "@/features/episode-editor";
+import { DeleteWorkButton, WorkForm, WorkStatusControl } from "@/features/work-form";
+import { formatCoins, formatDate, formatNumber } from "@/shared/lib";
+import { Badge, Main } from "@/shared/ui";
 import styles from "./studio-work.module.scss";
 
 export const studioWorkMetadata: Metadata = { title: "작품 관리" };
@@ -27,14 +28,17 @@ async function StudioWorkContent({ params }: { params: Params }) {
           <Link href="/studio">작가 스튜디오</Link>
         </p>
         <h1 className={styles.title}>{work.title}</h1>
-        <p className={styles.meta}>{WORK_STATUS_LABEL[work.status]}</p>
+        <p className={styles.meta}>
+          {WORK_STATUS_LABEL[work.status]} · 판매 {formatNumber(work.salesCount)}건({formatCoins(work.salesCoins)}) ·
+          선호작 {formatNumber(work.favoriteCount)}명
+        </p>
         <WorkStatusControl workId={work.id} status={work.status} />
       </div>
 
-      <section aria-labelledby="episodes-heading">
+      <section aria-label="회차">
         <div className={styles.head}>
-          <h2 id="episodes-heading">회차</h2>
-          <ButtonLink href={`/studio/works/${work.id}/episodes/new`}>새 회차 쓰기</ButtonLink>
+          <h2>회차</h2>
+          <NewEpisodeButton workId={work.id} />
         </div>
         {work.episodes.length === 0 ? (
           <p>아직 쓴 회차가 없습니다.</p>
@@ -55,6 +59,9 @@ async function StudioWorkContent({ params }: { params: Params }) {
                     {episode.status === "PUBLISHED" ? "공개" : "초안"}
                   </Badge>
                   <Badge>{episode.isFree ? "무료" : "유료"}</Badge>
+                  {episode.status === "DRAFT" && (
+                    <DeleteDraftButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
+                  )}
                 </span>
               </li>
             ))}
@@ -62,11 +69,12 @@ async function StudioWorkContent({ params }: { params: Params }) {
         )}
       </section>
 
-      <section aria-labelledby="info-heading">
-        <h2 id="info-heading" className={styles.h2}>
-          작품 정보
-        </h2>
+      <section aria-label="작품 정보">
+        <h2 className={styles.h2}>작품 정보</h2>
         <WorkForm work={work} />
+        <div className={styles.danger}>
+          <DeleteWorkButton workId={work.id} title={work.title} />
+        </div>
       </section>
     </>
   );
@@ -74,10 +82,10 @@ async function StudioWorkContent({ params }: { params: Params }) {
 
 export function StudioWorkPage({ params }: { params: Params }) {
   return (
-    <main id="main" className={`page ${styles.main}`}>
+    <Main className={`page ${styles.main}`}>
       <Suspense fallback={<p aria-busy="true">작품을 불러오는 중입니다.</p>}>
         <StudioWorkContent params={params} />
       </Suspense>
-    </main>
+    </Main>
   );
 }

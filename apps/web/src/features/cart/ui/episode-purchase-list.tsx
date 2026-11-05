@@ -4,7 +4,7 @@ import type { Role, WorkAccess, WorkDetail } from "@raon/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CART_QUERY_KEY } from "@/entities/cart";
 import { formatCoins, formatDate, formatNumber } from "@/shared/lib";
 import { Badge, Button, ButtonLink, Notice } from "@/shared/ui";
@@ -26,6 +26,8 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<{ tone: "info" | "error"; text: string } | null>(null);
 
+  const wrapRef = useRef<HTMLDivElement>(null);
+
   const add = useMutation({
     mutationFn: async (input: Add) => {
       const result = await addToCart(input);
@@ -35,12 +37,16 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
     onSuccess: () => {
       setSelected(new Set());
       setNotice({ tone: "info", text: "장바구니에 담았습니다." });
+      // 누른 버튼이 사라질 수 있으므로 초점을 회차 목록 영역으로 옮긴다.
+      wrapRef.current?.focus({ preventScroll: true });
       void queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
       router.refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: error.message }),
   });
 
+  // 로그인했다면 이미 산 회차 금액을 뺀 가격을 보여 준다.
+  const wholePrice = access?.wholePriceForUser ?? work.wholePrice;
   const ownsWork = access?.ownsWork ?? false;
   const owned = new Set(access?.ownedEpisodeIds);
   const inCart = new Set(access?.cartEpisodeIds);
@@ -59,13 +65,15 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
     });
 
   return (
-    <div className={styles.wrap}>
-      {work.wholePrice !== null && !ownsWork && (role === "READER" || role === null) && (
+    <div ref={wrapRef} className={styles.wrap} tabIndex={-1}>
+      {wholePrice !== null && !ownsWork && (role === "READER" || role === null) && (
         <div className={styles.whole}>
           <p>
-            작품 전체 {formatCoins(work.wholePrice)}
+            작품 전체 {formatCoins(wholePrice)}
             <small>
-              회차별로 사면 {formatCoins(work.episodes.filter((e) => !e.isFree).length * work.episodePrice)}입니다.
+              {wholePrice !== work.wholePrice
+                ? "이미 산 회차 금액을 뺀 가격입니다."
+                : `회차별로 사면 ${formatCoins(work.episodes.filter((e) => !e.isFree).length * work.episodePrice)}입니다.`}
             </small>
           </p>
           {role === null ? (
@@ -88,7 +96,7 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
         </div>
       )}
 
-      <ol className={styles.list} aria-label="회차 목록">
+      <ol className={styles.list}>
         {work.episodes.map((episode) => {
           const isOwned = ownsWork || owned.has(episode.id);
           const label = episode.isFree
@@ -102,12 +110,10 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
             <li key={episode.id} className={styles.row}>
               {isSelectable(episode.id, episode.isFree) ? (
                 <label className={styles.check}>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(episode.id)}
-                    onChange={() => toggle(episode.id)}
-                    aria-label={`${episode.number}화 ${episode.title} 선택`}
-                  />
+                  <input type="checkbox" checked={selected.has(episode.id)} onChange={() => toggle(episode.id)} />
+                  <span className="visually-hidden">
+                    {episode.number}화 {episode.title} 선택
+                  </span>
                 </label>
               ) : (
                 <span className={canBuy ? styles.check : styles.spacer} />

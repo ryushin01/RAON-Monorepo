@@ -1,0 +1,32 @@
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { EpisodeComments } from "./episode-comments";
+
+const meta = {
+  title: "features/EpisodeComments",
+  component: EpisodeComments,
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={new QueryClient()}>
+        <Story />
+      </QueryClientProvider>
+    ),
+  ],
+  args: {
+    episodeId: "e1",
+    path: "/works/w/episodes/1",
+    loggedIn: true,
+    comments: [
+      {
+        id: "1",
+        authorName: "책벌레",
+        body: "다음 화가 기다려져요.",
+        createdAt: "2026-11-05T00:00:00.000Z",
+        canDelete: true,
+      },
+    ],
+  },
+} satisfies Meta<typeof EpisodeComments>;
+export default meta;
+
+export const Default: StoryObj<typeof meta> = {};

@@ -42,3 +42,14 @@ export async function setWorkStatus(
   }
   return result;
 }
+
+export async function deleteWork(workId: string): Promise<ActionResult<null>> {
+  const token = await getSessionToken();
+  if (!token) return { ok: false, message: "로그인이 필요합니다." };
+  const result = await toActionResult(() => apiFetch<null>(`/studio/works/${workId}`, { method: "DELETE", token }));
+  if (result.ok) {
+    updateTag(WORKS_TAG);
+    revalidatePath("/studio");
+  }
+  return result;
+}

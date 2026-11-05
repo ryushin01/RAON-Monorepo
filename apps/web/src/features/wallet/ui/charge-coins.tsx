@@ -3,6 +3,7 @@
 import { type ChargeInput, COIN_PACKAGES } from "@raon/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useLayoutEffect } from "react";
 import { formatCoins } from "@/shared/lib";
 import { Button, Notice } from "@/shared/ui";
 import { chargeCoins } from "../api/actions";
@@ -18,6 +19,10 @@ export function ChargeCoins() {
     },
     onSuccess: () => router.refresh(),
   });
+
+  // 다른 화면에 다녀와도 지난 충전 안내가 남지 않게 한다.
+  const { reset } = charge;
+  useLayoutEffect(() => reset, [reset]);
 
   return (
     <div className={styles.wrap}>

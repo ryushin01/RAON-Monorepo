@@ -4,13 +4,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { EpisodeContent } from "@/entities/episode";
-import { getEpisode } from "@/entities/episode/index.server";
+import { getComments, getEpisode } from "@/entities/episode/index.server";
 import { getCurrentUser, getSessionToken } from "@/entities/session/index.server";
 import { getWork } from "@/entities/work/index.server";
 import { AddEpisodeButton } from "@/features/cart";
+import { EpisodeComments } from "@/features/episode-comments";
 import { ViewerSettingsToggle } from "@/features/viewer-settings";
 import { formatCoins, formatDate } from "@/shared/lib";
-import { ButtonLink } from "@/shared/ui";
+import { ButtonLink, Main } from "@/shared/ui";
 import styles from "./viewer.module.scss";
 
 type Params = Promise<{ workId: string; number: string }>;
@@ -55,6 +56,9 @@ async function ViewerContent({ params }: { params: Params }) {
   if (!episode) notFound();
 
   const base = `/works/${workId}/episodes`;
+  const path = `${base}/${parsed}`;
+  // 유료 회차는 산 사람만 댓글을 볼 수 있으므로 읽을 수 있을 때만 부른다.
+  const comments = episode.accessible ? await getComments(episode.id, token) : [];
   return (
     <>
       <header className={styles.bar}>
@@ -66,7 +70,7 @@ async function ViewerContent({ params }: { params: Params }) {
         </div>
       </header>
 
-      <main id="main">
+      <Main>
         <article className={styles.body}>
           <header className={styles.head}>
             <p>
@@ -81,7 +85,7 @@ async function ViewerContent({ params }: { params: Params }) {
               <EpisodeContent doc={episode.content} />
             </div>
           ) : (
-            <LockedPanel episode={episode} role={user?.role ?? null} path={`${base}/${parsed}`} />
+            <LockedPanel episode={episode} role={user?.role ?? null} path={path} />
           )}
           {episode.authorNote && (
             <aside className={styles.note} aria-label="작가의 말">
@@ -89,8 +93,11 @@ async function ViewerContent({ params }: { params: Params }) {
               <p>{episode.authorNote}</p>
             </aside>
           )}
+          {episode.accessible && (
+            <EpisodeComments episodeId={episode.id} path={path} comments={comments} loggedIn={Boolean(user)} />
+          )}
         </article>
-      </main>
+      </Main>
 
       <nav className={styles.footer} aria-label="회차 이동">
         {episode.prev ? (
@@ -120,7 +127,7 @@ async function ViewerContent({ params }: { params: Params }) {
 export function ViewerPage({ params }: { params: Params }) {
   return (
     <div className={styles.viewer}>
-      <Suspense fallback={<main id="main" aria-busy="true" />}>
+      <Suspense fallback={<div aria-busy="true" />}>
         <ViewerContent params={params} />
       </Suspense>
     </div>

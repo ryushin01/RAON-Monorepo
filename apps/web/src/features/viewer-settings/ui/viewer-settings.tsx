@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useId, useSyncExternalStore } from "react";
 import {
   MAX_LEADING,
   MAX_SIZE,
@@ -59,7 +59,6 @@ function Options<T extends string>({
 
 function Stepper({
   legend,
-  value,
   display,
   onDecrease,
   onIncrease,
@@ -67,7 +66,6 @@ function Stepper({
   canIncrease,
 }: {
   legend: string;
-  value: number;
   display: string;
   onDecrease: () => void;
   onIncrease: () => void;
@@ -81,9 +79,7 @@ function Stepper({
         <button type="button" onClick={onDecrease} disabled={!canDecrease} aria-label={`${legend} 줄이기`}>
           −
         </button>
-        <output aria-live="polite" data-value={value}>
-          {display}
-        </output>
+        <output>{display}</output>
         <button type="button" onClick={onIncrease} disabled={!canIncrease} aria-label={`${legend} 늘리기`}>
           +
         </button>
@@ -95,26 +91,27 @@ function Stepper({
 export function ViewerSettingsPanel({ id }: { id?: string }) {
   const settings = useSyncExternalStore(viewerSettings.subscribe, viewerSettings.get, viewerSettings.getServer);
   const { update } = viewerSettings;
+  // 숨겨진 다른 회차 화면의 라디오와 묶이지 않도록 이름을 화면마다 다르게 한다.
+  const name = useId();
 
   return (
     <div id={id} className={styles.panel}>
       <Options
         legend="배경"
-        name="viewer-theme"
+        name={`${name}-theme`}
         options={THEMES}
         value={settings.theme}
         onChange={(theme) => update({ theme })}
       />
       <Options
         legend="글꼴"
-        name="viewer-font"
+        name={`${name}-font`}
         options={FONTS}
         value={settings.font}
         onChange={(font) => update({ font })}
       />
       <Stepper
         legend="글자 크기"
-        value={settings.size}
         display={`${settings.size}px`}
         onDecrease={() => update({ size: settings.size - 1 })}
         onIncrease={() => update({ size: settings.size + 1 })}
@@ -123,7 +120,6 @@ export function ViewerSettingsPanel({ id }: { id?: string }) {
       />
       <Stepper
         legend="줄 간격"
-        value={settings.leading}
         display={settings.leading.toFixed(1)}
         onDecrease={() => update({ leading: settings.leading - 0.1 })}
         onIncrease={() => update({ leading: settings.leading + 0.1 })}
