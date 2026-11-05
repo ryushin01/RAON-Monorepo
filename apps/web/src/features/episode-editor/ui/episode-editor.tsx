@@ -63,7 +63,18 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   const touch = () => setRevision((value) => value + 1);
   const dirty = revision !== savedRevision;
   const isDraft = episode.status !== "PUBLISHED";
-  const scheduled = !isDraft && isScheduled(episode.publishedAt);
+  // 공개 시각이 지나면 화면을 다시 그려야 하므로 현재 시각을 상태로 둔다.
+  const [now, setNow] = useState(() => Date.now());
+  const scheduled = !isDraft && isScheduled(episode.publishedAt, now);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 긴 예약은 타이머가 끝날 때 now가 바뀌어 다시 잰다.
+  useEffect(() => {
+    if (!scheduled || !episode.publishedAt) return;
+    // setTimeout이 다룰 수 있는 최대 시간(약 24일)을 넘으면 그때 다시 잰다.
+    const wait = Math.min(Date.parse(episode.publishedAt) - Date.now(), 2 ** 31 - 1);
+    const timer = setTimeout(() => setNow(Date.now()), Math.max(wait, 0));
+    return () => clearTimeout(timer);
+  }, [scheduled, episode.publishedAt, now]);
 
   const editor = useEditor({
     extensions: editorExtensions,
@@ -123,6 +134,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     },
     onSuccess: (saved) => {
       setEpisode(saved);
+      setNow(Date.now());
       setAnnouncement(
         saved.status !== "PUBLISHED"
           ? "비공개로 바꿨습니다."
@@ -240,6 +252,12 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     publish.mutate({ published: true, publishAt });
   };
 
+  const onCancelSchedule = () => {
+    // 화면이 갱신되기 직전에 눌러도 이미 공개된 회차를 내리지 않게 한 번 더 확인한다.
+    if (isScheduled(episode.publishedAt)) publish.mutate({ published: false });
+    else setNow(Date.now());
+  };
+
   const onSchedule = () => {
     const publishAt = toPublishAt(scheduleAt);
     setScheduleError(publishAt ? undefined : "예약 시각을 입력해 주세요.");
@@ -291,7 +309,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
               <Button small disabled={busy || !editor} onClick={() => void onPublish()}>
                 지금 공개
               </Button>
-              <Button variant="secondary" small disabled={busy} onClick={() => publish.mutate({ published: false })}>
+              <Button variant="secondary" small disabled={busy} onClick={onCancelSchedule}>
                 예약 취소
               </Button>
             </>

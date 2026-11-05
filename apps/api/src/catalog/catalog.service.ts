@@ -336,7 +336,8 @@ export class CatalogService {
       .innerJoin(works, eq(favorites.workId, works.id))
       .innerJoin(users, eq(works.authorId, users.id))
       .leftJoin(readingProgress, and(eq(readingProgress.workId, works.id), eq(readingProgress.userId, user.id)))
-      .where(and(eq(favorites.userId, user.id), ne(works.status, "DRAFT")))
+      // 상세가 404인 작품은 링크가 깨지므로 뺀다. 회차가 다시 공개되면 목록에 돌아온다.
+      .where(and(eq(favorites.userId, user.id), ne(works.status, "DRAFT"), HAS_VISIBLE_EPISODE))
       .orderBy(desc(favorites.createdAt));
     return rows.map(toSummary);
   }

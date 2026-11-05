@@ -46,3 +46,13 @@ it("기록에 실패하면 다음 방문 때 다시 보낸다", async () => {
   await settle();
   expect(recordView).toHaveBeenCalledTimes(2);
 });
+
+it("호출 자체가 실패해도 오류를 남기지 않고 다음 방문 때 다시 보낸다", async () => {
+  (recordView as jest.Mock).mockRejectedValueOnce(new Error("network"));
+  const first = render(<ViewTracker workId="w" episodeId="e5" number={5} />);
+  await settle();
+  first.unmount();
+  render(<ViewTracker workId="w" episodeId="e5" number={5} />);
+  await settle();
+  expect(recordView).toHaveBeenCalledTimes(2);
+});
