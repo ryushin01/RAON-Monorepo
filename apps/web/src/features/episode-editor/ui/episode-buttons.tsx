@@ -83,14 +83,19 @@ export function MoveEpisodeButtons({ workId, episodeId, label, canMoveUp, canMov
     },
     onSuccess: () => router.refresh(),
   });
+  // disabled는 키보드 초점을 빼앗으므로(KWCAG 6.1.2) 처리 중에는 aria-disabled로 표시하고 코드에서 막는다.
+  const go = (direction: "up" | "down") => {
+    if (!move.isPending) move.mutate(direction);
+  };
   return (
     <>
       <Button
         variant="secondary"
         small
         aria-label={`위로: ${label}`}
-        disabled={!canMoveUp || move.isPending}
-        onClick={() => move.mutate("up")}
+        disabled={!canMoveUp}
+        aria-disabled={move.isPending}
+        onClick={() => go("up")}
       >
         위로
       </Button>
@@ -98,8 +103,9 @@ export function MoveEpisodeButtons({ workId, episodeId, label, canMoveUp, canMov
         variant="secondary"
         small
         aria-label={`아래로: ${label}`}
-        disabled={!canMoveDown || move.isPending}
-        onClick={() => move.mutate("down")}
+        disabled={!canMoveDown}
+        aria-disabled={move.isPending}
+        onClick={() => go("down")}
       >
         아래로
       </Button>

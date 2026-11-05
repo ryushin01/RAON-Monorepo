@@ -19,6 +19,7 @@ export function WorkRating({ workId, myRating }: { workId: string; myRating: num
     onSuccess: () => router.refresh(),
   });
   const current = rate.isPending ? rate.variables : myRating;
+  // disabled는 키보드 초점을 빼앗으므로(KWCAG 6.1.2) 처리 중에는 aria-disabled로 표시하고 코드에서 막는다.
 
   return (
     <div className={styles.rating}>
@@ -33,8 +34,10 @@ export function WorkRating({ workId, myRating }: { workId: string; myRating: num
             variant={current === score ? "primary" : "secondary"}
             small
             aria-pressed={current === score}
-            disabled={rate.isPending}
-            onClick={() => rate.mutate(current === score ? null : score)}
+            aria-disabled={rate.isPending}
+            onClick={() => {
+              if (!rate.isPending) rate.mutate(current === score ? null : score);
+            }}
           >
             {score}점
           </Button>

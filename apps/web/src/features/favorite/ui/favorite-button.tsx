@@ -13,14 +13,17 @@ export function FavoriteButton({ workId, isFavorite }: { workId: string; isFavor
   });
   // 서버 값이 다시 올 때까지 누른 값을 먼저 보여 준다.
   const pressed = toggle.isPending ? toggle.variables : isFavorite;
+  // disabled는 키보드 초점을 빼앗으므로(KWCAG 6.1.2) 처리 중에는 aria-disabled로 표시하고 코드에서 막는다.
 
   return (
     <>
       <Button
         variant="secondary"
         aria-pressed={pressed}
-        disabled={toggle.isPending}
-        onClick={() => toggle.mutate(!pressed)}
+        aria-disabled={toggle.isPending}
+        onClick={() => {
+          if (!toggle.isPending) toggle.mutate(!pressed);
+        }}
       >
         {pressed ? "✓ 선호작" : "선호작 추가"}
       </Button>

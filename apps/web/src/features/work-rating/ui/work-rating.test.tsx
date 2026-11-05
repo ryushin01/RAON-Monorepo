@@ -29,3 +29,15 @@ it("같은 점수를 다시 누르면 지운다", async () => {
   await userEvent.click(screen.getByRole("button", { name: "3점" }));
   await waitFor(() => expect(setRating).toHaveBeenCalledWith("w1", null));
 });
+
+it("저장 중에도 키보드 초점을 잃지 않고, 다시 눌러도 한 번만 보낸다", async () => {
+  (setRating as jest.Mock).mockReturnValue(new Promise(() => {}));
+  setup(null);
+  const button = screen.getByRole("button", { name: "3점" });
+  button.focus();
+  await userEvent.keyboard("{Enter}");
+  await waitFor(() => expect(button).toHaveAttribute("aria-disabled", "true"));
+  expect(button).toHaveFocus();
+  await userEvent.keyboard("{Enter}");
+  expect(setRating).toHaveBeenCalledTimes(1);
+});

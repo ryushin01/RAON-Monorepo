@@ -169,6 +169,9 @@ test.describe("KWCAG 운용", () => {
     await score.focus();
     await page.keyboard.press("Enter");
     await expect(score).toHaveAttribute("aria-pressed", "true");
+    // 저장하는 동안에도 초점을 잃지 않는다(KWCAG 6.1.2).
+    await expect(score).toBeFocused();
+    await expect(score).toHaveAttribute("aria-disabled", "false");
     await page.keyboard.press("Enter");
     await expect(score).toHaveAttribute("aria-pressed", "false");
   });

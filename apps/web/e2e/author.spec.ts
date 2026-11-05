@@ -210,11 +210,11 @@ test("Ctrl·Cmd 클릭으로 새 탭을 열어도 편집과 백업이 계속된�
 
   await editorOf(page).click();
   await page.keyboard.type(" 더");
-  await page.waitForTimeout(800);
-  const backups = await page.evaluate(() =>
-    Object.keys(localStorage).filter((key) => key.startsWith("raon:episode-backup:")),
-  );
-  expect(backups).toHaveLength(1);
+  await expect
+    .poll(() =>
+      page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("raon:episode-backup:")).length),
+    )
+    .toBe(1);
 });
 
 test("자동 저장이 실패한 채 나가려 하면 묻는다", async ({ page }) => {
