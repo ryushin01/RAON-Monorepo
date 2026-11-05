@@ -81,6 +81,12 @@ export interface ReadingEntry extends WorkSummary {
   lastReadAt: string;
 }
 
+export interface EpisodeCommentList {
+  /** 최신순으로 일부만 담는다. */
+  items: EpisodeComment[];
+  total: number;
+}
+
 export interface EpisodeComment {
   id: string;
   authorName: string;
