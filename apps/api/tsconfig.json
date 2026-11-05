@@ -1,0 +1,5 @@
+{
+  "extends": "@raon/config/tsconfig.nest.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": ".", "types": ["jest", "node"] },
+  "include": ["src", "test", "drizzle.config.ts"]
+}
