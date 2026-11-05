@@ -2958,7 +2958,7 @@ __metadata:
     "@raon/contracts": "workspace:*"
     "@types/express": "npm:^5.0.0"
     "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^24.19.2"
+    "@types/node": "npm:^26.6.6"
     "@types/supertest": "npm:^7.0.0"
     drizzle-kit: "npm:0.31.11"
     drizzle-orm: "npm:0.45.4"
@@ -2990,7 +2990,7 @@ __metadata:
   dependencies:
     "@raon/config": "workspace:*"
     "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^24.19.2"
+    "@types/node": "npm:^26.6.6"
     jest: "npm:30.5.2"
     ts-jest: "npm:29.4.15"
     typescript: "npm:~6.0.3"
@@ -3018,7 +3018,7 @@ __metadata:
     "@tiptap/react": "npm:3.32.2"
     "@tiptap/starter-kit": "npm:3.32.2"
     "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^24.19.2"
+    "@types/node": "npm:^26.6.6"
     "@types/react": "npm:^19.2.0"
     "@types/react-dom": "npm:^19.2.0"
     babel-plugin-react-compiler: "npm:1.0.0"
@@ -4018,21 +4018,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*":
+"@types/node@npm:*, @types/node@npm:^26.6.6":
   version: 26.6.6
   resolution: "@types/node@npm:26.6.6"
   dependencies:
     undici-types: "npm:~8.9.0"
   checksum: 10c0/5cb63f644f6e85a257a9cd2403cbcbe196760e2a35fd3ec9fb8b5cff663e14cc832b198cc17b53f870a2e30900ed45a1fb3f53e6589aba26b8e8c484aa672053
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:^24.19.2":
-  version: 24.19.2
-  resolution: "@types/node@npm:24.19.2"
-  dependencies:
-    undici-types: "npm:>=7.24.0 <7.24.7"
-  checksum: 10c0/b51a7f8854007ad579dffdd0633d8addbfeb2c97cceb380f2eba0ed163638ec52e17565385a6cc04d54ac4ff99c70c64aee68a4ca45b6128c035e828794e29c5
   languageName: node
   linkType: hard
 
@@ -9977,13 +9968,6 @@ __metadata:
   version: 1.6.0
   resolution: "uint8array-extras@npm:1.6.0"
   checksum: 10c0/d53177c025ebea31af1e445abd474027b66341a56f207f352a5a486aa1d492e228bbc883dc4a51ea8358bb88d60a019351e20a92dd17c2ef8326e29fbad57127
-  languageName: node
-  linkType: hard
-
-"undici-types@npm:>=7.24.0 <7.24.7":
-  version: 7.24.6
-  resolution: "undici-types@npm:7.24.6"
-  checksum: 10c0/d9cd8befb643ac904615c280a095ba4240531f6bb4a5e75a22a7483630ca8d3f1016d2ab6ace6ceda1f63b3a2db2fe037fafe121d6917a0187573aa548ff78ca
   languageName: node
   linkType: hard
 
