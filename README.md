@@ -46,7 +46,7 @@
 
 ## 기술 스택
 
-![My Skills](https://skillicons.dev/icons?i=nextjs,react,ts,sass,nestjs,postgres,yarn,jest,storybook,docker)
+![Next.js, React, TypeScript, Sass, NestJS, PostgreSQL, Yarn, Jest, Docker](https://skillicons.dev/icons?i=nextjs,react,ts,sass,nestjs,postgres,yarn,jest,docker)
 
 | 구분             | 사용 기술                                                                                                          |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
