@@ -37,28 +37,42 @@ export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
   const [current, setCurrent] = useState(episode);
   const [generation, setGeneration] = useState(0);
   const [status, setStatus] = useState<"ready" | "refreshing" | "failed">("ready");
+  const [failure, setFailure] = useState("");
+  const [notice, setNotice] = useState("");
   const shown = useRef(false);
   const attempt = useRef(0);
+  const regionRef = useRef<HTMLDivElement>(null);
 
-  const refresh = () => {
+  const refresh = (announceDone = false) => {
     attempt.current += 1;
     const id = attempt.current;
     setStatus("refreshing");
+    setNotice("");
     fetchEpisode(episode.id)
       .then((result) => {
         if (id !== attempt.current) return;
         // 옛 내용으로 다시 시작하면 최신 원고를 덮어쓸 수 있으므로, 읽지 못하면 편집 칸을 열지 않는다.
         if (!result.ok) {
+          setFailure(result.message);
           setStatus("failed");
           return;
         }
         setCurrent(result.data);
         setGeneration((value) => value + 1);
         setStatus("ready");
+        if (announceDone) setNotice("최신 내용을 불러왔습니다.");
       })
       .catch(() => {
-        if (id === attempt.current) setStatus("failed");
+        if (id !== attempt.current) return;
+        setFailure("네트워크를 확인한 뒤 다시 시도해 주세요.");
+        setStatus("failed");
       });
+  };
+
+  // 다시 시도 버튼은 읽는 동안 사라지므로, 초점을 항상 남아 있는 영역으로 옮겨 페이지 처음으로 튕기지 않게 한다.
+  const retry = () => {
+    regionRef.current?.focus();
+    refresh(true);
   };
 
   // 화면이 그려지기 전에 편집 칸을 내려서, 다시 읽는 동안 쓴 글이 교체로 사라지는 일이 없게 한다.
@@ -74,20 +88,25 @@ export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
     };
   }, [episode.id]);
 
-  if (status === "refreshing") return <p aria-busy="true">최신 내용을 불러오는 중입니다.</p>;
-  if (status === "failed") {
-    return (
-      <div className={styles.backup}>
-        <p role="alert">최신 내용을 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.</p>
-        <div className={styles.actions}>
-          <Button small onClick={refresh}>
-            다시 시도
-          </Button>
+  return (
+    <div ref={regionRef} tabIndex={-1}>
+      <p role="status" className="visually-hidden">
+        {notice}
+      </p>
+      {status === "refreshing" && <p aria-busy="true">최신 내용을 불러오는 중입니다.</p>}
+      {status === "failed" && (
+        <div className={styles.backup}>
+          <p role="alert">최신 내용을 불러오지 못했습니다. {failure}</p>
+          <div className={styles.actions}>
+            <Button small onClick={retry}>
+              다시 시도
+            </Button>
+          </div>
         </div>
-      </div>
-    );
-  }
-  return <EpisodeEditorBody key={generation} episode={current} />;
+      )}
+      {status === "ready" && <EpisodeEditorBody key={generation} episode={current} />}
+    </div>
+  );
 }
 
 function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
