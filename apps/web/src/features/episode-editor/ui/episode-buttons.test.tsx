@@ -35,7 +35,11 @@ it("초안 삭제는 확인을 받은 뒤에만 한다", async () => {
 it("회차를 버튼으로 옮기고, 끝에서는 그쪽 버튼을 막는다", async () => {
   (moveEpisode as jest.Mock).mockResolvedValue({ ok: true, data: null });
   wrap(<MoveEpisodeButtons workId="w1" episodeId="e1" label="1화" canMoveUp={false} canMoveDown />);
-  expect(screen.getByRole("button", { name: "위로: 1화" })).toBeDisabled();
+  // disabled면 키보드 초점을 잃으므로 aria-disabled로 표시하고 눌러도 보내지 않는다.
+  const up = screen.getByRole("button", { name: "위로: 1화" });
+  expect(up).toHaveAttribute("aria-disabled", "true");
+  await userEvent.click(up);
+  expect(moveEpisode).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "아래로: 1화" }));
   await waitFor(() => expect(moveEpisode).toHaveBeenCalledWith("w1", "e1", "down"));
 });

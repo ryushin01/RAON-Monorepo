@@ -186,6 +186,29 @@ test("돌아온 직후 다시 읽는 동안에는 입력 칸을 내려 쓴 글�
   await page.unroute("**/studio/works/**");
 });
 
+test("다시 읽기에 실패하면 옛 내용을 열지 않고 다시 시도할 수 있다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `재조회 실패 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("저장한 본문");
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+
+  await page.route("**/studio/works/**", (route) =>
+    route.request().method() === "POST" ? route.abort() : route.continue(),
+  );
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "최신 내용을 불러오지 못했습니다" })).toBeVisible();
+  await expect(editorOf(page)).toHaveCount(0);
+
+  await page.unroute("**/studio/works/**");
+  await page.getByRole("button", { name: "다시 시도" }).click();
+  await expect(editorOf(page)).toHaveText("저장한 본문");
+});
+
 test("Ctrl·Cmd 클릭으로 새 탭을 열어도 편집과 백업이 계속된다", async ({ page, context }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `새 탭 ${Date.now()}`);
@@ -447,7 +470,7 @@ test("회차 순서를 버튼으로 바꾼다", async ({ page }) => {
   await page.getByRole("link", { name: "기억을 파는 골목" }).click();
   const list = page.getByRole("region", { name: "회차" });
   await expect(list.getByRole("link", { name: /^1화\. 환불 불가/ })).toBeVisible();
-  await expect(list.getByRole("button", { name: "위로: 1화" })).toBeDisabled();
+  await expect(list.getByRole("button", { name: "위로: 1화" })).toHaveAttribute("aria-disabled", "true");
   await list.getByRole("button", { name: "위로: 2화" }).click();
   await expect(list.getByRole("link", { name: /^1화\. 영수증/ })).toBeVisible();
   // 다른 테스트에 영향이 없도록 되돌린다.

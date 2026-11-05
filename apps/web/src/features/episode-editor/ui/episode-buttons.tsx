@@ -93,9 +93,10 @@ export function MoveEpisodeButtons({ workId, episodeId, label, canMoveUp, canMov
         variant="secondary"
         small
         aria-label={`위로: ${label}`}
-        disabled={!canMoveUp}
-        aria-disabled={move.isPending}
-        onClick={() => go("up")}
+        aria-disabled={!canMoveUp || move.isPending}
+        onClick={() => {
+          if (canMoveUp) go("up");
+        }}
       >
         위로
       </Button>
@@ -103,9 +104,10 @@ export function MoveEpisodeButtons({ workId, episodeId, label, canMoveUp, canMov
         variant="secondary"
         small
         aria-label={`아래로: ${label}`}
-        disabled={!canMoveDown}
-        aria-disabled={move.isPending}
-        onClick={() => go("down")}
+        aria-disabled={!canMoveDown || move.isPending}
+        onClick={() => {
+          if (canMoveDown) go("down");
+        }}
       >
         아래로
       </Button>

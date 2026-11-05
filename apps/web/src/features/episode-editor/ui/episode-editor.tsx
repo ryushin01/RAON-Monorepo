@@ -36,29 +36,57 @@ interface SaveRequest {
 export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
   const [current, setCurrent] = useState(episode);
   const [generation, setGeneration] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
+  const [status, setStatus] = useState<"ready" | "refreshing" | "failed">("ready");
   const shown = useRef(false);
+  const attempt = useRef(0);
+
+  const refresh = () => {
+    attempt.current += 1;
+    const id = attempt.current;
+    setStatus("refreshing");
+    fetchEpisode(episode.id)
+      .then((result) => {
+        if (id !== attempt.current) return;
+        // 옛 내용으로 다시 시작하면 최신 원고를 덮어쓸 수 있으므로, 읽지 못하면 편집 칸을 열지 않는다.
+        if (!result.ok) {
+          setStatus("failed");
+          return;
+        }
+        setCurrent(result.data);
+        setGeneration((value) => value + 1);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (id === attempt.current) setStatus("failed");
+      });
+  };
 
   // 화면이 그려지기 전에 편집 칸을 내려서, 다시 읽는 동안 쓴 글이 교체로 사라지는 일이 없게 한다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 화면에 다시 나타날 때만 실행한다.
   useLayoutEffect(() => {
     if (!shown.current) {
       shown.current = true;
       return;
     }
-    let active = true;
-    setRefreshing(true);
-    void fetchEpisode(episode.id).then((result) => {
-      if (!active) return;
-      if (result.ok) setCurrent(result.data);
-      setGeneration((value) => value + 1);
-      setRefreshing(false);
-    });
+    refresh();
     return () => {
-      active = false;
+      attempt.current += 1;
     };
   }, [episode.id]);
 
-  if (refreshing) return <p aria-busy="true">최신 내용을 불러오는 중입니다.</p>;
+  if (status === "refreshing") return <p aria-busy="true">최신 내용을 불러오는 중입니다.</p>;
+  if (status === "failed") {
+    return (
+      <div className={styles.backup}>
+        <p role="alert">최신 내용을 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.</p>
+        <div className={styles.actions}>
+          <Button small onClick={refresh}>
+            다시 시도
+          </Button>
+        </div>
+      </div>
+    );
+  }
   return <EpisodeEditorBody key={generation} episode={current} />;
 }
 
@@ -277,7 +305,8 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
     } else if (!failed) {
       // 버리기로 했으니 백업도 남기지 않는다.
       discarded.current = true;
-      clearBackup(initial.id);
+      // 복원 여부를 고르지 않은 이전 백업은 이번 입력과 다른 원고이므로 남긴다.
+      if (!backupPending.current) clearBackup(initial.id);
     }
   };
 
