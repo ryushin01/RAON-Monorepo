@@ -898,6 +898,38 @@ describe("RAON API", () => {
     });
   });
 
+  describe("선호작과 공개 상태", () => {
+    it("보이는 회차가 없어지면 선호작에서 빠지고, 다시 공개하면 돌아온다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const token = bearer(author.accessToken);
+      const work = (
+        await http().post("/studio/works").set(token).send({
+          title: "내렸다 올리는 작품",
+          synopsis: "열 글자가 넘는 작품 소개입니다.",
+          genre: "SF",
+          episodePrice: 100,
+          wholePrice: null,
+          tags: [],
+        })
+      ).body as StudioWorkDetail;
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "1화", content: doc, authorNote: null, isFree: true });
+      await http().post(`/studio/episodes/${body.id}/publish`).set(token).expect(200);
+      await http().put(`/works/${work.id}/favorite`).set(bearer(reader.accessToken)).expect(204);
+      const favorites = async () => (await http().get("/favorites").set(bearer(reader.accessToken))).body;
+      expect(await favorites()).toHaveLength(1);
+
+      await http().post(`/studio/episodes/${body.id}/unpublish`).set(token).expect(200);
+      expect(await favorites()).toHaveLength(0);
+
+      await http().post(`/studio/episodes/${body.id}/publish`).set(token).expect(200);
+      expect(await favorites()).toHaveLength(1);
+    });
+  });
+
   describe("가상 데이터", () => {
     it("빈 DB에 넣으면 내 서재와 작가 통계가 채워지고, 다시 실행해도 늘지 않는다", async () => {
       const fresh = await openDatabase({});
