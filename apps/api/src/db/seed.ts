@@ -1,9 +1,28 @@
+import { randomUUID } from "node:crypto";
 import { countChars, docFromText } from "@raon/contracts";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { hashPassword } from "../auth/password.js";
 import type { Database } from "./database.js";
-import { episodes, users, works } from "./schema.js";
-import { DEMO_PASSWORD, DEMO_USERS, DEMO_WORKS } from "./seed-data.js";
+import {
+  coinLedger,
+  comments,
+  episodes,
+  favorites,
+  orderItems,
+  orders,
+  readingProgress,
+  users,
+  works,
+} from "./schema.js";
+import {
+  DEMO_COMMENTS,
+  DEMO_FAVORITES,
+  DEMO_PASSWORD,
+  DEMO_PROGRESS,
+  DEMO_PURCHASES,
+  DEMO_USERS,
+  DEMO_WORKS,
+} from "./seed-data.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -18,14 +37,16 @@ export async function seedDemoData(db: Database, now = new Date()): Promise<void
       .insert(users)
       .values(DEMO_USERS.map((user) => ({ ...user, passwordHash })))
       .returning({ id: users.id, email: users.email });
-    const idOf = new Map(created.map((user) => [user.email, user.id]));
+    const userId = (email: string) => created.find((user) => user.email === email)!.id;
 
+    const workIds = new Map<string, string>();
     for (const [workIndex, demo] of DEMO_WORKS.entries()) {
       const { author, freeCount, episodes: demoEpisodes, ...fields } = demo;
       const [work] = await tx
         .insert(works)
-        .values({ ...fields, authorId: idOf.get(author)! })
+        .values({ ...fields, authorId: userId(author) })
         .returning({ id: works.id });
+      workIds.set(demo.title, work!.id);
 
       await tx.insert(episodes).values(
         demoEpisodes.map((episode, index) => {
@@ -43,6 +64,48 @@ export async function seedDemoData(db: Database, now = new Date()): Promise<void
           };
         }),
       );
+    }
+
+    const workId = (title: string) => workIds.get(title)!;
+    const episodeOf = async (title: string, number: number) => {
+      const [episode] = await tx
+        .select({ id: episodes.id })
+        .from(episodes)
+        .where(and(eq(episodes.workId, workId(title)), eq(episodes.number, number)));
+      return episode!.id;
+    };
+
+    await tx.insert(favorites).values(DEMO_FAVORITES.map((f) => ({ userId: userId(f.user), workId: workId(f.work) })));
+    await tx
+      .insert(readingProgress)
+      .values(
+        DEMO_PROGRESS.map((p) => ({ userId: userId(p.user), workId: workId(p.work), episodeNumber: p.episodeNumber })),
+      );
+
+    for (const [index, comment] of DEMO_COMMENTS.entries()) {
+      await tx.insert(comments).values({
+        episodeId: await episodeOf(comment.work, comment.episodeNumber),
+        userId: userId(comment.user),
+        body: comment.body,
+        createdAt: new Date(now.getTime() - (DEMO_COMMENTS.length - index) * 60 * 60 * 1000),
+      });
+    }
+
+    for (const purchase of DEMO_PURCHASES) {
+      const buyer = userId(purchase.user);
+      const work = DEMO_WORKS.find((w) => w.title === purchase.work)!;
+      const [order] = await tx
+        .insert(orders)
+        .values({ userId: buyer, idempotencyKey: randomUUID(), total: work.episodePrice })
+        .returning({ id: orders.id });
+      await tx.insert(orderItems).values({
+        orderId: order!.id,
+        userId: buyer,
+        workId: workId(purchase.work),
+        episodeId: await episodeOf(purchase.work, purchase.episodeNumber),
+        price: work.episodePrice,
+      });
+      await tx.insert(coinLedger).values({ userId: buyer, amount: -work.episodePrice, reason: "PURCHASE" });
     }
   });
 }
