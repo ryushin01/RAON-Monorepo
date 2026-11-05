@@ -444,13 +444,56 @@ describe("RAON API", () => {
       expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
     });
 
-    it("작가 본인의 열람은 조회수에 넣지 않는다", async () => {
+    it("조회수는 기록 요청으로만 늘고, 작가 본인과 읽을 수 없는 회차는 세지 않는다", async () => {
       const author = await signup("AUTHOR");
       const work = await publishWork(author.accessToken);
-      await http().get(`/works/${work.id}/episodes/1`).set(bearer(author.accessToken)).expect(200);
-      expect((await http().get(`/works/${work.id}`)).body.viewCount).toBe(0);
+      const viewCount = async () => (await http().get(`/works/${work.id}`)).body.viewCount;
+
       await http().get(`/works/${work.id}/episodes/1`).expect(200);
-      expect((await http().get(`/works/${work.id}`)).body.viewCount).toBe(1);
+      expect(await viewCount()).toBe(0);
+
+      await http().post(`/works/${work.id}/episodes/1/view`).set(bearer(author.accessToken)).expect(204);
+      await http().post(`/works/${work.id}/episodes/2/view`).expect(204);
+      expect(await viewCount()).toBe(0);
+
+      await http().post(`/works/${work.id}/episodes/1/view`).expect(204);
+      expect(await viewCount()).toBe(1);
+      await http().post(`/works/${work.id}/episodes/99/view`).expect(404);
+    });
+
+    it("전체 구매자가 있으면 공개했던 회차를 내리거나 지울 수 없다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken, { complete: true });
+      const target = work.episodes[2]!;
+      await http().post("/cart/items").set(bearer(reader.accessToken)).send({ kind: "WORK", workId: work.id });
+      await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+
+      await http().post(`/studio/episodes/${target.id}/unpublish`).set(token).expect(409);
+      expect((await http().get(`/works/${work.id}/episodes/3`).set(bearer(reader.accessToken))).body.accessible).toBe(
+        true,
+      );
+
+      // 공개한 적 없는 새 초안은 지울 수 있다.
+      const draft = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "새 초안", content: doc, authorNote: null, isFree: false });
+      await http().delete(`/studio/episodes/${draft.body.id}`).set(token).expect(204);
+    });
+
+    it("읽던 회차를 내리면 이어 보기에서 빠진다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const work = await publishWork(author.accessToken);
+      await http().get(`/works/${work.id}/episodes/1`).set(bearer(reader.accessToken)).expect(200);
+      expect((await http().get("/reading").set(bearer(reader.accessToken))).body).toHaveLength(1);
+      await http()
+        .post(`/studio/episodes/${work.episodes[0]!.id}/unpublish`)
+        .set(bearer(author.accessToken))
+        .expect(200);
+      expect((await http().get("/reading").set(bearer(reader.accessToken))).body).toHaveLength(0);
     });
 
     it("1화를 내려도 첫 공개 회차 번호를 알려 준다", async () => {
@@ -543,14 +586,14 @@ describe("RAON API", () => {
       await http().post(`/episodes/${paid!.id}/comments`).set(token).send({ body: "안 산 회차" }).expect(403);
 
       const guestView = await http().get(`/episodes/${free!.id}/comments`).expect(200);
-      expect(guestView.body[0]).toMatchObject({ body: "재미있어요", canDelete: false });
+      expect(guestView.body.items[0]).toMatchObject({ body: "재미있어요", canDelete: false });
       const mine = await http().get(`/episodes/${free!.id}/comments`).set(token);
-      expect(mine.body[0].canDelete).toBe(true);
+      expect(mine.body.items[0].canDelete).toBe(true);
 
-      const id = mine.body[0].id;
+      const id = mine.body.items[0].id;
       await http().delete(`/comments/${id}`).set(bearer(other.accessToken)).expect(403);
       await http().delete(`/comments/${id}`).set(bearer(author.accessToken)).expect(204);
-      expect((await http().get(`/episodes/${free!.id}/comments`)).body).toHaveLength(0);
+      expect((await http().get(`/episodes/${free!.id}/comments`)).body).toEqual({ items: [], total: 0 });
     });
   });
 

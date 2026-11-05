@@ -56,6 +56,18 @@ export class CatalogController {
     return this.catalog.getEpisode(workId, number, user);
   }
 
+  @Post("works/:workId/episodes/:number/view")
+  @HttpCode(204)
+  @OptionalAuth()
+  @UseGuards(AuthGuard)
+  async view(
+    @Param("workId", ParseUUIDPipe) workId: string,
+    @Param("number", ParseIntPipe) number: number,
+    @CurrentUser() user: AuthUser | undefined,
+  ) {
+    await this.catalog.recordView(workId, number, user);
+  }
+
   @Put("works/:workId/favorite")
   @HttpCode(204)
   @UseGuards(AuthGuard)

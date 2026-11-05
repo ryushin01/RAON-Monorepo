@@ -1,6 +1,6 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
-  type EpisodeComment,
+  type EpisodeCommentList,
   EpisodeView,
   FavoriteWork,
   type Paginated,
@@ -251,13 +251,6 @@ export class CatalogService {
           set: { episodeNumber: number, updatedAt: new Date() },
         });
     }
-    // 작가가 자기 글을 확인하는 것은 조회수에 넣지 않는다.
-    if (accessible && user?.id !== row.authorId) {
-      await this.db
-        .update(works)
-        .set({ viewCount: sql`${works.viewCount} + 1` })
-        .where(eq(works.id, workId));
-    }
 
     const neighbors = await this.db
       .select({ number: episodes.number, title: episodes.title })
@@ -280,6 +273,23 @@ export class CatalogService {
       content: accessible ? row.episode.content : null,
       authorNote: accessible ? row.episode.authorNote : null,
     };
+  }
+
+  /** 조회수는 화면이 한 번만 보낸다. 작가가 자기 글을 확인하는 것과 읽을 수 없는 회차는 세지 않는다. */
+  async recordView(workId: string, number: number, user: AuthUser | undefined): Promise<void> {
+    const [row] = await this.db
+      .select({ episode: episodes, authorId: works.authorId })
+      .from(episodes)
+      .innerJoin(works, eq(episodes.workId, works.id))
+      .where(
+        and(eq(episodes.workId, workId), eq(episodes.number, number), visibleEpisode(), ne(works.status, "DRAFT")),
+      );
+    if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
+    if (user?.id === row.authorId || !(await this.canRead(row.episode, row.authorId, user))) return;
+    await this.db
+      .update(works)
+      .set({ viewCount: sql`${works.viewCount} + 1` })
+      .where(eq(works.id, workId));
   }
 
   async setFavorite(user: AuthUser, workId: string, favorite: boolean): Promise<void> {
@@ -339,7 +349,14 @@ export class CatalogService {
       .from(readingProgress)
       .innerJoin(works, eq(readingProgress.workId, works.id))
       .innerJoin(users, eq(works.authorId, users.id))
-      .where(and(eq(readingProgress.userId, user.id), ne(works.status, "DRAFT")))
+      .where(
+        and(
+          eq(readingProgress.userId, user.id),
+          ne(works.status, "DRAFT"),
+          // 읽던 회차를 작가가 내렸으면 이어 보기 링크가 깨지므로 뺀다.
+          sql`exists (select 1 from "episodes" e where e."work_id" = "works"."id" and e."number" = ${readingProgress.episodeNumber} and ${VISIBLE})`,
+        ),
+      )
       .orderBy(desc(readingProgress.updatedAt))
       .limit(10);
     return rows.map((row) => ({
@@ -348,7 +365,7 @@ export class CatalogService {
     }));
   }
 
-  async listComments(episodeId: string, user: AuthUser | undefined): Promise<EpisodeComment[]> {
+  async listComments(episodeId: string, user: AuthUser | undefined): Promise<EpisodeCommentList> {
     const target = await this.readableEpisode(episodeId, user);
     const rows = await this.db
       .select({
@@ -363,13 +380,20 @@ export class CatalogService {
       .where(eq(comments.episodeId, episodeId))
       .orderBy(desc(comments.createdAt))
       .limit(100);
-    return rows.map((row) => ({
-      id: row.id,
-      authorName: row.authorName,
-      body: row.body,
-      createdAt: row.createdAt.toISOString(),
-      canDelete: Boolean(user && (user.id === row.userId || user.id === target.authorId)),
-    }));
+    const [counted] = await this.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(comments)
+      .where(eq(comments.episodeId, episodeId));
+    return {
+      total: counted?.total ?? 0,
+      items: rows.map((row) => ({
+        id: row.id,
+        authorName: row.authorName,
+        body: row.body,
+        createdAt: row.createdAt.toISOString(),
+        canDelete: Boolean(user && (user.id === row.userId || user.id === target.authorId)),
+      })),
+    };
   }
 
   /** 본문을 읽을 수 있는 사람만 댓글을 보고 쓴다. 유료 회차의 내용이 댓글로 새지 않게 하기 위해서다. */

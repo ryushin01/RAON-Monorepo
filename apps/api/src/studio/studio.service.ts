@@ -7,7 +7,8 @@ import {
   type StudioWorkDetail,
   type WorkInput,
 } from "@raon/contracts";
-import { and, asc, desc, eq, gt, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { isForeignKeyViolation } from "../common/db-errors.js";
 import { detectImageType } from "../common/image.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
@@ -232,12 +233,9 @@ export class StudioService {
 
   async unpublishEpisode(authorId: string, episodeId: string): Promise<StudioEpisode> {
     const current = await this.ownedEpisode(authorId, episodeId);
-    const [sold] = await this.db
-      .select({ id: orderItems.id })
-      .from(orderItems)
-      .where(eq(orderItems.episodeId, episodeId))
-      .limit(1);
-    if (sold) throw new ConflictException("이미 판매한 회차는 비공개로 바꿀 수 없습니다.");
+    if (await this.isSold(current.workId, episodeId)) {
+      throw new ConflictException("이미 판매한 회차는 비공개로 바꿀 수 없습니다.");
+    }
     const [row] = await this.db
       .update(episodes)
       .set({
@@ -255,6 +253,9 @@ export class StudioService {
     const current = await this.ownedEpisode(authorId, episodeId);
     if (current.status === "PUBLISHED")
       throw new ConflictException("공개 중인 회차는 비공개로 바꾼 뒤 지울 수 있습니다.");
+    if (current.publishedAt && (await this.isSold(current.workId, episodeId))) {
+      throw new ConflictException("이미 판매한 회차는 지울 수 없습니다.");
+    }
     await this.db.delete(episodes).where(eq(episodes.id, episodeId));
   }
 
@@ -267,7 +268,23 @@ export class StudioService {
       .where(eq(orderItems.workId, workId))
       .limit(1);
     if (sold) throw new ConflictException("판매 기록이 있는 작품은 지울 수 없습니다.");
-    await this.db.delete(works).where(eq(works.id, workId));
+    try {
+      await this.db.delete(works).where(eq(works.id, workId));
+    } catch (error) {
+      // 확인과 삭제 사이에 결제가 끝나면 주문의 외래 키가 막는다.
+      if (isForeignKeyViolation(error)) throw new ConflictException("판매 기록이 있는 작품은 지울 수 없습니다.");
+      throw error;
+    }
+  }
+
+  /** 회차를 직접 샀거나, 작품 전체를 산 사람이 있으면 판매한 것이다. */
+  private async isSold(workId: string, episodeId: string): Promise<boolean> {
+    const [sold] = await this.db
+      .select({ id: orderItems.id })
+      .from(orderItems)
+      .where(and(eq(orderItems.workId, workId), or(eq(orderItems.episodeId, episodeId), isNull(orderItems.episodeId))))
+      .limit(1);
+    return Boolean(sold);
   }
 
   private assertPublishable(input: Pick<EpisodeInput, "content">) {
