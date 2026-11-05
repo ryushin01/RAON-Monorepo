@@ -3,6 +3,8 @@ export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 export const THEME_STORAGE_KEY = "raon:theme";
 export const VIEWER_STORAGE_KEY = "raon:viewer";
+/** 저장하지 못한 회차 원고의 로컬 백업. 공개 전 글이므로 로그아웃할 때 지운다. */
+export const EPISODE_BACKUP_PREFIX = "raon:episode-backup:";
 
 /**
  * 첫 화면을 그리기 전에 저장된 테마와 뷰어 설정을 html 속성에 적용한다.

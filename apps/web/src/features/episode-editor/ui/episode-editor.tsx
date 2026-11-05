@@ -4,15 +4,18 @@ import { countChars, type EpisodeDoc, type EpisodeInput, type StudioEpisode } fr
 import { useMutation } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
-import { type MouseEvent, useEffect, useId, useState } from "react";
+import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
 import { saveEpisode, setEpisodePublished } from "../api/actions";
 import { UNTITLED } from "../model/constants";
+import { clearBackup, type DraftBackup, readBackup, writeBackup } from "../model/draft-backup";
 import { useAutosave } from "../model/use-autosave";
 import styles from "./episode-editor.module.scss";
 import { editorExtensions } from "./extensions";
 
 const AUTOSAVE_MS = 2000;
+const RETRY_MS = 15_000;
+const BACKUP_MS = 500;
 
 const timeFormat = new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
@@ -35,7 +38,14 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   const [failedRevision, setFailedRevision] = useState<number | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const [backup, setBackup] = useState<DraftBackup | null>(null);
 
+  // localStorage는 브라우저에만 있으므로 화면을 그린 뒤에 읽는다.
+  useEffect(() => {
+    setBackup(readBackup(initial.id, initial.updatedAt));
+  }, [initial.id, initial.updatedAt]);
+
+  const latestRevision = useRef(0);
   const touch = () => setRevision((value) => value + 1);
   const dirty = revision !== savedRevision;
   const isDraft = episode.status !== "PUBLISHED";
@@ -75,6 +85,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
       setEpisode(saved);
       // 저장하는 동안 더 입력했다면 sent가 최신이 아니므로 변경 사항이 남은 상태로 둔다.
       setSavedRevision(sent);
+      if (sent === latestRevision.current) clearBackup(initial.id);
       setFailedRevision(null);
       const now = new Date();
       setSavedAt(now);
@@ -99,19 +110,20 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     },
   });
 
-  const collect = (manual: boolean): SaveRequest | null =>
+  const collectInput = (): EpisodeInput | null =>
     editor
       ? {
-          revision,
-          manual,
-          input: {
-            title: title.trim() || UNTITLED,
-            content: editor.getJSON() as EpisodeDoc,
-            authorNote: authorNote.trim() || null,
-            isFree,
-          },
+          title: title.trim() || UNTITLED,
+          content: editor.getJSON() as EpisodeDoc,
+          authorNote: authorNote.trim() || null,
+          isFree,
         }
       : null;
+
+  const collect = (manual: boolean): SaveRequest | null => {
+    const input = collectInput();
+    return input && { revision, manual, input };
+  };
 
   // 초안만 자동 저장한다. 공개한 회차는 독자에게 바로 보이므로 저장 버튼으로만 반영한다.
   useAutosave({
@@ -121,11 +133,44 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     enabled: isDraft,
     isSaving: save.isPending,
     delayMs: AUTOSAVE_MS,
+    retryMs: RETRY_MS,
     save: () => {
       const request = collect(false);
       if (request) save.mutate(request);
     },
   });
+
+  // 저장하지 못한 입력을 브라우저에 보관한다. 뒤로 가기나 탭 종료, 저장 실패에도 원고를 되찾을 수 있다.
+  const backupRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    latestRevision.current = revision;
+    backupRef.current = () => {
+      const input = dirty ? collectInput() : null;
+      if (input) writeBackup(initial.id, input);
+    };
+  });
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 입력이 바뀔 때마다 대기 시간을 다시 재기 위해 revision을 넣었다.
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = setTimeout(() => backupRef.current(), BACKUP_MS);
+    return () => clearTimeout(timer);
+  }, [dirty, revision]);
+  useEffect(() => () => backupRef.current(), []);
+
+  const restore = () => {
+    if (!backup) return;
+    editor?.commands.setContent(backup.input.content);
+    setTitle(backup.input.title === UNTITLED ? "" : backup.input.title);
+    setAuthorNote(backup.input.authorNote ?? "");
+    setIsFree(backup.input.isFree);
+    setBackup(null);
+    touch();
+  };
+
+  const discardBackup = () => {
+    clearBackup(initial.id);
+    setBackup(null);
+  };
 
   useEffect(() => {
     if (!dirty) return;
@@ -161,7 +206,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   const stateText = save.isPending
     ? "저장 중…"
     : failedRevision === revision
-      ? "저장하지 못했습니다."
+      ? "저장하지 못했습니다. 잠시 뒤 다시 시도합니다."
       : dirty
         ? isDraft
           ? "저장 대기 중"
@@ -200,6 +245,21 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
         {announcement}
       </p>
       {error && <Notice tone="error">{error.message}</Notice>}
+      {backup && (
+        <div className={styles.backup}>
+          <p role="status">
+            저장하지 못한 내용이 있습니다({timeFormat.format(new Date(backup.savedAt))} 작성). 이어서 쓸까요?
+          </p>
+          <div className={styles.actions}>
+            <Button small disabled={!editor} onClick={restore}>
+              복원
+            </Button>
+            <Button variant="secondary" small onClick={discardBackup}>
+              버리기
+            </Button>
+          </div>
+        </div>
+      )}
 
       <TextField
         label="회차 제목"

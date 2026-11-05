@@ -123,6 +123,57 @@ test("초안은 나갈 때 저장하고, 공개한 회차는 나가기 전에 �
   await expect(page).toHaveURL(url);
 });
 
+test("뒤로 가기로 나가도 공개 회차의 수정 내용을 복원할 수 있다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `복원 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("공개한 본문");
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+  const url = page.url();
+
+  await editorOf(page).click();
+  await page.keyboard.type(" 고치던 내용");
+  await page.goBack();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+  // 전체 새로고침으로 숨겨진 편집 화면까지 사라진 뒤 다시 연다.
+  await page.reload();
+  await page.goto(url);
+
+  await expect(editorOf(page)).not.toContainText("고치던 내용");
+  await page.getByRole("button", { name: "복원" }).click();
+  await expect(editorOf(page)).toContainText("공개한 본문 고치던 내용");
+  // 복원해도 공개 회차는 저장을 눌러야 독자에게 반영된다.
+  await expect(page.getByText(/저장하지 않은 변경 사항/)).toBeVisible();
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(page.getByText(/1화 · 공개 중 · .*저장됨/)).toBeVisible();
+
+  await page.reload();
+  await expect(editorOf(page)).toContainText("공개한 본문 고치던 내용");
+  await expect(page.getByRole("button", { name: "복원" })).toHaveCount(0);
+});
+
+test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `재시도 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+
+  await page.route("**/studio/works/**", (route) =>
+    route.request().method() === "POST" ? route.abort() : route.continue(),
+  );
+  await editorOf(page).click();
+  await page.keyboard.type("끊긴 동안 쓴 글");
+  await expect(page.getByText(/저장하지 못했습니다\. 잠시 뒤 다시 시도합니다/)).toBeVisible({ timeout: 10_000 });
+
+  await page.unroute("**/studio/works/**");
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 20_000 });
+  await page.reload();
+  await expect(editorOf(page)).toContainText("끊긴 동안 쓴 글");
+});
+
 test("초안과 판매 전 작품을 지울 수 있다", async ({ page }) => {
   const title = `삭제 ${Date.now()}`;
   await login(page, AUTHOR, "작가");
