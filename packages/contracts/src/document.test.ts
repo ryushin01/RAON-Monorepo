@@ -16,6 +16,14 @@ describe("episodeDocSchema", () => {
     expect(episodeDocSchema.safeParse(doc).success).toBe(true);
   });
 
+  it("서식이 입혀진 줄바꿈을 받아들인다", () => {
+    const doc = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "hardBreak", marks: [{ type: "bold" }] }] }],
+    };
+    expect(episodeDocSchema.safeParse(doc).success).toBe(true);
+  });
+
   it.each([
     ["허용하지 않은 노드", { type: "doc", content: [{ type: "image", attrs: { src: "x" } }] }],
     [

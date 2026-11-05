@@ -19,7 +19,8 @@ export default defineConfig({
       cwd: "../api",
       url: `http://localhost:${API_PORT}/health`,
       reuseExistingServer: false,
-      env: { PORT: String(API_PORT), PGLITE_DATA_DIR: ".data/e2e", NODE_ENV: "test" },
+      // 테스트마다 같은 계정으로 로그인하므로 시도 제한을 늘린다. 제한 자체는 API 테스트가 검사한다.
+      env: { PORT: String(API_PORT), PGLITE_DATA_DIR: ".data/e2e", NODE_ENV: "test", LOGIN_RATE_LIMIT: "1000" },
     },
     {
       command: `next start --port ${WEB_PORT}`,

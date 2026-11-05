@@ -39,6 +39,14 @@ test("README 스크린샷", async ({ page }) => {
   await shot(page, "viewer-settings");
   await page.getByRole("radio", { name: "자동" }).check();
 
+  await page.goto(`${work}/episodes/1`);
+  await page.getByRole("region", { name: "댓글" }).scrollIntoViewIfNeeded();
+  await page.getByRole("heading", { level: 2, name: /^댓글/ }).evaluate((el) => el.scrollIntoView({ block: "start" }));
+  await shot(page, "viewer-comments");
+  await page.goto("/my");
+  await page.waitForLoadState("networkidle");
+  await shot(page, "my");
+
   await page.setViewportSize({ width: 390, height: 780 });
   await page.goto("/");
   await page.waitForLoadState("networkidle");

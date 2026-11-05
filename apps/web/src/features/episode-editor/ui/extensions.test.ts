@@ -1,5 +1,5 @@
 import { docFromText, episodeDocSchema } from "@raon/contracts";
-import { getSchema } from "@tiptap/core";
+import { Editor, getSchema } from "@tiptap/core";
 import { editorExtensions } from "./extensions";
 
 describe("editorExtensions", () => {
@@ -24,5 +24,20 @@ describe("editorExtensions", () => {
   it("에디터 문서가 계약 스키마를 통과한다", () => {
     const node = schema.nodeFromJSON(docFromText("첫 문단\n\n둘째 문단"));
     expect(episodeDocSchema.safeParse(node.toJSON()).success).toBe(true);
+  });
+
+  it("줄바꿈이 낀 범위에 서식을 입혀도 계약 스키마를 통과한다", () => {
+    const editor = new Editor({ extensions: editorExtensions, content: docFromText("앞") });
+    editor.commands.focus("end");
+    editor.commands.setHardBreak();
+    editor.commands.insertContent("뒤");
+    editor.commands.selectAll();
+    editor.commands.toggleBold();
+    editor.commands.toggleItalic();
+
+    const doc = editor.getJSON();
+    expect(JSON.stringify(doc)).toContain('"hardBreak","marks"');
+    expect(episodeDocSchema.safeParse(doc).success).toBe(true);
+    editor.destroy();
   });
 });

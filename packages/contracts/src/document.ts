@@ -12,7 +12,8 @@ const textNodeSchema = z.strictObject({
   marks: z.array(markSchema).optional(),
 });
 
-const hardBreakSchema = z.strictObject({ type: z.literal("hardBreak") });
+// 줄바꿈을 포함한 범위에 서식을 적용하면 에디터가 줄바꿈에도 마크를 붙인다.
+const hardBreakSchema = z.strictObject({ type: z.literal("hardBreak"), marks: z.array(markSchema).optional() });
 
 const inlineSchema = z.discriminatedUnion("type", [textNodeSchema, hardBreakSchema]);
 

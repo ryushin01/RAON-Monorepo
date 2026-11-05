@@ -1,7 +1,15 @@
 import { renderHook } from "@testing-library/react";
 import { useAutosave } from "./use-autosave";
 
-const base = { revision: 0, savedRevision: 0, failedRevision: null, enabled: true, isSaving: false, delayMs: 2000 };
+const base = {
+  revision: 0,
+  savedRevision: 0,
+  failedRevision: null,
+  enabled: true,
+  isSaving: false,
+  delayMs: 2000,
+  retryMs: 15000,
+};
 type Props = Omit<Parameters<typeof useAutosave>[0], "save">;
 
 function setup(initial: Props) {
@@ -35,13 +43,26 @@ it("저장 중에 입력이 바뀌면 저장이 끝난 뒤 다시 저장한다",
   expect(save).toHaveBeenCalledTimes(1);
 });
 
-it("실패한 내용은 입력이 바뀌기 전까지 다시 보내지 않는다", () => {
+it("실패하면 시간을 두고 다시 시도한다", () => {
   const { save, rerender } = setup({ ...base, revision: 1, failedRevision: 1 });
-  jest.advanceTimersByTime(5000);
+  jest.advanceTimersByTime(14999);
   expect(save).not.toHaveBeenCalled();
+  jest.advanceTimersByTime(1);
+  expect(save).toHaveBeenCalledTimes(1);
+
+  // 그 사이 입력이 바뀌면 평소처럼 곧 저장한다.
   rerender({ ...base, revision: 2, failedRevision: 1 });
   jest.advanceTimersByTime(2000);
-  expect(save).toHaveBeenCalledTimes(1);
+  expect(save).toHaveBeenCalledTimes(2);
+});
+
+it("다시 시도하다 또 실패해도 계속 시도한다", () => {
+  const { save, rerender } = setup({ ...base, revision: 1, failedRevision: 1 });
+  jest.advanceTimersByTime(15000);
+  rerender({ ...base, revision: 1, failedRevision: 1, isSaving: true });
+  rerender({ ...base, revision: 1, failedRevision: 1, isSaving: false });
+  jest.advanceTimersByTime(15000);
+  expect(save).toHaveBeenCalledTimes(2);
 });
 
 it("공개한 회차처럼 꺼져 있으면 저장하지 않는다", () => {

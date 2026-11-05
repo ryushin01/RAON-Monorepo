@@ -5,6 +5,7 @@ export const DEMO_PASSWORD = "raon1234";
 
 export const DEMO_USERS = [
   { email: "reader@raon.test", nickname: "책벌레", role: "READER", coinBalance: 3000 },
+  { email: "reader2@raon.test", nickname: "밤독자", role: "READER", coinBalance: 800 },
   { email: "author@raon.test", nickname: "윤슬", role: "AUTHOR", coinBalance: 0 },
   { email: "author2@raon.test", nickname: "한서린", role: "AUTHOR", coinBalance: 0 },
   { email: "author3@raon.test", nickname: "묵향재", role: "AUTHOR", coinBalance: 0 },
@@ -287,4 +288,57 @@ export const DEMO_WORKS: DemoWork[] = [
       ),
     ],
   },
+];
+
+type DemoEmail = (typeof DEMO_USERS)[number]["email"];
+
+/** reader@raon.test의 내 서재와 작가 통계가 처음부터 비어 보이지 않게 넣는다. */
+export const DEMO_FAVORITES: { user: DemoEmail; work: string }[] = [
+  { user: "reader@raon.test", work: "등대지기의 마지막 항로" },
+  { user: "reader@raon.test", work: "유리 정원의 살인" },
+  { user: "reader2@raon.test", work: "등대지기의 마지막 항로" },
+];
+
+export const DEMO_PROGRESS: { user: DemoEmail; work: string; episodeNumber: number }[] = [
+  { user: "reader@raon.test", work: "등대지기의 마지막 항로", episodeNumber: 2 },
+  { user: "reader@raon.test", work: "유리 정원의 살인", episodeNumber: 1 },
+];
+
+export const DEMO_COMMENTS: { user: DemoEmail; work: string; episodeNumber: number; body: string }[] = [
+  {
+    user: "reader2@raon.test",
+    work: "등대지기의 마지막 항로",
+    episodeNumber: 1,
+    body: "마지막 문장에서 소름이 돋았어요. 교범 맨 뒷장이라니.",
+  },
+  {
+    user: "reader@raon.test",
+    work: "등대지기의 마지막 항로",
+    episodeNumber: 1,
+    body: "바다가 없는 세계의 등대라는 설정이 좋네요. 선호작 눌렀습니다.",
+  },
+  {
+    user: "author@raon.test",
+    work: "등대지기의 마지막 항로",
+    episodeNumber: 1,
+    body: "읽어 주셔서 고맙습니다. 다음 화에서 신호의 정체가 조금 드러납니다.",
+  },
+  {
+    user: "reader2@raon.test",
+    work: "등대지기의 마지막 항로",
+    episodeNumber: 2,
+    body: "기둥의 줄은 누가 긋는 걸까요?",
+  },
+  {
+    user: "reader@raon.test",
+    work: "검은 먹의 강호",
+    episodeNumber: 1,
+    body: "먹 가는 제자가 주인공인 무협은 처음 봐요.",
+  },
+];
+
+/** 밤독자의 구매 기록. 작가 스튜디오의 판매 수에 나타난다. */
+export const DEMO_PURCHASES: { user: DemoEmail; work: string; episodeNumber: number }[] = [
+  { user: "reader2@raon.test", work: "등대지기의 마지막 항로", episodeNumber: 3 },
+  { user: "reader2@raon.test", work: "유리 정원의 살인", episodeNumber: 2 },
 ];
