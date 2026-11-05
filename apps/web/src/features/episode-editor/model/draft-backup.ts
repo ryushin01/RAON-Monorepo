@@ -1,6 +1,6 @@
 import { type EpisodeInput, episodeDocSchema } from "@raon/contracts";
 import { z } from "zod";
-import { EPISODE_BACKUP_PREFIX } from "@/shared/config";
+import { EPISODE_BACKUP_PREFIX, LOGOUT_SIGNAL_KEY } from "@/shared/config";
 
 export interface DraftBackup {
   input: EpisodeInput;
@@ -58,4 +58,13 @@ export function readBackup(episodeId: string, current: EpisodeInput): DraftBacku
   }
   clearBackup(episodeId);
   return null;
+}
+
+/** 이 시각 이후에 어느 탭에서든 로그아웃했는지 본다. 같은 브라우저의 시계끼리 비교한다. */
+export function loggedOutSince(time: number): boolean {
+  try {
+    return Number(localStorage.getItem(LOGOUT_SIGNAL_KEY)) >= time && time > 0;
+  } catch {
+    return false;
+  }
 }

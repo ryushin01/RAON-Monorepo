@@ -202,6 +202,45 @@ test("복원 여부를 고르기 전에는 백업을 잃지 않는다", async ({
   await expect(editorOf(page)).not.toContainText("지킬 내용");
 });
 
+test("줄바꿈이 낀 문단에 서식을 입혀도 저장된다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `줄바꿈 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("앞");
+  await page.keyboard.press("Shift+Enter");
+  await page.keyboard.type("뒤");
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.getByRole("button", { name: "굵게" }).click();
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible();
+  await page.reload();
+  const bold = editorOf(page).locator("strong");
+  await expect(bold).toContainText("앞");
+  await expect(bold).toContainText("뒤");
+});
+
+test("다른 탭에서 로그아웃하면 편집 중인 탭도 원고를 브라우저에 남기지 않는다", async ({ page, context }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `탭 로그아웃 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  const backups = () =>
+    page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("raon:episode-backup:")));
+
+  const other = await context.newPage();
+  await other.goto("/works");
+  await other.getByRole("button", { name: "로그아웃" }).click();
+  await expect(other.getByRole("link", { name: "로그인" })).toBeVisible();
+  await other.close();
+
+  await editorOf(page).click();
+  await page.keyboard.type("로그아웃 뒤 입력");
+  await page.waitForTimeout(800);
+  expect(await backups()).toEqual([]);
+});
+
 test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `재시도 ${Date.now()}`);

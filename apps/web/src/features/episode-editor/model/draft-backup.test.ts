@@ -1,5 +1,5 @@
 import { docFromText, EMPTY_DOC, type EpisodeInput } from "@raon/contracts";
-import { clearBackup, readBackup, writeBackup } from "./draft-backup";
+import { clearBackup, loggedOutSince, readBackup, writeBackup } from "./draft-backup";
 
 const server: EpisodeInput = { title: "제목", content: EMPTY_DOC, authorNote: null, isFree: false };
 const edited: EpisodeInput = { ...server, content: docFromText("고치던 내용") };
@@ -38,4 +38,12 @@ it.each([
   localStorage.setItem("raon:episode-backup:e1", raw);
   expect(readBackup("e1", server)).toBeNull();
   expect(localStorage.length).toBe(0);
+});
+
+it("연 뒤에 로그아웃했는지 구분한다", () => {
+  expect(loggedOutSince(100)).toBe(false);
+  localStorage.setItem("raon:logged-out", "50");
+  expect(loggedOutSince(100)).toBe(false);
+  localStorage.setItem("raon:logged-out", "150");
+  expect(loggedOutSince(100)).toBe(true);
 });

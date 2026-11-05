@@ -8,7 +8,7 @@ import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
 import { saveEpisode, setEpisodePublished } from "../api/actions";
 import { UNTITLED } from "../model/constants";
-import { clearBackup, type DraftBackup, readBackup, writeBackup } from "../model/draft-backup";
+import { clearBackup, type DraftBackup, loggedOutSince, readBackup, writeBackup } from "../model/draft-backup";
 import { useAutosave } from "../model/use-autosave";
 import styles from "./episode-editor.module.scss";
 import { editorExtensions } from "./extensions";
@@ -54,6 +54,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
 
   const latestRevision = useRef(0);
   const backupPending = useRef(false);
+  const openedAt = useRef(0);
   const touch = () => setRevision((value) => value + 1);
   const dirty = revision !== savedRevision;
   const isDraft = episode.status !== "PUBLISHED";
@@ -155,6 +156,8 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     latestRevision.current = revision;
     backupPending.current = backup !== null;
     backupRef.current = () => {
+      // 다른 탭에서 로그아웃했다면 원고를 브라우저에 남기지 않는다.
+      if (loggedOutSince(openedAt.current)) return;
       // 복원 여부를 고르기 전에는 이전 백업을 덮어쓰지 않는다.
       const input = dirty && !backup ? collectInput() : null;
       if (input) writeBackup(initial.id, input);
@@ -166,7 +169,10 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     const timer = setTimeout(() => backupRef.current(), BACKUP_MS);
     return () => clearTimeout(timer);
   }, [dirty, revision]);
-  useEffect(() => () => backupRef.current(), []);
+  useEffect(() => {
+    openedAt.current = Date.now();
+    return () => backupRef.current();
+  }, []);
   // 탭을 닫으면 위의 정리 함수가 돌지 않으므로 마지막 입력을 여기서 남긴다.
   useEffect(() => {
     const onPageHide = () => backupRef.current();

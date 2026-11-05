@@ -1,12 +1,14 @@
 "use client";
 
 import { useTransition } from "react";
-import { EPISODE_BACKUP_PREFIX } from "@/shared/config";
+import { EPISODE_BACKUP_PREFIX, LOGOUT_SIGNAL_KEY } from "@/shared/config";
 import { Button } from "@/shared/ui";
 import { logout } from "../api/actions";
 
 function clearLocalDrafts() {
   try {
+    // 다른 탭의 에디터가 백업을 다시 쓰지 않도록 먼저 알린다.
+    localStorage.setItem(LOGOUT_SIGNAL_KEY, String(Date.now()));
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith(EPISODE_BACKUP_PREFIX)) localStorage.removeItem(key);
     }
