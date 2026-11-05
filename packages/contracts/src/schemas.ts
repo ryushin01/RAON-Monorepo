@@ -76,6 +76,11 @@ export const addCartItemSchema = z.union([
 ]);
 export type AddCartItemInput = z.infer<typeof addCartItemSchema>;
 
+export const commentInputSchema = z.object({
+  body: z.string().trim().min(1, "댓글 내용을 입력해 주세요.").max(500, "댓글은 500자 이하로 입력해 주세요."),
+});
+export type CommentInput = z.infer<typeof commentInputSchema>;
+
 export const checkoutSchema = z.object({ idempotencyKey: z.uuid() });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 

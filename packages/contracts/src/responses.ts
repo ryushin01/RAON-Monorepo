@@ -23,6 +23,8 @@ export interface WorkSummary {
   synopsis: string;
   viewCount: number;
   episodeCount: number;
+  /** 공개한 회차 중 첫 번째 번호. 공개한 회차가 없으면 null이다. */
+  firstEpisodeNumber: number | null;
   latestEpisodeAt: string | null;
 }
 
@@ -55,6 +57,29 @@ export interface WorkAccess {
   ownedEpisodeIds: string[];
   cartEpisodeIds: string[];
   workInCart: boolean;
+  isFavorite: boolean;
+  /** 마지막으로 읽은 회차 번호 */
+  lastReadNumber: number | null;
+  /** 이미 산 회차 금액을 뺀 작품 전체 가격. 전체 구매를 팔지 않으면 null이다. */
+  wholePriceForUser: number | null;
+}
+
+export interface FavoriteWork extends WorkSummary {
+  lastReadNumber: number | null;
+}
+
+export interface ReadingEntry extends WorkSummary {
+  lastReadNumber: number;
+  lastReadAt: string;
+}
+
+export interface EpisodeComment {
+  id: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  /** 쓴 사람과 작품의 작가만 지울 수 있다. */
+  canDelete: boolean;
 }
 
 export interface EpisodeNeighbor {
@@ -140,6 +165,9 @@ export interface StudioWork {
   viewCount: number;
   publishedEpisodeCount: number;
   draftEpisodeCount: number;
+  salesCount: number;
+  salesCoins: number;
+  favoriteCount: number;
   updatedAt: string;
 }
 
