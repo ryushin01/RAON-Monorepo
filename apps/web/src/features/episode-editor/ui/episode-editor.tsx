@@ -47,7 +47,8 @@ export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
     attempt.current += 1;
     const id = attempt.current;
     setStatus("refreshing");
-    setNotice("");
+    // 사용자가 직접 다시 시도했을 때만 시작과 완료를 스크린 리더에 알린다.
+    setNotice(announceDone ? "최신 내용을 불러오는 중입니다." : "");
     fetchEpisode(episode.id)
       .then((result) => {
         if (id !== attempt.current) return;
