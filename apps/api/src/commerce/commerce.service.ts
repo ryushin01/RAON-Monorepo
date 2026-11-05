@@ -10,22 +10,10 @@ import type {
   Wallet,
 } from "@raon/contracts";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { isUniqueViolation } from "../common/db-errors.js";
 import type { Database, Transaction } from "../db/database.js";
 import { DB } from "../db/database.module.js";
 import { cartItems, coinLedger, episodes, orderItems, orders, users, works } from "../db/schema.js";
-
-const PG_UNIQUE_VIOLATION = "23505";
-
-function isUniqueViolation(error: unknown): boolean {
-  const seen = new Set<unknown>();
-  let current = error as { code?: string; cause?: unknown } | undefined;
-  while (current && !seen.has(current)) {
-    if (current.code === PG_UNIQUE_VIOLATION) return true;
-    seen.add(current);
-    current = current.cause as typeof current;
-  }
-  return false;
-}
 
 @Injectable()
 export class CommerceService {
@@ -231,7 +219,7 @@ export class CommerceService {
     const workIds = [...new Set(rows.map((r) => r.workId))];
     const owned = workIds.length
       ? await db
-          .select({ workId: orderItems.workId, episodeId: orderItems.episodeId })
+          .select({ workId: orderItems.workId, episodeId: orderItems.episodeId, price: orderItems.price })
           .from(orderItems)
           .where(and(eq(orderItems.userId, userId), or(...workIds.map((id) => eq(orderItems.workId, id)))))
       : [];
@@ -256,7 +244,13 @@ export class CommerceService {
         episodeId: row.episodeId,
         episodeNumber: row.episodeNumber,
         episodeTitle: row.episodeTitle,
-        price: isWork ? (row.wholePrice ?? 0) : row.episodePrice,
+        // 작품 전체 가격에서 이 작품에 이미 쓴 코인을 뺀다.
+        price: isWork
+          ? Math.max(
+              0,
+              (row.wholePrice ?? 0) - owned.filter((o) => o.workId === row.workId).reduce((sum, o) => sum + o.price, 0),
+            )
+          : row.episodePrice,
         unavailableReason,
       };
     });

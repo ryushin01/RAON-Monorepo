@@ -418,6 +418,159 @@ describe("RAON API", () => {
     });
   });
 
+  describe("회귀", () => {
+    it("같은 이메일로 동시에 가입해도 500이 나지 않는다", async () => {
+      seq += 1;
+      const body = { email: `race${seq}@raon.test`, password: "password1", role: "READER" };
+      const results = await Promise.all(
+        [1, 2].map((n) =>
+          http()
+            .post("/auth/signup")
+            .send({ ...body, nickname: `경합${seq}-${n}` }),
+        ),
+      );
+      expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    });
+
+    it("작가 본인의 열람은 조회수에 넣지 않는다", async () => {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      await http().get(`/works/${work.id}/episodes/1`).set(bearer(author.accessToken)).expect(200);
+      expect((await http().get(`/works/${work.id}`)).body.viewCount).toBe(0);
+      await http().get(`/works/${work.id}/episodes/1`).expect(200);
+      expect((await http().get(`/works/${work.id}`)).body.viewCount).toBe(1);
+    });
+
+    it("1화를 내려도 첫 공개 회차 번호를 알려 준다", async () => {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      expect(work.firstEpisodeNumber).toBe(1);
+      await http()
+        .post(`/studio/episodes/${work.episodes[0]!.id}/unpublish`)
+        .set(bearer(author.accessToken))
+        .expect(200);
+      expect((await http().get(`/works/${work.id}`)).body.firstEpisodeNumber).toBe(2);
+    });
+  });
+
+  describe("작품 전체 구매 차감", () => {
+    it("이미 산 회차 금액을 빼고 계산한다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const work = await publishWork(author.accessToken, { complete: true });
+      await http()
+        .post("/cart/items")
+        .set(bearer(reader.accessToken))
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [work.episodes[1]!.id] });
+      await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+
+      const access = await http().get(`/works/${work.id}/access`).set(bearer(reader.accessToken));
+      expect(access.body.wholePriceForUser).toBe(150);
+      const cart = await http()
+        .post("/cart/items")
+        .set(bearer(reader.accessToken))
+        .send({ kind: "WORK", workId: work.id });
+      expect(cart.body.total).toBe(150);
+      const order = await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() });
+      expect(order.body.coinBalance).toBe(250);
+    });
+  });
+
+  describe("선호작과 이어 보기", () => {
+    it("선호작을 추가하고 빼며, 읽은 회차를 기억한다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const work = await publishWork(author.accessToken);
+      const token = bearer(reader.accessToken);
+
+      await http().put(`/works/${work.id}/favorite`).expect(401);
+      await http().put(`/works/${work.id}/favorite`).set(token).expect(204);
+      await http().put(`/works/${work.id}/favorite`).set(token).expect(204);
+      await http().get(`/works/${work.id}/episodes/1`).set(token).expect(200);
+
+      const favorites = await http().get("/favorites").set(token).expect(200);
+      expect(favorites.body).toHaveLength(1);
+      expect(favorites.body[0].lastReadNumber).toBe(1);
+      expect((await http().get(`/works/${work.id}/access`).set(token)).body).toMatchObject({
+        isFavorite: true,
+        lastReadNumber: 1,
+      });
+      expect((await http().get("/studio/works").set(bearer(author.accessToken))).body[0].favoriteCount).toBe(1);
+
+      expect((await http().get("/reading").set(token)).body[0].lastReadNumber).toBe(1);
+
+      await http().delete(`/works/${work.id}/favorite`).set(token).expect(204);
+      expect((await http().get("/favorites").set(token)).body).toHaveLength(0);
+    });
+
+    it("잠긴 회차를 열어 본 것은 읽은 기록으로 남기지 않는다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const work = await publishWork(author.accessToken);
+      await http().get(`/works/${work.id}/episodes/2`).set(bearer(reader.accessToken)).expect(200);
+      expect(
+        (await http().get(`/works/${work.id}/access`).set(bearer(reader.accessToken))).body.lastReadNumber,
+      ).toBeNull();
+    });
+  });
+
+  describe("댓글", () => {
+    it("읽을 수 있는 사람만 보고 쓰며, 쓴 사람과 작가만 지운다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const other = await signup("READER");
+      const work = await publishWork(author.accessToken);
+      const [free, paid] = work.episodes;
+      const token = bearer(reader.accessToken);
+
+      await http().post(`/episodes/${free!.id}/comments`).send({ body: "비회원" }).expect(401);
+      await http().post(`/episodes/${free!.id}/comments`).set(token).send({ body: "   " }).expect(400);
+      await http().post(`/episodes/${free!.id}/comments`).set(token).send({ body: "재미있어요" }).expect(204);
+
+      await http().get(`/episodes/${paid!.id}/comments`).expect(403);
+      await http().post(`/episodes/${paid!.id}/comments`).set(token).send({ body: "안 산 회차" }).expect(403);
+
+      const guestView = await http().get(`/episodes/${free!.id}/comments`).expect(200);
+      expect(guestView.body[0]).toMatchObject({ body: "재미있어요", canDelete: false });
+      const mine = await http().get(`/episodes/${free!.id}/comments`).set(token);
+      expect(mine.body[0].canDelete).toBe(true);
+
+      const id = mine.body[0].id;
+      await http().delete(`/comments/${id}`).set(bearer(other.accessToken)).expect(403);
+      await http().delete(`/comments/${id}`).set(bearer(author.accessToken)).expect(204);
+      expect((await http().get(`/episodes/${free!.id}/comments`)).body).toHaveLength(0);
+    });
+  });
+
+  describe("삭제와 판매 통계", () => {
+    it("초안만 지울 수 있고 판매한 작품은 지울 수 없으며, 판매 수를 보여 준다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const work = await publishWork(author.accessToken);
+      const token = bearer(author.accessToken);
+
+      await http().delete(`/studio/episodes/${work.episodes[1]!.id}`).set(token).expect(409);
+      await http().post(`/studio/episodes/${work.episodes[2]!.id}/unpublish`).set(token).expect(200);
+      const stranger = await signup("AUTHOR");
+      await http().delete(`/studio/episodes/${work.episodes[2]!.id}`).set(bearer(stranger.accessToken)).expect(404);
+      await http().delete(`/studio/episodes/${work.episodes[2]!.id}`).set(token).expect(204);
+
+      await http()
+        .post("/cart/items")
+        .set(bearer(reader.accessToken))
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [work.episodes[1]!.id] });
+      await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+
+      const studio = await http().get(`/studio/works/${work.id}`).set(token);
+      expect(studio.body).toMatchObject({ salesCount: 1, salesCoins: 100 });
+      await http().delete(`/studio/works/${work.id}`).set(token).expect(409);
+
+      const unsold = await publishWork(author.accessToken);
+      await http().delete(`/studio/works/${unsold.id}`).set(token).expect(204);
+      await http().get(`/works/${unsold.id}`).expect(404);
+    });
+  });
+
   describe("목록", () => {
     it("검색어의 특수문자를 일반 글자로 찾고, 공개 작품만 보여 준다", async () => {
       const author = await signup("AUTHOR");

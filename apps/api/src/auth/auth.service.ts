@@ -2,6 +2,7 @@ import { ConflictException, Inject, Injectable, UnauthorizedException } from "@n
 import { JwtService } from "@nestjs/jwt";
 import { type AuthResult, type LoginInput, ROLE_LABEL, type SignupInput, type User } from "@raon/contracts";
 import { eq, or } from "drizzle-orm";
+import { isUniqueViolation } from "../common/db-errors.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
 import { users } from "../db/schema.js";
@@ -45,16 +46,22 @@ export class AuthService {
       });
     }
 
-    const [row] = await this.db
-      .insert(users)
-      .values({
-        email: input.email,
-        nickname: input.nickname,
-        role: input.role,
-        passwordHash: await hashPassword(input.password),
-      })
-      .returning();
-    return this.issue(toUser(row!));
+    try {
+      const [row] = await this.db
+        .insert(users)
+        .values({
+          email: input.email,
+          nickname: input.nickname,
+          role: input.role,
+          passwordHash: await hashPassword(input.password),
+        })
+        .returning();
+      return await this.issue(toUser(row!));
+    } catch (error) {
+      // 위의 확인과 저장 사이에 같은 값으로 먼저 가입한 경우다.
+      if (isUniqueViolation(error)) throw new ConflictException("이미 쓰고 있는 이메일 또는 닉네임입니다.");
+      throw error;
+    }
   }
 
   async login(input: LoginInput): Promise<AuthResult> {

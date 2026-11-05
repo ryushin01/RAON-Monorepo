@@ -1,8 +1,11 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
-  type EpisodeView,
+  type EpisodeComment,
+  EpisodeView,
+  FavoriteWork,
   type Paginated,
   type PublicEpisode,
+  ReadingEntry,
   type WorkAccess,
   type WorkDetail,
   type WorkSummary,
@@ -13,9 +16,12 @@ import type { z } from "zod";
 import type { AuthUser } from "../auth/auth.guard.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
-import { cartItems, episodes, orderItems, users, works } from "../db/schema.js";
+import { cartItems, comments, episodes, favorites, orderItems, readingProgress, users, works } from "../db/schema.js";
 
 const publishedCount = sql<number>`(select count(*)::int from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED')`;
+const firstEpisodeNumber = sql<
+  number | null
+>`(select min(e."number")::int from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED')`;
 const latestPublishedAt = sql<
   string | null
 >`(select max(e."published_at") from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED')`;
@@ -29,6 +35,7 @@ const summaryColumns = {
   synopsis: works.synopsis,
   viewCount: works.viewCount,
   episodeCount: publishedCount,
+  firstEpisodeNumber,
   latestEpisodeAt: latestPublishedAt,
 };
 
@@ -109,7 +116,7 @@ export class CatalogService {
   async getAccess(workId: string, user: AuthUser): Promise<WorkAccess> {
     const [owned, cart] = await Promise.all([
       this.db
-        .select({ episodeId: orderItems.episodeId })
+        .select({ episodeId: orderItems.episodeId, price: orderItems.price })
         .from(orderItems)
         .where(and(eq(orderItems.userId, user.id), eq(orderItems.workId, workId))),
       this.db
@@ -118,11 +125,27 @@ export class CatalogService {
         .where(and(eq(cartItems.userId, user.id), eq(cartItems.workId, workId))),
     ]);
     const ids = (rows: { episodeId: string | null }[]) => rows.flatMap((r) => (r.episodeId ? [r.episodeId] : []));
+    const [[favorite], [progress], [work]] = await Promise.all([
+      this.db
+        .select({ workId: favorites.workId })
+        .from(favorites)
+        .where(and(eq(favorites.userId, user.id), eq(favorites.workId, workId))),
+      this.db
+        .select({ number: readingProgress.episodeNumber })
+        .from(readingProgress)
+        .where(and(eq(readingProgress.userId, user.id), eq(readingProgress.workId, workId))),
+      this.db.select({ status: works.status, wholePrice: works.wholePrice }).from(works).where(eq(works.id, workId)),
+    ]);
+    const spent = owned.reduce((sum, r) => sum + r.price, 0);
     return {
       ownsWork: owned.some((r) => r.episodeId === null),
       ownedEpisodeIds: ids(owned),
       workInCart: cart.some((r) => r.episodeId === null),
       cartEpisodeIds: ids(cart),
+      isFavorite: Boolean(favorite),
+      lastReadNumber: progress?.number ?? null,
+      wholePriceForUser:
+        work?.status === "COMPLETED" && work.wholePrice !== null ? Math.max(0, work.wholePrice - spent) : null,
     };
   }
 
@@ -150,7 +173,17 @@ export class CatalogService {
     if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
 
     const accessible = await this.canRead(row.episode, row.authorId, user);
-    if (accessible) {
+    if (accessible && user) {
+      await this.db
+        .insert(readingProgress)
+        .values({ userId: user.id, workId, episodeNumber: number })
+        .onConflictDoUpdate({
+          target: [readingProgress.userId, readingProgress.workId],
+          set: { episodeNumber: number, updatedAt: new Date() },
+        });
+    }
+    // 작가가 자기 글을 확인하는 것은 조회수에 넣지 않는다.
+    if (accessible && user?.id !== row.authorId) {
       await this.db
         .update(works)
         .set({ viewCount: sql`${works.viewCount} + 1` })
@@ -184,6 +217,108 @@ export class CatalogService {
       content: accessible ? row.episode.content : null,
       authorNote: accessible ? row.episode.authorNote : null,
     };
+  }
+
+  async setFavorite(user: AuthUser, workId: string, favorite: boolean): Promise<void> {
+    if (!favorite) {
+      await this.db.delete(favorites).where(and(eq(favorites.userId, user.id), eq(favorites.workId, workId)));
+      return;
+    }
+    const [work] = await this.db
+      .select({ id: works.id })
+      .from(works)
+      .where(and(eq(works.id, workId), ne(works.status, "DRAFT")));
+    if (!work) throw new NotFoundException("작품을 찾을 수 없습니다.");
+    await this.db.insert(favorites).values({ userId: user.id, workId }).onConflictDoNothing();
+  }
+
+  async listFavorites(user: AuthUser): Promise<FavoriteWork[]> {
+    const rows = await this.db
+      .select({ ...summaryColumns, lastReadNumber: readingProgress.episodeNumber })
+      .from(favorites)
+      .innerJoin(works, eq(favorites.workId, works.id))
+      .innerJoin(users, eq(works.authorId, users.id))
+      .leftJoin(readingProgress, and(eq(readingProgress.workId, works.id), eq(readingProgress.userId, user.id)))
+      .where(and(eq(favorites.userId, user.id), ne(works.status, "DRAFT")))
+      .orderBy(desc(favorites.createdAt));
+    return rows.map((row) => ({ ...row, latestEpisodeAt: iso(row.latestEpisodeAt) }));
+  }
+
+  async listReading(user: AuthUser): Promise<ReadingEntry[]> {
+    const rows = await this.db
+      .select({
+        ...summaryColumns,
+        lastReadNumber: readingProgress.episodeNumber,
+        lastReadAt: readingProgress.updatedAt,
+      })
+      .from(readingProgress)
+      .innerJoin(works, eq(readingProgress.workId, works.id))
+      .innerJoin(users, eq(works.authorId, users.id))
+      .where(and(eq(readingProgress.userId, user.id), ne(works.status, "DRAFT")))
+      .orderBy(desc(readingProgress.updatedAt))
+      .limit(10);
+    return rows.map((row) => ({
+      ...row,
+      latestEpisodeAt: iso(row.latestEpisodeAt),
+      lastReadAt: row.lastReadAt.toISOString(),
+    }));
+  }
+
+  async listComments(episodeId: string, user: AuthUser | undefined): Promise<EpisodeComment[]> {
+    const target = await this.readableEpisode(episodeId, user);
+    const rows = await this.db
+      .select({
+        id: comments.id,
+        userId: comments.userId,
+        authorName: users.nickname,
+        body: comments.body,
+        createdAt: comments.createdAt,
+      })
+      .from(comments)
+      .innerJoin(users, eq(comments.userId, users.id))
+      .where(eq(comments.episodeId, episodeId))
+      .orderBy(desc(comments.createdAt))
+      .limit(100);
+    return rows.map((row) => ({
+      id: row.id,
+      authorName: row.authorName,
+      body: row.body,
+      createdAt: row.createdAt.toISOString(),
+      canDelete: Boolean(user && (user.id === row.userId || user.id === target.authorId)),
+    }));
+  }
+
+  /** 본문을 읽을 수 있는 사람만 댓글을 보고 쓴다. 유료 회차의 내용이 댓글로 새지 않게 하기 위해서다. */
+  async addComment(episodeId: string, user: AuthUser, body: string): Promise<void> {
+    await this.readableEpisode(episodeId, user);
+    await this.db.insert(comments).values({ episodeId, userId: user.id, body });
+  }
+
+  async deleteComment(commentId: string, user: AuthUser): Promise<void> {
+    const [row] = await this.db
+      .select({ userId: comments.userId, authorId: works.authorId })
+      .from(comments)
+      .innerJoin(episodes, eq(comments.episodeId, episodes.id))
+      .innerJoin(works, eq(episodes.workId, works.id))
+      .where(eq(comments.id, commentId));
+    if (!row) throw new NotFoundException("댓글을 찾을 수 없습니다.");
+    if (row.userId !== user.id && row.authorId !== user.id) {
+      throw new ForbiddenException("쓴 사람과 작가만 지울 수 있습니다.");
+    }
+    await this.db.delete(comments).where(eq(comments.id, commentId));
+  }
+
+  private async readableEpisode(episodeId: string, user: AuthUser | undefined) {
+    const [row] = await this.db
+      .select({ episode: episodes, authorId: works.authorId })
+      .from(episodes)
+      .innerJoin(works, eq(episodes.workId, works.id))
+      .where(and(eq(episodes.id, episodeId), eq(episodes.status, "PUBLISHED"), ne(works.status, "DRAFT")));
+    if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
+    if (!(await this.canRead(row.episode, row.authorId, user))) {
+      throw new ForbiddenException("이 회차를 구매한 뒤 이용할 수 있습니다.");
+    }
+    return row;
   }
 
   /** 초안이 사이에 끼어 번호가 이어지지 않아도 앞뒤 공개 회차를 찾는다. */

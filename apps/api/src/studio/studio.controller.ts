@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, UseGuards } from "@nestjs/common";
 import {
   type EpisodeInput,
   episodeInputSchema,
@@ -83,5 +83,17 @@ export class StudioController {
   @HttpCode(200)
   unpublish(@CurrentUser() user: AuthUser, @Param("episodeId", ParseUUIDPipe) episodeId: string) {
     return this.studio.unpublishEpisode(user.id, episodeId);
+  }
+
+  @Delete("episodes/:episodeId")
+  @HttpCode(204)
+  async deleteEpisode(@CurrentUser() user: AuthUser, @Param("episodeId", ParseUUIDPipe) episodeId: string) {
+    await this.studio.deleteEpisode(user.id, episodeId);
+  }
+
+  @Delete("works/:workId")
+  @HttpCode(204)
+  async deleteWork(@CurrentUser() user: AuthUser, @Param("workId", ParseUUIDPipe) workId: string) {
+    await this.studio.deleteWork(user.id, workId);
   }
 }
