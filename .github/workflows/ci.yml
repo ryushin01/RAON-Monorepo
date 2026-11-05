@@ -26,7 +26,7 @@ jobs:
 
       # 러너에 있는 yarn이 yarnPath로 저장소의 yarn 4를 실행한다.
       - name: Yarn 캐시
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.yarn/berry/cache
           key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
