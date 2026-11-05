@@ -23,6 +23,7 @@ flowchart LR
 
 - 계층: `_app` → `_pages` → `widgets` → `features` → `entities` → `shared`. 아래 계층만 가져옵니다(Biome `noRestrictedImports`로 검사).
 - Next의 `src/app` 라우트 파일은 `_app`, `_pages`를 다시 내보내기만 합니다.
+- 오류 화면: `error.tsx`와 `not-found.tsx`는 `_pages/errors`를, 루트 레이아웃까지 실패할 때의 `global-error.tsx`는 `_app/layouts/global-error-layout`을 내보냅니다. `global-error`에는 웹폰트와 저장된 테마가 적용되지 않습니다.
 - 슬라이스는 `index.ts`로만 가져오고, 서버 전용 코드는 `index.server.ts`로 내보냅니다.
 - 스타일은 Sass CSS Modules입니다. 색은 `_app/styles/global.scss`의 CSS 변수(흑백)만 씁니다.
 - 컴포넌트 옆에 스토리와 테스트를 둡니다.
