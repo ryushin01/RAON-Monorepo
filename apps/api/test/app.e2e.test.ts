@@ -834,6 +834,70 @@ describe("RAON API", () => {
     });
   });
 
+  describe("예약과 판매", () => {
+    const inHours = (hours: number) => new Date(Date.now() + hours * 3600_000).toISOString();
+
+    async function scheduledOnlyWork(token: { Authorization: string }) {
+      const work = (
+        await http().post("/studio/works").set(token).send({
+          title: "예약만 있는 작품",
+          synopsis: "열 글자가 넘는 작품 소개입니다.",
+          genre: "SF",
+          episodePrice: 100,
+          wholePrice: 250,
+          tags: [],
+        })
+      ).body as StudioWorkDetail;
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "1화", content: doc, authorNote: null, isFree: false });
+      await http()
+        .post(`/studio/episodes/${body.id}/publish`)
+        .set(token)
+        .send({ publishAt: inHours(5) })
+        .expect(200);
+      return work.id;
+    }
+
+    it("예약만 걸린 작품은 완결로 바꿀 수 없고, 독자에게 없는 작품이며, 팔 수 없다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const token = bearer(author.accessToken);
+      const workId = await scheduledOnlyWork(token);
+
+      await http().post(`/studio/works/${workId}/status`).set(token).send({ status: "COMPLETED" }).expect(400);
+      await http().get(`/works/${workId}`).expect(404);
+      await http().put(`/works/${workId}/favorite`).set(bearer(reader.accessToken)).expect(404);
+      await http().put(`/works/${workId}/rating`).set(bearer(reader.accessToken)).send({ score: 5 }).expect(404);
+
+      // 이미 완결이어도(공개 뒤 내린 경우 등) 보이는 회차가 없으면 팔지 않는다.
+      await db.update(worksTable).set({ status: "COMPLETED" }).where(eq(worksTable.id, workId));
+      await http().post("/cart/items").set(bearer(reader.accessToken)).send({ kind: "WORK", workId }).expect(400);
+    });
+
+    it("전체 구매자가 있어도 아직 공개하지 않은 예약 회차는 취소할 수 있다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken, { complete: true });
+      await http().post("/cart/items").set(bearer(reader.accessToken)).send({ kind: "WORK", workId: work.id });
+      await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "예약", content: doc, authorNote: null, isFree: false });
+      await http()
+        .post(`/studio/episodes/${body.id}/publish`)
+        .set(token)
+        .send({ publishAt: inHours(5) })
+        .expect(200);
+      await http().post(`/studio/episodes/${body.id}/unpublish`).set(token).expect(200);
+      await http().delete(`/studio/episodes/${body.id}`).set(token).expect(204);
+    });
+  });
+
   describe("가상 데이터", () => {
     it("빈 DB에 넣으면 내 서재와 작가 통계가 채워지고, 다시 실행해도 늘지 않는다", async () => {
       const fresh = await openDatabase({});

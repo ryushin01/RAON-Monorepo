@@ -34,7 +34,19 @@ export class CommerceService {
     if (owned.some((o) => o.episodeId === null)) throw new ConflictException("이미 구매한 작품입니다.");
 
     if (input.kind === "WORK") {
-      if (work.status !== "COMPLETED" || work.wholePrice === null) {
+      const [visible] = await this.db
+        .select({ id: episodes.id })
+        .from(episodes)
+        .where(
+          and(
+            eq(episodes.workId, input.workId),
+            eq(episodes.status, "PUBLISHED"),
+            lte(episodes.publishedAt, sql`now()`),
+          ),
+        )
+        .limit(1);
+      // 예약만 걸린 작품은 아직 독자에게 공개되지 않았으므로 팔지 않는다.
+      if (work.status !== "COMPLETED" || work.wholePrice === null || !visible) {
         throw new BadRequestException("이 작품은 전체 구매를 지원하지 않습니다.");
       }
       await this.db.transaction(async (tx) => {
@@ -204,6 +216,7 @@ export class CommerceService {
         episodeId: cartItems.episodeId,
         workTitle: works.title,
         workStatus: works.status,
+        workVisible: sql<boolean>`exists (select 1 from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED' and e."published_at" <= now())`,
         episodePrice: works.episodePrice,
         wholePrice: works.wholePrice,
         episodeNumber: episodes.number,
@@ -233,7 +246,7 @@ export class CommerceService {
       let unavailableReason: string | null = null;
       if (ownedWorks.has(row.workId)) unavailableReason = "이미 구매한 작품입니다.";
       else if (row.episodeId && ownedEpisodes.has(row.episodeId)) unavailableReason = "이미 구매한 회차입니다.";
-      else if (isWork && (row.workStatus !== "COMPLETED" || row.wholePrice === null))
+      else if (isWork && (row.workStatus !== "COMPLETED" || row.wholePrice === null || !row.workVisible))
         unavailableReason = "전체 구매 판매가 끝났습니다.";
       else if (
         !isWork &&

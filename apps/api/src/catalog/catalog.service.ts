@@ -34,6 +34,9 @@ import {
 const VISIBLE = sql.raw(`e."status" = 'PUBLISHED' and e."published_at" <= now()`);
 const visibleEpisode = () => and(eq(episodes.status, "PUBLISHED"), lte(episodes.publishedAt, sql`now()`));
 
+/** 예약만 있고 아직 보이는 회차가 없는 작품은 독자에게 없는 작품으로 다룬다. */
+const HAS_VISIBLE_EPISODE = sql`exists (select 1 from "episodes" e where e."work_id" = "works"."id" and ${VISIBLE})`;
+
 const publishedCount = sql<number>`(select count(*)::int from "episodes" e where e."work_id" = "works"."id" and ${VISIBLE})`;
 const firstEpisodeNumber = sql<
   number | null
@@ -115,8 +118,7 @@ export class CatalogService {
     const pattern = query.q ? `%${escapeLike(query.q)}%` : null;
     const where = and(
       ne(works.status, "DRAFT"),
-      // 예약만 있고 아직 보이는 회차가 없는 작품은 목록에 내지 않는다.
-      sql`exists (select 1 from "episodes" e where e."work_id" = "works"."id" and ${VISIBLE})`,
+      HAS_VISIBLE_EPISODE,
       query.tag ? sql`${query.tag} = any(${works.tags})` : undefined,
       query.genre ? eq(works.genre, query.genre) : undefined,
       query.status ? eq(works.status, query.status) : undefined,
@@ -159,7 +161,7 @@ export class CatalogService {
       .select({ ...summaryColumns, episodePrice: works.episodePrice, wholePrice: works.wholePrice })
       .from(works)
       .innerJoin(users, eq(works.authorId, users.id))
-      .where(and(eq(works.id, workId), ne(works.status, "DRAFT")));
+      .where(and(eq(works.id, workId), ne(works.status, "DRAFT"), HAS_VISIBLE_EPISODE));
     if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
 
     const list = await this.db
@@ -300,7 +302,7 @@ export class CatalogService {
     const [work] = await this.db
       .select({ id: works.id })
       .from(works)
-      .where(and(eq(works.id, workId), ne(works.status, "DRAFT")));
+      .where(and(eq(works.id, workId), ne(works.status, "DRAFT"), HAS_VISIBLE_EPISODE));
     if (!work) throw new NotFoundException("작품을 찾을 수 없습니다.");
     await this.db.insert(favorites).values({ userId: user.id, workId }).onConflictDoNothing();
   }
@@ -313,7 +315,7 @@ export class CatalogService {
     const [work] = await this.db
       .select({ id: works.id })
       .from(works)
-      .where(and(eq(works.id, workId), ne(works.status, "DRAFT")));
+      .where(and(eq(works.id, workId), ne(works.status, "DRAFT"), HAS_VISIBLE_EPISODE));
     if (!work) throw new NotFoundException("작품을 찾을 수 없습니다.");
     await this.db
       .insert(ratings)

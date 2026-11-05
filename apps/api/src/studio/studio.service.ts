@@ -117,7 +117,13 @@ export class StudioService {
 
   async setWorkStatus(authorId: string, workId: string, status: "ONGOING" | "COMPLETED"): Promise<StudioWorkDetail> {
     const work = await this.getWork(authorId, workId);
-    if (work.publishedEpisodeCount === 0) {
+    // 예약만 걸린 회차는 아직 공개한 것이 아니다.
+    const now = Date.now();
+    const visible = work.episodes.some(
+      (episode) =>
+        episode.status === "PUBLISHED" && episode.publishedAt !== null && Date.parse(episode.publishedAt) <= now,
+    );
+    if (!visible) {
       throw new BadRequestException("공개한 회차가 있어야 작품 상태를 바꿀 수 있습니다.");
     }
     await this.db.update(works).set({ status, updatedAt: new Date() }).where(eq(works.id, workId));
@@ -191,15 +197,21 @@ export class StudioService {
 
   /** 바로 앞이나 뒤의 회차와 번호를 맞바꾼다. 구매와 댓글은 회차 id에 묶여 있어 그대로 유지된다. */
   async moveEpisode(authorId: string, episodeId: string, direction: "up" | "down"): Promise<void> {
-    const current = await this.ownedEpisode(authorId, episodeId);
+    const { workId } = await this.ownedEpisode(authorId, episodeId);
     await this.db.transaction(async (tx) => {
-      await tx.select({ id: works.id }).from(works).where(eq(works.id, current.workId)).for("update");
+      await tx.select({ id: works.id }).from(works).where(eq(works.id, workId)).for("update");
+      // 동시에 옮기는 요청이 있어도 잠근 뒤의 번호로 이웃을 찾는다.
+      const [current] = await tx
+        .select({ id: episodes.id, number: episodes.number })
+        .from(episodes)
+        .where(eq(episodes.id, episodeId));
+      if (!current) throw new NotFoundException("회차를 찾을 수 없습니다.");
       const [neighbor] = await tx
         .select({ id: episodes.id, number: episodes.number })
         .from(episodes)
         .where(
           and(
-            eq(episodes.workId, current.workId),
+            eq(episodes.workId, workId),
             direction === "up" ? lt(episodes.number, current.number) : gt(episodes.number, current.number),
           ),
         )
@@ -233,7 +245,9 @@ export class StudioService {
 
   async unpublishEpisode(authorId: string, episodeId: string): Promise<StudioEpisode> {
     const current = await this.ownedEpisode(authorId, episodeId);
-    if (await this.isSold(current.workId, episodeId)) {
+    // 아직 공개하지 않은 예약 회차는 산 사람이 읽은 적이 없으므로 취소할 수 있다.
+    const wasPublic = current.publishedAt !== null && current.publishedAt <= new Date();
+    if (wasPublic && (await this.isSold(current.workId, episodeId))) {
       throw new ConflictException("이미 판매한 회차는 비공개로 바꿀 수 없습니다.");
     }
     const [row] = await this.db
