@@ -44,6 +44,8 @@
 | 뷰어      | 배경, 글꼴, 글자 크기, 줄 간격 설정 유지, 앞뒤 회차 이동, 권한 없는 유료 본문 차단                                                               |
 | 작가      | 작품 관리, 표지 업로드, 태그, 회차 에디터(서식, 초안 자동 저장, 원고 백업·복원), 공개·예약 공개, 회차 순서 변경, 삭제, 완결 처리, 판매·선호작 수 |
 
+환불과 작가 정산, 비밀번호 재설정·이메일 인증·회원 탈퇴, 관리자 화면, 약관·개인정보 처리방침, 연령 등급은 구현하지 않았습니다.
+
 ## 기술 스택
 
 ![Next.js, React, TypeScript, Sass, NestJS, PostgreSQL, Yarn, Jest, Docker](https://skillicons.dev/icons?i=nextjs,react,ts,sass,nestjs,postgres,yarn,jest,docker)
@@ -100,9 +102,3 @@ packages/
 | [CI·배포](docs/deployment.md)               | CI 단계, 도커 이미지, 환경 변수, CodeRabbit 설정 |
 | [접근성·표준 점검표](docs/accessibility.md) | KWCAG 2.2 33개 항목 대조 결과와 숨겨진 화면 규칙 |
 | [버전 기록](CHANGELOG.md)                   | 버전별 변경 내용                                 |
-
-## 향후 과제
-
-- 실제 결제(PG) 연동, 환불, 작가 정산
-- 비밀번호 재설정, 이메일 인증, 회원 탈퇴
-- 관리자 화면, 약관·개인정보 처리방침, 연령 등급
