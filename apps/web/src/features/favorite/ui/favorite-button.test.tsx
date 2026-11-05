@@ -28,3 +28,13 @@ it("실패하면 이유를 알려 준다", async () => {
   await userEvent.click(screen.getByRole("button", { name: "✓ 선호작" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("로그인이 필요합니다.");
 });
+
+it("저장 중에도 키보드 초점을 잃지 않는다", async () => {
+  (setFavorite as jest.Mock).mockReturnValue(new Promise(() => {}));
+  setup(false);
+  const button = screen.getByRole("button", { name: "선호작 추가" });
+  button.focus();
+  await userEvent.keyboard("{Enter}");
+  await waitFor(() => expect(button).toHaveAttribute("aria-disabled", "true"));
+  expect(button).toHaveFocus();
+});

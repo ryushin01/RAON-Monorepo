@@ -122,6 +122,149 @@ test("저장 중에 더 쓰고 나가도 최신 원고가 남는다", async ({ p
   await expect(editorOf(page)).toContainText("앞 문장 뒤 문장");
 });
 
+test("공개 회차 수정을 버리고 나갔다 돌아오면 제목과 본문이 모두 원래대로다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `되돌림 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await page.getByRole("textbox", { name: "회차 제목" }).fill("원래 제목");
+  await editorOf(page).click();
+  await page.keyboard.type("원래 본문");
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+
+  await page.getByRole("textbox", { name: "회차 제목" }).fill("버릴 제목");
+  await editorOf(page).click();
+  await page.keyboard.type(" 버릴 본문");
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+  await page.getByRole("link", { name: /^1화/ }).click();
+
+  await expect(editorOf(page)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "회차 제목" })).toHaveValue("원래 제목");
+  await expect(editorOf(page)).toHaveText("원래 본문");
+  await expect(page.getByText(/저장하지 않은 변경 사항/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "복원" })).toHaveCount(0);
+});
+
+test("자동 저장 뒤 나갔다 돌아오면 최신 원고가 보인다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `돌아오기 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("저장된 본문");
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await expect(editorOf(page)).toHaveText("저장된 본문");
+});
+
+test("돌아온 직후 다시 읽는 동안에는 입력 칸을 내려 쓴 글이 사라지지 않는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `재조회 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("저장한 본문");
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+
+  await page.route("**/studio/works/**", async (route) => {
+    if (route.request().method() === "POST") await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await expect(page.getByText("최신 내용을 불러오는 중입니다.")).toBeVisible();
+  await expect(editorOf(page)).toHaveCount(0);
+  await expect(editorOf(page)).toHaveText("저장한 본문", { timeout: 10_000 });
+  await page.unroute("**/studio/works/**");
+});
+
+test("다시 읽기에 실패하면 옛 내용을 열지 않고 다시 시도할 수 있다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `재조회 실패 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("저장한 본문");
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+
+  await page.route("**/studio/works/**", (route) =>
+    route.request().method() === "POST" ? route.abort() : route.continue(),
+  );
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "최신 내용을 불러오지 못했습니다" })).toBeVisible();
+  await expect(editorOf(page)).toHaveCount(0);
+
+  await page.unroute("**/studio/works/**");
+  await page.getByRole("button", { name: "다시 시도" }).click();
+  await expect(editorOf(page)).toHaveText("저장한 본문");
+});
+
+test("Ctrl·Cmd 클릭으로 새 탭을 열어도 편집과 백업이 계속된다", async ({ page, context }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `새 탭 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("공개 본문");
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+  await editorOf(page).click();
+  await page.keyboard.type(" 고치는 중");
+
+  const dialogs: string[] = [];
+  page.on("dialog", (dialog) => {
+    dialogs.push(dialog.message());
+    void dialog.dismiss();
+  });
+  const opened = context.waitForEvent("page");
+  await page.getByRole("link", { name: "작품 관리로" }).click({ modifiers: ["ControlOrMeta"] });
+  await (await opened).close();
+  expect(dialogs).toEqual([]);
+
+  await editorOf(page).click();
+  await page.keyboard.type(" 더");
+  await expect
+    .poll(() =>
+      page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("raon:episode-backup:")).length),
+    )
+    .toBe(1);
+});
+
+test("자동 저장이 실패한 채 나가려 하면 묻는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `실패 경고 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  const url = page.url();
+  await page.route("**/studio/works/**", (route) =>
+    route.request().method() === "POST" ? route.abort() : route.continue(),
+  );
+  await editorOf(page).click();
+  await page.keyboard.type("저장 못 한 글");
+  await expect(page.getByText(/잠시 뒤 다시 시도합니다/)).toBeVisible({ timeout: 10_000 });
+  // 실패한 뒤 더 입력해도, 저장에 성공하기 전까지는 나갈 때 묻는다.
+  await page.keyboard.type(" 더 쓴 글");
+
+  const messages: string[] = [];
+  page.once("dialog", (dialog) => {
+    messages.push(dialog.message());
+    void dialog.dismiss();
+  });
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  expect(messages[0]).toContain("저장하지 못했습니다");
+  await expect(page).toHaveURL(url);
+});
+
 test("초안은 나갈 때 저장하고, 공개한 회차는 나가기 전에 묻는다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `나가기 ${Date.now()}`);
@@ -327,7 +470,7 @@ test("회차 순서를 버튼으로 바꾼다", async ({ page }) => {
   await page.getByRole("link", { name: "기억을 파는 골목" }).click();
   const list = page.getByRole("region", { name: "회차" });
   await expect(list.getByRole("link", { name: /^1화\. 환불 불가/ })).toBeVisible();
-  await expect(list.getByRole("button", { name: "위로: 1화" })).toBeDisabled();
+  await expect(list.getByRole("button", { name: "위로: 1화" })).toHaveAttribute("aria-disabled", "true");
   await list.getByRole("button", { name: "위로: 2화" }).click();
   await expect(list.getByRole("link", { name: /^1화\. 영수증/ })).toBeVisible();
   // 다른 테스트에 영향이 없도록 되돌린다.
@@ -397,6 +540,8 @@ test("초안과 판매 전 작품을 지울 수 있다", async ({ page }) => {
   page.on("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "삭제: 1화" }).click();
   await expect(page.getByText("아직 쓴 회차가 없습니다.")).toBeVisible();
+  // 누른 버튼이 사라져도 초점을 잃지 않는다(KWCAG 6.1.2).
+  await expect(page.getByRole("heading", { level: 2, name: "회차" })).toBeFocused();
 
   await page.getByRole("button", { name: "작품 삭제" }).click();
   await page.waitForURL("/studio");

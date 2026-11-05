@@ -127,6 +127,74 @@ test.describe("KWCAG 운용", () => {
     }
   });
 
+  test("6.1.3 새 화면의 조작 요소도 6mm 이상이다", async ({ page }) => {
+    const MIN_DIAGONAL_PX = (6 / 25.4) * 96;
+    const smallControls = () =>
+      page.evaluate((min) => {
+        const elements = document.querySelectorAll("button, select, input:not([type=hidden]), textarea, nav a, main a");
+        return [...elements]
+          .filter((element) => (element as HTMLElement).checkVisibility())
+          .filter((element) => {
+            const { width, height } = element.getBoundingClientRect();
+            return width > 1 && Math.hypot(width, height) < min;
+          })
+          .map((element) => element.outerHTML.slice(0, 80));
+      }, MIN_DIAGONAL_PX);
+
+    await login(page, READER, "일반 회원");
+    await page.goto("/works?q=유리");
+    await page.getByRole("link", { name: "유리 정원의 살인" }).click();
+    await expect(page.getByRole("group", { name: "내 별점" })).toBeVisible();
+    expect(await smallControls()).toEqual([]);
+
+    await page.context().clearCookies();
+    await login(page, AUTHOR, "작가");
+    await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
+    await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+    expect(await smallControls()).toEqual([]);
+  });
+
+  test("6.1.1 별점과 배너를 키보드로 쓴다", async ({ page }) => {
+    await page.goto("/");
+    const next = page.getByRole("button", { name: "다음 배너" });
+    await next.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(/2 \/ 3/)).toBeVisible();
+    await expect(next).toBeFocused();
+
+    await login(page, READER, "일반 회원");
+    await page.goto("/works?q=오후");
+    await page.getByRole("link", { name: "오후 세 시의 약속" }).click();
+    const score = page.getByRole("button", { name: "3점" });
+    await score.focus();
+    await page.keyboard.press("Enter");
+    await expect(score).toHaveAttribute("aria-pressed", "true");
+    // 저장하는 동안에도 초점을 잃지 않는다(KWCAG 6.1.2).
+    await expect(score).toBeFocused();
+    await expect(score).toHaveAttribute("aria-disabled", "false");
+    await page.keyboard.press("Enter");
+    await expect(score).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("6.1.1 표지 올리기와 회차 이동을 키보드로 쓴다", async ({ page }) => {
+    await login(page, AUTHOR, "작가");
+    await page.getByRole("link", { name: "궤도 위의 우체부" }).click();
+    const list = page.getByRole("region", { name: "회차" });
+    const down = list.getByRole("button", { name: "아래로: 1화" });
+    await down.focus();
+    await page.keyboard.press("Enter");
+    await expect(list.getByRole("link", { name: /^1화\. 제3돔/ })).toBeVisible();
+    await list.getByRole("button", { name: "아래로: 1화" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(list.getByRole("link", { name: /^1화\. 수신인 불명/ })).toBeVisible();
+
+    const upload = page.getByRole("button", { name: "표지 올리기" });
+    await upload.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByLabel("표지 이미지")).toBeFocused();
+    await expect(page.getByLabel("표지 이미지")).toHaveAccessibleDescription(/이미지 파일을 골라 주세요/);
+  });
+
   test("6.1.1 에디터에서 Tab으로 빠져나올 수 있다", async ({ page }) => {
     await login(page, AUTHOR, "작가");
     await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();

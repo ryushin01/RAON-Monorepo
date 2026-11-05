@@ -2,7 +2,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Button, Notice } from "@/shared/ui";
 import { createDraft, deleteDraft, moveEpisode } from "../api/actions";
 
@@ -34,16 +34,22 @@ export function NewEpisodeButton({ workId }: { workId: string }) {
 
 export function DeleteDraftButton({ workId, episodeId, label }: { workId: string; episodeId: string; label: string }) {
   const router = useRouter();
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const result = await deleteDraft(workId, id);
       if (!result.ok) throw new Error(result.message);
     },
-    onSuccess: () => router.refresh(),
+    onSuccess: () => {
+      // 누른 버튼이 사라지므로 초점을 회차 영역의 제목으로 옮긴다.
+      buttonRef.current?.closest("section")?.querySelector<HTMLElement>("h2")?.focus();
+      router.refresh();
+    },
   });
   return (
     <>
       <Button
+        ref={buttonRef}
         variant="secondary"
         small
         disabled={remove.isPending}
@@ -77,14 +83,20 @@ export function MoveEpisodeButtons({ workId, episodeId, label, canMoveUp, canMov
     },
     onSuccess: () => router.refresh(),
   });
+  // disabled는 키보드 초점을 빼앗으므로(KWCAG 6.1.2) 처리 중에는 aria-disabled로 표시하고 코드에서 막는다.
+  const go = (direction: "up" | "down") => {
+    if (!move.isPending) move.mutate(direction);
+  };
   return (
     <>
       <Button
         variant="secondary"
         small
         aria-label={`위로: ${label}`}
-        disabled={!canMoveUp || move.isPending}
-        onClick={() => move.mutate("up")}
+        aria-disabled={!canMoveUp || move.isPending}
+        onClick={() => {
+          if (canMoveUp) go("up");
+        }}
       >
         위로
       </Button>
@@ -92,8 +104,10 @@ export function MoveEpisodeButtons({ workId, episodeId, label, canMoveUp, canMov
         variant="secondary"
         small
         aria-label={`아래로: ${label}`}
-        disabled={!canMoveDown || move.isPending}
-        onClick={() => move.mutate("down")}
+        aria-disabled={!canMoveDown || move.isPending}
+        onClick={() => {
+          if (canMoveDown) go("down");
+        }}
       >
         아래로
       </Button>

@@ -38,13 +38,15 @@ async function HomeContent() {
 
   if (!first) return <p>아직 공개한 작품이 없습니다.</p>;
 
-  // 같은 작품이 겹치지 않게 앞에 나온 것을 남긴다.
-  const candidates: BannerSlide[] = [
-    { label: "인기 1위", work: first },
-    ...latest.items.slice(0, 1).map((work) => ({ label: "새로 올라온 회차", work })),
-    ...completed.items.slice(0, 1).map((work) => ({ label: "완결 추천", work })),
-  ];
-  const slides = candidates.filter(({ work }, index) => candidates.findIndex((c) => c.work.id === work.id) === index);
+  // 같은 작품이 겹치지 않게 각 목록에서 아직 쓰지 않은 첫 작품을 고른다.
+  const slides: BannerSlide[] = [{ label: "인기 1위", work: first }];
+  for (const [label, list] of [
+    ["새로 올라온 회차", latest.items],
+    ["완결 추천", completed.items],
+  ] as const) {
+    const work = list.find((item) => !slides.some((slide) => slide.work.id === item.id));
+    if (work) slides.push({ label, work });
+  }
 
   return (
     <>

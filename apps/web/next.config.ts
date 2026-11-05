@@ -25,10 +25,6 @@ const headers = [
 ];
 
 const nextConfig: NextConfig = {
-  // 도커 이미지를 만들 때만 standalone으로 빌드한다. next start와 함께 쓸 수 없다.
-  ...(process.env.NEXT_OUTPUT === "standalone"
-    ? { output: "standalone" as const, outputFileTracingRoot: new URL("../..", import.meta.url).pathname }
-    : {}),
   poweredByHeader: false,
   reactCompiler: true,
   cacheComponents: true,

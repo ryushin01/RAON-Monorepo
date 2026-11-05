@@ -21,8 +21,11 @@ test("README 스크린샷", async ({ page }) => {
   await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
   await page.getByRole("checkbox", { name: /3화/ }).check();
   await page.getByRole("checkbox", { name: /4화/ }).check();
-  await page.getByText("2화 선택").scrollIntoViewIfNeeded();
+  // 표지와 별점까지 한 화면에 담는다.
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  await page.evaluate(() => window.scrollTo(0, 0));
   await shot(page, "work-detail");
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole("button", { name: "장바구니 담기" }).click();
   await page.getByRole("status").filter({ hasText: "담았습니다" }).waitFor();
   const work = page.url();
@@ -62,6 +65,12 @@ test("README 스크린샷", async ({ page }) => {
   await page.waitForLoadState("networkidle");
   await shot(page, "studio");
   await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
+  await page.getByRole("button", { name: "새 회차 쓰기" }).waitFor();
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await shot(page, "studio-work");
+  await page.getByRole("region", { name: "작품 정보" }).evaluate((el) => el.scrollIntoView({ block: "start" }));
+  await shot(page, "studio-work-form");
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole("link", { name: /^1화/ }).click();
   await page.getByRole("textbox", { name: "본문" }).waitFor();
   await page.waitForLoadState("networkidle");

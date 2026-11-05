@@ -26,7 +26,7 @@ flowchart LR
 - 오류 화면: `error.tsx`와 `not-found.tsx`는 `_pages/errors`를, 루트 레이아웃까지 실패할 때의 `global-error.tsx`는 `_app/layouts/global-error-layout`을 내보냅니다. `global-error`에는 웹폰트와 저장된 테마가 적용되지 않습니다.
 - 슬라이스는 `index.ts`로만 가져오고, 서버 전용 코드는 `index.server.ts`로 내보냅니다.
 - 스타일은 Sass CSS Modules입니다. 색은 `_app/styles/global.scss`의 CSS 변수(흑백)만 씁니다.
-- 컴포넌트 옆에 스토리와 테스트를 둡니다.
+- 컴포넌트 옆에 스토리와 테스트를 둡니다. 서버에서 데이터를 읽는 async 페이지(`home`, `works`, `work-detail`, `viewer`, `cart`, `my`, `studio-*`)와 `UserMenu`는 Storybook과 Jest에서 그릴 수 없어 E2E로 검사합니다.
 - 저장 요청은 `useMutation`의 `mutate(data)`로 데이터를 직접 넘기고, `isPending`으로 중복 제출을 막습니다.
 
 ## 구매 규칙
@@ -72,6 +72,7 @@ yarn workspace @raon/api db:reset   # 개발 DB를 지우고 다음 실행 때 �
 
 - 초안은 입력이 멈추면 자동 저장하고, 실패하면 15초 뒤 다시 시도합니다. 화면을 떠날 때 남은 변경 사항도 저장합니다.
 - 공개한 회차는 독자에게 바로 보이므로 저장 버튼으로만 반영합니다.
+- 화면을 숨겼다 돌아오면 서버에서 최신 회차를 읽어 에디터를 새로 시작합니다.
 - 저장하지 못한 입력은 브라우저(`localStorage`)에 백업하고, 다시 열면 서버 내용과 다를 때 복원을 제안합니다. 복원 여부를 고르기 전에는 백업을 덮어쓰거나 지우지 않고, 로그아웃할 때 모두 지웁니다.
 
 ## 표준과 접근성

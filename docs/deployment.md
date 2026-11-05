@@ -1,4 +1,4 @@
-# CI·배포
+# CI와 환경 변수
 
 ## CI (`.github/workflows/ci.yml`)
 
@@ -6,16 +6,7 @@
 
 ## 배포
 
-포트폴리오 프로젝트라 운영 배포를 하지 않습니다. `main`에 머지해도 아무것도 배포되거나 게시되지 않습니다.
-
-도커 이미지가 필요할 때만 `.github/workflows/cd.yml`을 GitHub Actions에서 직접 실행합니다(`workflow_dispatch`). `apps/api`와 `apps/web`의 이미지를 GitHub Container Registry에 올립니다.
-
-```text
-ghcr.io/ryushin01/raon-api:<커밋 SHA 또는 latest>
-ghcr.io/ryushin01/raon-web:<커밋 SHA 또는 latest>
-```
-
-이 워크플로와 Dockerfile은 아직 실행해 본 적이 없습니다. 쓰기 전에 빌드부터 확인해야 합니다.
+포트폴리오 프로젝트라 운영 배포를 하지 않고, 도커 이미지나 배포 워크플로도 두지 않습니다. 데모 사이트 없이 [로컬에서 실행](../README.md#시작하기)합니다.
 
 ## 환경 변수
 
