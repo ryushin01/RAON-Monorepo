@@ -6,10 +6,22 @@ import { getSessionToken } from "@/entities/session/index.server";
 import { WORKS_TAG } from "@/entities/work/index.server";
 import { type ActionResult, apiFetch, toActionResult } from "@/shared/api/index.server";
 
-type WorkDraft = Omit<WorkInput, "episodePrice" | "wholePrice"> & { episodePrice: string; wholePrice: string };
+type WorkDraft = Omit<WorkInput, "episodePrice" | "wholePrice" | "tags"> & {
+  episodePrice: string;
+  wholePrice: string;
+  /** 쉼표로 구분한 태그 */
+  tags: string;
+};
 
 function toBody(draft: WorkDraft) {
-  return { ...draft, wholePrice: draft.wholePrice.trim() === "" ? null : draft.wholePrice };
+  return {
+    ...draft,
+    wholePrice: draft.wholePrice.trim() === "" ? null : draft.wholePrice,
+    tags: draft.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+  };
 }
 
 export async function saveWork(workId: string | null, draft: WorkDraft): Promise<ActionResult<StudioWorkDetail>> {
@@ -50,6 +62,32 @@ export async function deleteWork(workId: string): Promise<ActionResult<null>> {
   if (result.ok) {
     updateTag(WORKS_TAG);
     revalidatePath("/studio");
+  }
+  return result;
+}
+
+export async function uploadCover(workId: string, data: FormData): Promise<ActionResult<StudioWorkDetail>> {
+  const token = await getSessionToken();
+  if (!token) return { ok: false, message: "로그인이 필요합니다." };
+  const result = await toActionResult(() =>
+    apiFetch<StudioWorkDetail>(`/studio/works/${workId}/cover`, { method: "PUT", body: data, token }),
+  );
+  if (result.ok) {
+    updateTag(WORKS_TAG);
+    revalidatePath(`/studio/works/${workId}`);
+  }
+  return result;
+}
+
+export async function deleteCover(workId: string): Promise<ActionResult<StudioWorkDetail>> {
+  const token = await getSessionToken();
+  if (!token) return { ok: false, message: "로그인이 필요합니다." };
+  const result = await toActionResult(() =>
+    apiFetch<StudioWorkDetail>(`/studio/works/${workId}/cover`, { method: "DELETE", token }),
+  );
+  if (result.ok) {
+    updateTag(WORKS_TAG);
+    revalidatePath(`/studio/works/${workId}`);
   }
   return result;
 }

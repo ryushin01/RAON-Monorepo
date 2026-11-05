@@ -7,6 +7,16 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
 
 export const formatDate = (value: string) => dateFormatter.format(new Date(value));
 
+const dateTimeFormatter = new Intl.DateTimeFormat("ko-KR", {
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Asia/Seoul",
+});
+
+export const formatDateTime = (value: string) => dateTimeFormatter.format(new Date(value));
+
 export const formatNumber = (value: number) => value.toLocaleString("ko-KR");
 
 export const formatCoins = (value: number) => `${formatNumber(value)}코인`;

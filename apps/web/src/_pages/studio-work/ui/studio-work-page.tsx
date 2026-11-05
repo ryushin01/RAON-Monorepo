@@ -5,15 +5,20 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioWork } from "@/entities/studio/index.server";
-import { DeleteDraftButton, NewEpisodeButton } from "@/features/episode-editor";
-import { DeleteWorkButton, WorkForm, WorkStatusControl } from "@/features/work-form";
-import { formatCoins, formatDate, formatNumber } from "@/shared/lib";
+import { DeleteDraftButton, isScheduled, MoveEpisodeButtons, NewEpisodeButton } from "@/features/episode-editor";
+import { CoverUpload, DeleteWorkButton, WorkForm, WorkStatusControl } from "@/features/work-form";
+import { formatCoins, formatDate, formatDateTime, formatNumber } from "@/shared/lib";
 import { Badge, Main } from "@/shared/ui";
 import styles from "./studio-work.module.scss";
 
 export const studioWorkMetadata: Metadata = { title: "작품 관리" };
 
 type Params = Promise<{ workId: string }>;
+
+function episodeLabel({ status, publishedAt }: { status: string; publishedAt: string | null }) {
+  if (status !== "PUBLISHED") return "초안";
+  return publishedAt && isScheduled(publishedAt) ? `예약 ${formatDateTime(publishedAt)}` : "공개";
+}
 
 async function StudioWorkContent({ params }: { params: Params }) {
   const { workId } = await params;
@@ -44,7 +49,7 @@ async function StudioWorkContent({ params }: { params: Params }) {
           <p>아직 쓴 회차가 없습니다.</p>
         ) : (
           <ol className={styles.list}>
-            {work.episodes.map((episode) => (
+            {work.episodes.map((episode, index) => (
               <li key={episode.id}>
                 <div>
                   <Link href={`/studio/works/${work.id}/episodes/${episode.id}`}>
@@ -55,10 +60,15 @@ async function StudioWorkContent({ params }: { params: Params }) {
                   </small>
                 </div>
                 <span className={styles.badges}>
-                  <Badge solid={episode.status === "PUBLISHED"}>
-                    {episode.status === "PUBLISHED" ? "공개" : "초안"}
-                  </Badge>
+                  <Badge solid={episode.status === "PUBLISHED"}>{episodeLabel(episode)}</Badge>
                   <Badge>{episode.isFree ? "무료" : "유료"}</Badge>
+                  <MoveEpisodeButtons
+                    workId={work.id}
+                    episodeId={episode.id}
+                    label={`${episode.number}화`}
+                    canMoveUp={index > 0}
+                    canMoveDown={index < work.episodes.length - 1}
+                  />
                   {episode.status === "DRAFT" && (
                     <DeleteDraftButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
                   )}
@@ -71,6 +81,7 @@ async function StudioWorkContent({ params }: { params: Params }) {
 
       <section aria-label="작품 정보">
         <h2 className={styles.h2}>작품 정보</h2>
+        <CoverUpload work={work} />
         <WorkForm work={work} />
         <div className={styles.danger}>
           <DeleteWorkButton workId={work.id} title={work.title} />

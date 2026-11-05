@@ -22,6 +22,7 @@ function parse(params: SearchParams) {
     status: status === "ONGOING" || status === "COMPLETED" ? status : undefined,
     sort: workSortSchema.safeParse(one(params.sort)).data ?? "popular",
     q: one(params.q)?.trim().slice(0, 50) || undefined,
+    tag: one(params.tag)?.trim().slice(0, 10) || undefined,
     page: Number.isInteger(page) && page > 0 ? page : 1,
   } satisfies WorkQuery;
 }
@@ -63,7 +64,14 @@ async function WorksContent({ searchParams }: { searchParams: Promise<SearchPara
 
   return (
     <>
-      <h1 className={styles.title}>{filters.q ? `‘${filters.q}’ 검색 결과` : "전체 작품"}</h1>
+      <h1 className={styles.title}>
+        {filters.q ? `‘${filters.q}’ 검색 결과` : filters.tag ? `#${filters.tag} 작품` : "전체 작품"}
+      </h1>
+      {filters.tag && (
+        <p>
+          <Link href={hrefOf(filters, { tag: undefined })}>태그 조건 지우기</Link>
+        </p>
+      )}
       <div className={styles.filters}>
         <FilterRow
           label="장르"
@@ -109,6 +117,12 @@ async function WorksContent({ searchParams }: { searchParams: Promise<SearchPara
               label: "최신순",
               href: hrefOf(filters, { sort: "latest" }),
               current: filters.sort === "latest",
+            },
+            {
+              key: "rating",
+              label: "별점순",
+              href: hrefOf(filters, { sort: "rating" }),
+              current: filters.sort === "rating",
             },
           ]}
         />

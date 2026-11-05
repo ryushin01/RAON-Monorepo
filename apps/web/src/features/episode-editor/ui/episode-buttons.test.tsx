@@ -2,11 +2,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { createDraft, deleteDraft } from "../api/actions";
-import { DeleteDraftButton, NewEpisodeButton } from "./episode-buttons";
+import { createDraft, deleteDraft, moveEpisode } from "../api/actions";
+import { DeleteDraftButton, MoveEpisodeButtons, NewEpisodeButton } from "./episode-buttons";
 
 const push = jest.fn();
-jest.mock("../api/actions", () => ({ createDraft: jest.fn(), deleteDraft: jest.fn() }));
+jest.mock("../api/actions", () => ({ createDraft: jest.fn(), deleteDraft: jest.fn(), moveEpisode: jest.fn() }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: jest.fn() }) }));
 
 const wrap = (node: ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>);
@@ -30,4 +30,12 @@ it("초안 삭제는 확인을 받은 뒤에만 한다", async () => {
   confirm.mockReturnValue(true);
   await userEvent.click(button);
   await waitFor(() => expect(deleteDraft).toHaveBeenCalledWith("w1", "e1"));
+});
+
+it("회차를 버튼으로 옮기고, 끝에서는 그쪽 버튼을 막는다", async () => {
+  (moveEpisode as jest.Mock).mockResolvedValue({ ok: true, data: null });
+  wrap(<MoveEpisodeButtons workId="w1" episodeId="e1" label="1화" canMoveUp={false} canMoveDown />);
+  expect(screen.getByRole("button", { name: "위로: 1화" })).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "아래로: 1화" }));
+  await waitFor(() => expect(moveEpisode).toHaveBeenCalledWith("w1", "e1", "down"));
 });

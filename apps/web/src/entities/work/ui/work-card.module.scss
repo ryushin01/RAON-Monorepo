@@ -26,3 +26,9 @@
   color: var(--muted);
   font-size: 0.8125rem;
 }
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}

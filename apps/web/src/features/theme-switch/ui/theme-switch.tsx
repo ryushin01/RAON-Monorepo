@@ -1,7 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { THEME_STORAGE_KEY } from "@/shared/config";
+import { THEME_COOKIE } from "@/shared/config";
+import { writePreference } from "@/shared/lib";
 import { Button } from "@/shared/ui";
 
 type Theme = "light" | "dark";
@@ -21,11 +22,7 @@ function getTheme(): Theme {
 
 function setTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch {
-    // 저장하지 못해도 이번 화면에는 적용된다.
-  }
+  writePreference(THEME_COOKIE, theme);
   for (const listener of listeners) listener();
 }
 

@@ -1,12 +1,13 @@
-import { GENRE_LABEL, WORK_STATUS_LABEL, type WorkSummary } from "@raon/contracts";
+import { GENRE_LABEL } from "@raon/contracts";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { WorkCard, WorkCover } from "@/entities/work";
+import { WorkCard } from "@/entities/work";
 import { getWorks } from "@/entities/work/index.server";
 import { formatCompact, formatDate } from "@/shared/lib";
-import { ButtonLink, Main } from "@/shared/ui";
+import { Main } from "@/shared/ui";
+import { type BannerSlide, WorkBanner } from "@/widgets/work-banner";
 import styles from "./home.module.scss";
 
 export const homeMetadata: Metadata = { title: { absolute: "RAON 라온 | 웹소설 연재·감상 플랫폼" } };
@@ -25,34 +26,6 @@ function Section({ title, more, children }: { title: string; more: string; child
   );
 }
 
-function Feature({ work }: { work: WorkSummary }) {
-  return (
-    <article className={styles.feature}>
-      <WorkCover title={work.title} authorName={work.authorName} />
-      <div>
-        <p className={styles.kicker}>인기 1위</p>
-        <h2 className={styles.featureTitle}>
-          <Link href={`/works/${work.id}`}>{work.title}</Link>
-        </h2>
-        <p className={styles.meta}>
-          {work.authorName} · {GENRE_LABEL[work.genre]} · {WORK_STATUS_LABEL[work.status]} · {work.episodeCount}화
-        </p>
-        <p>{work.synopsis}</p>
-        {work.firstEpisodeNumber !== null && (
-          <p className={styles.cta}>
-            <ButtonLink
-              href={`/works/${work.id}/episodes/${work.firstEpisodeNumber}`}
-              aria-label={`첫 화 보기: ${work.title}`}
-            >
-              첫 화 보기
-            </ButtonLink>
-          </p>
-        )}
-      </div>
-    </article>
-  );
-}
-
 async function HomeContent() {
   // 빌드할 때 API가 없어도 되도록 요청 시점에 읽는다. 결과는 캐시를 함께 쓴다.
   await connection();
@@ -65,10 +38,18 @@ async function HomeContent() {
 
   if (!first) return <p>아직 공개한 작품이 없습니다.</p>;
 
+  // 같은 작품이 겹치지 않게 앞에 나온 것을 남긴다.
+  const candidates: BannerSlide[] = [
+    { label: "인기 1위", work: first },
+    ...latest.items.slice(0, 1).map((work) => ({ label: "새로 올라온 회차", work })),
+    ...completed.items.slice(0, 1).map((work) => ({ label: "완결 추천", work })),
+  ];
+  const slides = candidates.filter(({ work }, index) => candidates.findIndex((c) => c.work.id === work.id) === index);
+
   return (
     <>
       <div className={styles.top}>
-        <Feature work={first} />
+        <WorkBanner slides={slides} />
         <Section title="인기 작품" more="/works?sort=popular">
           <ol className={styles.rank}>
             {rest.map((work, index) => (

@@ -142,3 +142,14 @@
   border: 2px solid var(--fg);
   background: var(--surface);
 }
+
+.schedule {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+
+  > div {
+    width: 100%;
+    max-width: 22rem;
+  }
+}

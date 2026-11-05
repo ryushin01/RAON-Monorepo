@@ -39,14 +39,33 @@ export async function setEpisodePublished(
   workId: string,
   episodeId: string,
   published: boolean,
+  publishAt?: string,
 ): Promise<ActionResult<StudioEpisode>> {
   const token = await getSessionToken();
   if (!token) return NEED_LOGIN;
   const result = await toActionResult(() =>
     apiFetch<StudioEpisode>(`/studio/episodes/${episodeId}/${published ? "publish" : "unpublish"}`, {
       method: "POST",
+      body: published && publishAt ? { publishAt } : undefined,
       token,
     }),
+  );
+  if (result.ok) {
+    updateTag(WORKS_TAG);
+    revalidatePath(`/studio/works/${workId}`);
+  }
+  return result;
+}
+
+export async function moveEpisode(
+  workId: string,
+  episodeId: string,
+  direction: "up" | "down",
+): Promise<ActionResult<null>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  const result = await toActionResult(() =>
+    apiFetch<null>(`/studio/episodes/${episodeId}/move`, { method: "POST", body: { direction }, token }),
   );
   if (result.ok) {
     updateTag(WORKS_TAG);

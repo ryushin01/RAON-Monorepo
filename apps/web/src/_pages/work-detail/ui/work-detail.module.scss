@@ -9,12 +9,12 @@
   grid-template-columns: 6.5rem minmax(0, 1fr);
   gap: 1rem;
 
-  @media (min-width: 30rem) {
+  @media (width >= 30rem) {
     grid-template-columns: 10rem minmax(0, 1fr);
     gap: 1rem 1.5rem;
   }
 
-  @media (min-width: 48rem) {
+  @media (width >= 48rem) {
     grid-template-columns: 14rem minmax(0, 1fr);
   }
 }
@@ -46,7 +46,7 @@
 .synopsisWide {
   grid-column: 1 / -1;
 
-  @media (min-width: 48rem) {
+  @media (width >= 48rem) {
     grid-column: 2;
   }
 }
@@ -67,4 +67,24 @@
 
 .skeleton {
   min-height: 60dvh;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0;
+  list-style: none;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    font-size: 0.9375rem;
+  }
+}
+
+.rating {
+  margin-top: 1rem;
 }

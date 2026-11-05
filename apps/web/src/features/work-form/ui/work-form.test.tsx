@@ -24,7 +24,7 @@ it("입력한 값을 저장하고 작품 관리로 이동한다", async () => {
   await waitFor(() => expect(push).toHaveBeenCalledWith("/studio/works/w9"));
   expect(saveWork).toHaveBeenCalledWith(
     null,
-    expect.objectContaining({ title: "새 작품", genre: "FANTASY", episodePrice: "100", wholePrice: "" }),
+    expect.objectContaining({ title: "새 작품", genre: "FANTASY", episodePrice: "100", wholePrice: "", tags: "" }),
   );
 });
 
@@ -38,4 +38,15 @@ it("서버의 필드 오류를 입력 칸에 연결한다", async () => {
   await userEvent.click(screen.getByRole("button", { name: "작품 만들기" }));
   expect(await screen.findByText("작품명을 입력해 주세요.")).toBeInTheDocument();
   expect(screen.getByLabelText(/작품명/)).toBeInvalid();
+});
+
+it("태그 하나의 오류도 태그 칸에 연결한다", async () => {
+  (saveWork as jest.Mock).mockResolvedValue({
+    ok: false,
+    message: "태그는 10자 이하로 입력해 주세요.",
+    fieldErrors: { "tags.0": "태그는 10자 이하로 입력해 주세요." },
+  });
+  setup();
+  await userEvent.click(screen.getByRole("button", { name: "작품 만들기" }));
+  await waitFor(() => expect(screen.getByLabelText("태그")).toBeInvalid());
 });

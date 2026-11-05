@@ -23,6 +23,11 @@ const meta = {
       episodeCount: 5,
       firstEpisodeNumber: 1,
       latestEpisodeAt: null,
+      tags: [],
+      ratingAverage: 4.5,
+      ratingCount: 2,
+      coverUpdatedAt: null,
+      badges: ["HOT", "UP"],
     },
   },
 } satisfies Meta<typeof WorkCard>;

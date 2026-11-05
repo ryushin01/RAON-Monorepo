@@ -36,7 +36,7 @@
   @include dark-tokens;
 }
 
-@media (min-width: 48rem) {
+@media (width >= 48rem) {
   :root {
     --gutter: 2rem;
   }
@@ -55,6 +55,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+
   // 위아래 고정 영역이 초점 받은 요소를 가리지 않게 한다(KWCAG 6.1.2).
   scroll-padding-block: 6rem 7rem;
 }

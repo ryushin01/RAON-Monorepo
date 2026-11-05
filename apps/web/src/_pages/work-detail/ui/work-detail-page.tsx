@@ -1,13 +1,15 @@
-import { GENRE_LABEL, WORK_STATUS_LABEL } from "@raon/contracts";
+import { GENRE_LABEL, WORK_BADGE_LABEL, WORK_STATUS_LABEL } from "@raon/contracts";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getWorkAccess } from "@/entities/episode/index.server";
 import { getCurrentUser, getSessionToken } from "@/entities/session/index.server";
-import { WorkCover } from "@/entities/work";
+import { coverSrc, WorkCover } from "@/entities/work";
 import { getWork } from "@/entities/work/index.server";
 import { EpisodePurchaseList } from "@/features/cart";
 import { FavoriteButton } from "@/features/favorite";
+import { WorkRating } from "@/features/work-rating";
 import { formatCompact, formatNumber } from "@/shared/lib";
 import { Badge, ButtonLink, Main } from "@/shared/ui";
 import styles from "./work-detail.module.scss";
@@ -32,17 +34,30 @@ async function WorkDetailContent({ params }: { params: Params }) {
   return (
     <>
       <div className={styles.head}>
-        <WorkCover title={work.title} authorName={work.authorName} />
+        <WorkCover title={work.title} authorName={work.authorName} imageUrl={coverSrc(work)} />
         <div>
           <div className={styles.badges}>
             <Badge solid={work.status === "COMPLETED"}>{WORK_STATUS_LABEL[work.status]}</Badge>
             <Badge>{GENRE_LABEL[work.genre]}</Badge>
+            {work.badges.map((badge) => (
+              <Badge key={badge}>{WORK_BADGE_LABEL[badge]}</Badge>
+            ))}
           </div>
           <h1 className={styles.title}>{work.title}</h1>
           <p className={styles.meta}>
             {work.authorName} · 총 {formatNumber(work.episodeCount)}화 · 조회 {formatCompact(work.viewCount)}
+            {work.ratingAverage !== null && ` · 별점 ${work.ratingAverage}(${work.ratingCount}명)`}
           </p>
           <p className={styles.synopsis}>{work.synopsis}</p>
+          {work.tags.length > 0 && (
+            <ul className={styles.tags} aria-label="태그">
+              {work.tags.map((tag) => (
+                <li key={tag}>
+                  <Link href={`/works?tag=${encodeURIComponent(tag)}`}>#{tag}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className={styles.cta}>
             {resume ? (
               <ButtonLink href={`/works/${work.id}/episodes/${resume}`}>이어 보기: {resume}화</ButtonLink>
@@ -56,6 +71,11 @@ async function WorkDetailContent({ params }: { params: Params }) {
               </ButtonLink>
             )}
           </div>
+          {user?.role === "READER" && (
+            <div className={styles.rating}>
+              <WorkRating workId={work.id} myRating={access?.myRating ?? null} />
+            </div>
+          )}
         </div>
       </div>
       <section aria-label="회차">

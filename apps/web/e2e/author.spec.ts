@@ -241,6 +241,80 @@ test("다른 탭에서 로그아웃하면 편집 중인 탭도 원고를 브라�
   expect(await backups()).toEqual([]);
 });
 
+test("예약 공개는 시각 전까지 독자에게 보이지 않고, 취소하면 초안이 된다", async ({ page, browser }) => {
+  const title = `예약 ${Date.now()}`;
+  await login(page, AUTHOR, "작가");
+  await createWork(page, title);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await page.getByRole("textbox", { name: "회차 제목" }).fill("예약 회차");
+  await editorOf(page).click();
+  await page.keyboard.type("예약한 본문입니다.");
+
+  // 시각을 넣지 않으면 그 칸으로 안내한다.
+  await page.getByRole("button", { name: "예약 공개", exact: true }).click();
+  await expect(page.getByLabel("예약 공개 시각")).toHaveAccessibleDescription(/예약 시각을 입력해 주세요/);
+
+  const tomorrow = new Date(Date.now() + 24 * 3600_000);
+  const local = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  await page.getByLabel("예약 공개 시각").fill(local);
+  await page.getByRole("button", { name: "예약 공개", exact: true }).click();
+  await expect(page.getByText(/1화 · 예약 /)).toBeVisible();
+
+  const guest = await (await browser.newContext()).newPage();
+  await guest.goto(`/works?q=${encodeURIComponent(title)}`);
+  await expect(guest.getByText("조건에 맞는 작품이 없습니다")).toBeVisible();
+  await guest.close();
+
+  await page.getByRole("button", { name: "예약 취소" }).click();
+  await expect(page.getByText(/1화 · 초안/)).toBeVisible();
+});
+
+test("회차 순서를 버튼으로 바꾼다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.getByRole("link", { name: "기억을 파는 골목" }).click();
+  const list = page.getByRole("region", { name: "회차" });
+  await expect(list.getByRole("link", { name: /^1화\. 환불 불가/ })).toBeVisible();
+  await expect(list.getByRole("button", { name: "위로: 1화" })).toBeDisabled();
+  await list.getByRole("button", { name: "위로: 2화" }).click();
+  await expect(list.getByRole("link", { name: /^1화\. 영수증/ })).toBeVisible();
+  // 다른 테스트에 영향이 없도록 되돌린다.
+  await list.getByRole("button", { name: "위로: 2화" }).click();
+  await expect(list.getByRole("link", { name: /^1화\. 환불 불가/ })).toBeVisible();
+});
+
+test("표지를 올리면 독자 화면에 보이고, 지우면 제목 표지로 돌아간다", async ({ page, browser }) => {
+  const title = `표지 ${Date.now()}`;
+  await login(page, AUTHOR, "작가");
+  await createWork(page, title);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("표지 테스트 본문");
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+
+  const PNG = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  await page.getByLabel("표지 이미지").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: PNG });
+  await page.getByRole("button", { name: "표지 올리기" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "표지를 올렸습니다" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "표지 지우기" })).toBeVisible();
+
+  const guest = await (await browser.newContext()).newPage();
+  await guest.goto(`/works?q=${encodeURIComponent(title)}`);
+  const image = guest.locator('img[src^="/api/covers/"]').first();
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(1);
+  await guest.close();
+
+  await page.getByRole("button", { name: "표지 지우기" }).click();
+  await expect(page.getByRole("button", { name: "표지 지우기" })).toHaveCount(0);
+});
+
 test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `재시도 ${Date.now()}`);
