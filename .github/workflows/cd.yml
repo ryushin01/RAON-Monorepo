@@ -11,6 +11,8 @@ permissions:
 
 jobs:
   images:
+    # latest를 덮어쓰므로 main에서만 실행한다.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
