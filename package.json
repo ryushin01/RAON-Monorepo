@@ -1,0 +1,32 @@
+{
+  "name": "raon",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@raon/web",
+    "dev:api": "turbo run dev --filter=@raon/api",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "e2e": "turbo run e2e",
+    "storybook": "yarn workspace @raon/web storybook",
+    "build-storybook": "yarn workspace @raon/web build-storybook",
+    "screenshots": "yarn workspace @raon/web screenshots"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "turbo": "2.11.10"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "yarn@4.18.1"
+}

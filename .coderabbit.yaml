@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+# CodeRabbit PR 리뷰 설정. GitHub에 CodeRabbit 앱을 설치해야 동작한다.
+language: ko-KR
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  path_filters:
+    - "!yarn.lock"
+    - "!.yarn/**"
+    - "!apps/api/src/db/migrations/**"
+    - "!docs/images/**"
+  path_instructions:
+    - path: "apps/web/src/{shared,entities,features,widgets,_pages,_app}/**"
+      instructions: >-
+        Feature-Sliced Design을 따르는지 봅니다. 위 계층은 아래 계층만 가져오고, 같은 계층의 다른 슬라이스는
+        가져오지 않으며, 슬라이스 밖에서는 공개 API(index.ts, 서버 전용은 index.server.ts)로만 가져옵니다.
+        린트로 잡히지 않는 것(슬라이스를 잘못 나눈 경우, 한 곳에서만 쓰는데 shared에 둔 경우)을 지적합니다.
+    - path: "apps/web/src/app/**"
+      instructions: >-
+        Next의 라우트 파일은 _app, _pages를 다시 내보내기만 합니다. 로직이 들어가면 지적합니다.
+    - path: "apps/web/src/**/*.tsx"
+      instructions: >-
+        문구는 한국어 존댓말입니다. KWCAG 2.2 관점으로 레이블, 키보드 사용, 초점 표시, 색만으로 구분하지 않기,
+        44px 이상의 조작 크기를 확인합니다. 테마는 흑백이며 색은 CSS 변수로만 씁니다.
+        저장 요청은 useMutation의 mutate(data)로 데이터를 직접 넘기고 중복 제출을 막아야 합니다.
+    - path: "apps/web/src/**/queries.ts"
+      instructions: >-
+        use cache 함수에는 공개 정보만 있어야 합니다. 유료 본문, 초안, 사용자별 데이터가 캐시에 들어가면
+        심각한 문제로 지적합니다.
+    - path: "apps/api/src/**"
+      instructions: >-
+        NestJS API입니다. 입력은 contracts의 zod 스키마로 검증하고, 소유자와 역할을 서비스 또는 가드에서 확인해야 합니다.
+        가격은 클라이언트 값을 믿지 않고 서버에서 계산해야 합니다. 권한 없는 사용자에게 유료 회차 본문이 내려가지
+        않는지, 결제가 트랜잭션과 멱등 키로 보호되는지 확인합니다.
+    - path: "packages/contracts/**"
+      instructions: >-
+        웹과 API가 함께 쓰는 계약입니다. 본문 스키마(episodeDocSchema)를 바꾸면 에디터 확장(extensions.ts)과
+        뷰어(episode-content.tsx)도 함께 바뀌었는지 확인합니다.

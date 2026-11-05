@@ -1,0 +1,67 @@
+# 완료 기준(타입 검사, 린트, 단위 테스트, 빌드, 스토리 빌드, E2E)을 푸시와 PR마다 실행한다.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+
+      # 러너에 있는 yarn이 yarnPath로 저장소의 yarn 4를 실행한다.
+      - name: Yarn 캐시
+        uses: actions/cache@v4
+        with:
+          path: .yarn/cache
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      - run: yarn install --immutable
+
+      - run: yarn npm audit --environment production --severity high --recursive
+
+      - run: yarn lint
+      - run: yarn typecheck
+      - run: yarn test:coverage
+
+      - name: 테스트 커버리지 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            apps/*/coverage/lcov.info
+            packages/*/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - run: yarn build
+      - run: yarn build-storybook
+
+      - name: Playwright 브라우저 설치
+        run: yarn workspace @raon/web playwright install --with-deps chromium
+      - run: yarn e2e
+
+      - name: E2E 실패 기록 보관
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: apps/web/test-results/
+          retention-days: 7

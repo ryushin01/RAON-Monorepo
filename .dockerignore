@@ -1,0 +1,11 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/.data
+**/coverage
+**/test-results
+**/storybook-static
+.git
+.idea
+docs

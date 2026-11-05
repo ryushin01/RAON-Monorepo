@@ -1,0 +1,19 @@
+node_modules/
+.turbo/
+dist/
+.next/
+coverage/
+storybook-static/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.data/
+.DS_Store
+.idea/
+# Yarn: 릴리스 파일과 설정만 커밋한다.
+.yarn/*
+!.yarn/releases
+!.yarn/patches

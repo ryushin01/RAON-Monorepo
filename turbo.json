@@ -1,0 +1,41 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!**/*.test.tsx", "!**/*.stories.tsx", "!e2e/**"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "e2e": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["CI"]
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["DATABASE_URL", "PGLITE_DATA_DIR", "JWT_SECRET", "API_URL", "SEED_DEMO", "PORT"]
+    }
+  },
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "PGLITE_DATA_DIR",
+    "JWT_SECRET",
+    "API_URL",
+    "SEED_DEMO",
+    "NEXT_OUTPUT",
+    "SCREENSHOTS"
+  ]
+}

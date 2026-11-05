@@ -1,0 +1,71 @@
+import { z } from "zod";
+
+/**
+ * 회차 본문 형식. 에디터(Tiptap) 문서 중 허용한 노드와 마크만 저장한다.
+ * HTML을 저장하지 않으므로 뷰어는 이 구조를 React 요소로 바꿔 그리고, 스크립트가 끼어들 자리가 없다.
+ */
+const markSchema = z.strictObject({ type: z.enum(["bold", "italic"]) });
+
+const textNodeSchema = z.strictObject({
+  type: z.literal("text"),
+  text: z.string().min(1),
+  marks: z.array(markSchema).optional(),
+});
+
+const hardBreakSchema = z.strictObject({ type: z.literal("hardBreak") });
+
+const inlineSchema = z.discriminatedUnion("type", [textNodeSchema, hardBreakSchema]);
+
+const paragraphSchema = z.strictObject({
+  type: z.literal("paragraph"),
+  content: z.array(inlineSchema).optional(),
+});
+
+const blockquoteSchema = z.strictObject({
+  type: z.literal("blockquote"),
+  content: z.array(paragraphSchema).min(1),
+});
+
+const horizontalRuleSchema = z.strictObject({ type: z.literal("horizontalRule") });
+
+const blockSchema = z.discriminatedUnion("type", [paragraphSchema, blockquoteSchema, horizontalRuleSchema]);
+
+export const episodeDocSchema = z.strictObject({
+  type: z.literal("doc"),
+  content: z.array(blockSchema),
+});
+
+export type EpisodeDoc = z.infer<typeof episodeDocSchema>;
+export type EpisodeBlock = z.infer<typeof blockSchema>;
+export type EpisodeInline = z.infer<typeof inlineSchema>;
+
+export const EMPTY_DOC: EpisodeDoc = { type: "doc", content: [{ type: "paragraph" }] };
+
+/** 공백을 뺀 글자 수. 공개 조건과 작가 화면의 글자 수 표시에 함께 쓴다. */
+export function countChars(doc: EpisodeDoc): number {
+  let count = 0;
+  const visit = (block: EpisodeBlock) => {
+    if (block.type === "horizontalRule") return;
+    if (block.type === "blockquote") {
+      block.content.forEach(visit);
+      return;
+    }
+    for (const inline of block.content ?? []) {
+      if (inline.type === "text") count += inline.text.replace(/\s/g, "").length;
+    }
+  };
+  doc.content.forEach(visit);
+  return count;
+}
+
+/** 일반 텍스트를 문단 문서로 바꾼다. 빈 줄이 문단 구분이다. 시드 데이터와 테스트에서 쓴다. */
+export function docFromText(text: string): EpisodeDoc {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return {
+    type: "doc",
+    content: paragraphs.map((p) => ({ type: "paragraph", content: [{ type: "text", text: p }] })),
+  };
+}

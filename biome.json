@@ -1,0 +1,195 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!**/migrations", "!.yarn", "!**/next-env.d.ts", "!**/*.scss"]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "linter": {
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "recommended": true,
+        "useValidAriaRole": {
+          "level": "error",
+          "options": {
+            "ignoreNonDom": true
+          }
+        }
+      },
+      "style": {
+        "useImportType": "off"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/api/src/**", "apps/api/test/**"],
+      "javascript": {
+        "parser": {
+          "unsafeParameterDecoratorsEnabled": true
+        }
+      },
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off",
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/shared/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/entities/**", "@/features/**", "@/widgets/**", "@/_pages/**", "@/_app/**"],
+                    "message": "shared는 위 계층을 가져올 수 없습니다."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/entities/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/**", "@/widgets/**", "@/_pages/**", "@/_app/**"],
+                    "message": "entities는 위 계층을 가져올 수 없습니다."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/**", "@/widgets/**", "@/_pages/**", "@/_app/**"],
+                    "message": "features는 같은 계층과 위 계층을 가져올 수 없습니다."
+                  },
+                  {
+                    "group": ["@/entities/*/**", "!@/entities/*/index.server"],
+                    "message": "슬라이스는 공개 API로만 가져옵니다."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/widgets/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/widgets/**", "@/_pages/**", "@/_app/**"],
+                    "message": "widgets는 같은 계층과 위 계층을 가져올 수 없습니다."
+                  },
+                  {
+                    "group": [
+                      "@/features/*/**",
+                      "@/entities/*/**",
+                      "!@/entities/*/index.server",
+                      "!@/features/*/index.server"
+                    ],
+                    "message": "슬라이스는 공개 API로만 가져옵니다."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/_pages/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/_pages/**", "@/_app/**"],
+                    "message": "_pages는 같은 계층과 위 계층을 가져올 수 없습니다."
+                  },
+                  {
+                    "group": [
+                      "@/widgets/*/**",
+                      "@/features/*/**",
+                      "@/entities/*/**",
+                      "!@/entities/*/index.server",
+                      "!@/features/*/index.server"
+                    ],
+                    "message": "슬라이스는 공개 API로만 가져옵니다."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
