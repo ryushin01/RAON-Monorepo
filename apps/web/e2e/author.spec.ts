@@ -301,6 +301,27 @@ test("예약 공개는 시각 전까지 독자에게 보이지 않고, 취소하
   await expect(page.getByText(/1화 · 초안/)).toBeVisible();
 });
 
+test("예약 시각이 지나면 예약 취소가 사라져 공개 회차를 내릴 수 없다", async ({ page }) => {
+  await page.clock.install();
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `시각 경과 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("곧 공개될 본문");
+
+  const soon = new Date(Date.now() + 2 * 3600_000);
+  const kst = new Date(soon.getTime() + 9 * 3600_000).toISOString().slice(0, 16);
+  await page.getByLabel(/예약 공개 시각/).fill(kst);
+  await page.getByRole("button", { name: "예약 공개", exact: true }).click();
+  await expect(page.getByRole("button", { name: "예약 취소" })).toBeVisible();
+
+  await page.clock.fastForward("03:00:00");
+  await expect(page.getByRole("button", { name: "예약 취소" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "비공개로 바꾸기" })).toBeVisible();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+});
+
 test("회차 순서를 버튼으로 바꾼다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await page.getByRole("link", { name: "기억을 파는 골목" }).click();

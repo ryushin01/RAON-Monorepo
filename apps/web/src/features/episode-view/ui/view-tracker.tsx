@@ -34,6 +34,8 @@ export function ViewTracker({ workId, episodeId, number }: { workId: string; epi
       .then((ok) => {
         if (ok) markViewed(episodeId);
       })
+      // 서버 액션 호출 자체가 실패해도 읽는 데 지장이 없다. 표시하지 않았으니 다음 방문에 다시 보낸다.
+      .catch(() => {})
       .finally(() => inFlight.delete(episodeId));
   }, [workId, episodeId, number]);
   return null;
