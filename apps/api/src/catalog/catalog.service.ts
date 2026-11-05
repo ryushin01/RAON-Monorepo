@@ -7,24 +7,50 @@ import {
   type PublicEpisode,
   ReadingEntry,
   type WorkAccess,
+  type WorkBadge,
   type WorkDetail,
   type WorkSummary,
   type workQuerySchema,
 } from "@raon/contracts";
-import { and, asc, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { z } from "zod";
 import type { AuthUser } from "../auth/auth.guard.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
-import { cartItems, comments, episodes, favorites, orderItems, readingProgress, users, works } from "../db/schema.js";
+import {
+  cartItems,
+  comments,
+  episodes,
+  favorites,
+  orderItems,
+  ratings,
+  readingProgress,
+  users,
+  workCovers,
+  works,
+} from "../db/schema.js";
 
-const publishedCount = sql<number>`(select count(*)::int from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED')`;
+/** 독자에게 보이는 회차: 공개했고, 예약이라면 그 시각이 지났다. */
+const VISIBLE = sql.raw(`e."status" = 'PUBLISHED' and e."published_at" <= now()`);
+const visibleEpisode = () => and(eq(episodes.status, "PUBLISHED"), lte(episodes.publishedAt, sql`now()`));
+
+const publishedCount = sql<number>`(select count(*)::int from "episodes" e where e."work_id" = "works"."id" and ${VISIBLE})`;
 const firstEpisodeNumber = sql<
   number | null
->`(select min(e."number")::int from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED')`;
+>`(select min(e."number")::int from "episodes" e where e."work_id" = "works"."id" and ${VISIBLE})`;
 const latestPublishedAt = sql<
   string | null
->`(select max(e."published_at") from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED')`;
+>`(select max(e."published_at") from "episodes" e where e."work_id" = "works"."id" and ${VISIBLE})`;
+const firstPublishedAt = sql<
+  string | null
+>`(select min(e."published_at") from "episodes" e where e."work_id" = "works"."id" and ${VISIBLE})`;
+const ratingAverage = sql<
+  number | null
+>`(select round(avg(r."score"), 1)::float8 from "ratings" r where r."work_id" = "works"."id")`;
+const ratingCount = sql<number>`(select count(*)::int from "ratings" r where r."work_id" = "works"."id")`;
+const coverUpdatedAt = sql<
+  string | null
+>`(select c."updated_at" from "work_covers" c where c."work_id" = "works"."id")`;
 
 const summaryColumns = {
   id: works.id,
@@ -34,10 +60,47 @@ const summaryColumns = {
   status: works.status,
   synopsis: works.synopsis,
   viewCount: works.viewCount,
+  tags: works.tags,
   episodeCount: publishedCount,
   firstEpisodeNumber,
   latestEpisodeAt: latestPublishedAt,
+  firstPublishedAt,
+  ratingAverage,
+  ratingCount,
+  coverUpdatedAt,
 };
+
+const HOT_VIEW_COUNT = 30_000;
+const NEW_WITHIN_DAYS = 14;
+const UP_WITHIN_DAYS = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function badgesOf(viewCount: number, first: string | null, latest: string | null, now = Date.now()): WorkBadge[] {
+  const within = (value: string | null, days: number) =>
+    value !== null && now - new Date(value).getTime() < days * DAY_MS;
+  return [
+    ...(viewCount >= HOT_VIEW_COUNT ? (["HOT"] as const) : []),
+    ...(within(first, NEW_WITHIN_DAYS) ? (["NEW"] as const) : []),
+    ...(within(latest, UP_WITHIN_DAYS) ? (["UP"] as const) : []),
+  ];
+}
+
+interface SummaryRow {
+  viewCount: number;
+  firstPublishedAt: string | Date | null;
+  latestEpisodeAt: string | Date | null;
+  coverUpdatedAt: string | Date | null;
+}
+
+function toSummary<T extends SummaryRow>({ firstPublishedAt: first, ...row }: T) {
+  const latestEpisodeAt = iso(row.latestEpisodeAt);
+  return {
+    ...row,
+    latestEpisodeAt,
+    coverUpdatedAt: iso(row.coverUpdatedAt),
+    badges: badgesOf(row.viewCount, iso(first), latestEpisodeAt),
+  };
+}
 
 const iso = (value: string | Date | null) => (value ? new Date(value).toISOString() : null);
 
@@ -52,6 +115,9 @@ export class CatalogService {
     const pattern = query.q ? `%${escapeLike(query.q)}%` : null;
     const where = and(
       ne(works.status, "DRAFT"),
+      // 예약만 있고 아직 보이는 회차가 없는 작품은 목록에 내지 않는다.
+      sql`exists (select 1 from "episodes" e where e."work_id" = "works"."id" and ${VISIBLE})`,
+      query.tag ? sql`${query.tag} = any(${works.tags})` : undefined,
       query.genre ? eq(works.genre, query.genre) : undefined,
       query.status ? eq(works.status, query.status) : undefined,
       pattern ? or(ilike(works.title, pattern), ilike(users.nickname, pattern)) : undefined,
@@ -64,7 +130,11 @@ export class CatalogService {
         .innerJoin(users, eq(works.authorId, users.id))
         .where(where)
         .orderBy(
-          query.sort === "latest" ? sql`${latestPublishedAt} desc nulls last` : desc(works.viewCount),
+          query.sort === "latest"
+            ? sql`${latestPublishedAt} desc nulls last`
+            : query.sort === "rating"
+              ? sql`${ratingAverage} desc nulls last`
+              : desc(works.viewCount),
           asc(works.id),
         )
         .limit(query.pageSize)
@@ -77,7 +147,7 @@ export class CatalogService {
     ]);
 
     return {
-      items: rows.map((row) => ({ ...row, latestEpisodeAt: iso(row.latestEpisodeAt) })),
+      items: rows.map(toSummary),
       page: query.page,
       pageSize: query.pageSize,
       total: counted[0]?.total ?? 0,
@@ -102,12 +172,11 @@ export class CatalogService {
         publishedAt: episodes.publishedAt,
       })
       .from(episodes)
-      .where(and(eq(episodes.workId, workId), eq(episodes.status, "PUBLISHED")))
+      .where(and(eq(episodes.workId, workId), visibleEpisode()))
       .orderBy(asc(episodes.number));
 
     return {
-      ...row,
-      latestEpisodeAt: iso(row.latestEpisodeAt),
+      ...toSummary(row),
       wholePrice: row.status === "COMPLETED" ? row.wholePrice : null,
       episodes: list.map((e): PublicEpisode => ({ ...e, publishedAt: iso(e.publishedAt) as string })),
     };
@@ -125,7 +194,7 @@ export class CatalogService {
         .where(and(eq(cartItems.userId, user.id), eq(cartItems.workId, workId))),
     ]);
     const ids = (rows: { episodeId: string | null }[]) => rows.flatMap((r) => (r.episodeId ? [r.episodeId] : []));
-    const [[favorite], [progress], [work]] = await Promise.all([
+    const [[favorite], [progress], [work], [rating]] = await Promise.all([
       this.db
         .select({ workId: favorites.workId })
         .from(favorites)
@@ -135,6 +204,10 @@ export class CatalogService {
         .from(readingProgress)
         .where(and(eq(readingProgress.userId, user.id), eq(readingProgress.workId, workId))),
       this.db.select({ status: works.status, wholePrice: works.wholePrice }).from(works).where(eq(works.id, workId)),
+      this.db
+        .select({ score: ratings.score })
+        .from(ratings)
+        .where(and(eq(ratings.userId, user.id), eq(ratings.workId, workId))),
     ]);
     const spent = owned.reduce((sum, r) => sum + r.price, 0);
     return {
@@ -143,6 +216,7 @@ export class CatalogService {
       workInCart: cart.some((r) => r.episodeId === null),
       cartEpisodeIds: ids(cart),
       isFavorite: Boolean(favorite),
+      myRating: rating?.score ?? null,
       lastReadNumber: progress?.number ?? null,
       wholePriceForUser:
         work?.status === "COMPLETED" && work.wholePrice !== null ? Math.max(0, work.wholePrice - spent) : null,
@@ -163,12 +237,7 @@ export class CatalogService {
       .innerJoin(works, eq(episodes.workId, works.id))
       .innerJoin(users, eq(works.authorId, users.id))
       .where(
-        and(
-          eq(episodes.workId, workId),
-          eq(episodes.number, number),
-          eq(episodes.status, "PUBLISHED"),
-          ne(works.status, "DRAFT"),
-        ),
+        and(eq(episodes.workId, workId), eq(episodes.number, number), visibleEpisode(), ne(works.status, "DRAFT")),
       );
     if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
 
@@ -193,13 +262,7 @@ export class CatalogService {
     const neighbors = await this.db
       .select({ number: episodes.number, title: episodes.title })
       .from(episodes)
-      .where(
-        and(
-          eq(episodes.workId, workId),
-          eq(episodes.status, "PUBLISHED"),
-          inArray(episodes.number, [number - 1, number + 1]),
-        ),
-      );
+      .where(and(eq(episodes.workId, workId), visibleEpisode(), inArray(episodes.number, [number - 1, number + 1])));
 
     return {
       id: row.episode.id,
@@ -232,6 +295,28 @@ export class CatalogService {
     await this.db.insert(favorites).values({ userId: user.id, workId }).onConflictDoNothing();
   }
 
+  async setRating(user: AuthUser, workId: string, score: number | null): Promise<void> {
+    if (score === null) {
+      await this.db.delete(ratings).where(and(eq(ratings.userId, user.id), eq(ratings.workId, workId)));
+      return;
+    }
+    const [work] = await this.db
+      .select({ id: works.id })
+      .from(works)
+      .where(and(eq(works.id, workId), ne(works.status, "DRAFT")));
+    if (!work) throw new NotFoundException("작품을 찾을 수 없습니다.");
+    await this.db
+      .insert(ratings)
+      .values({ userId: user.id, workId, score })
+      .onConflictDoUpdate({ target: [ratings.userId, ratings.workId], set: { score, updatedAt: new Date() } });
+  }
+
+  async getCover(workId: string) {
+    const [cover] = await this.db.select().from(workCovers).where(eq(workCovers.workId, workId));
+    if (!cover) throw new NotFoundException("표지가 없습니다.");
+    return cover;
+  }
+
   async listFavorites(user: AuthUser): Promise<FavoriteWork[]> {
     const rows = await this.db
       .select({ ...summaryColumns, lastReadNumber: readingProgress.episodeNumber })
@@ -241,7 +326,7 @@ export class CatalogService {
       .leftJoin(readingProgress, and(eq(readingProgress.workId, works.id), eq(readingProgress.userId, user.id)))
       .where(and(eq(favorites.userId, user.id), ne(works.status, "DRAFT")))
       .orderBy(desc(favorites.createdAt));
-    return rows.map((row) => ({ ...row, latestEpisodeAt: iso(row.latestEpisodeAt) }));
+    return rows.map(toSummary);
   }
 
   async listReading(user: AuthUser): Promise<ReadingEntry[]> {
@@ -258,8 +343,7 @@ export class CatalogService {
       .orderBy(desc(readingProgress.updatedAt))
       .limit(10);
     return rows.map((row) => ({
-      ...row,
-      latestEpisodeAt: iso(row.latestEpisodeAt),
+      ...toSummary(row),
       lastReadAt: row.lastReadAt.toISOString(),
     }));
   }
@@ -313,7 +397,7 @@ export class CatalogService {
       .select({ episode: episodes, authorId: works.authorId })
       .from(episodes)
       .innerJoin(works, eq(episodes.workId, works.id))
-      .where(and(eq(episodes.id, episodeId), eq(episodes.status, "PUBLISHED"), ne(works.status, "DRAFT")));
+      .where(and(eq(episodes.id, episodeId), visibleEpisode(), ne(works.status, "DRAFT")));
     if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
     if (!(await this.canRead(row.episode, row.authorId, user))) {
       throw new ForbiddenException("이 회차를 구매한 뒤 이용할 수 있습니다.");
@@ -329,7 +413,7 @@ export class CatalogService {
       .where(
         and(
           eq(episodes.workId, workId),
-          eq(episodes.status, "PUBLISHED"),
+          visibleEpisode(),
           direction === "prev" ? sql`${episodes.number} < ${number}` : sql`${episodes.number} > ${number}`,
         ),
       )

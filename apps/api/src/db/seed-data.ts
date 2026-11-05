@@ -342,3 +342,30 @@ export const DEMO_PURCHASES: { user: DemoEmail; work: string; episodeNumber: num
   { user: "reader2@raon.test", work: "등대지기의 마지막 항로", episodeNumber: 3 },
   { user: "reader2@raon.test", work: "유리 정원의 살인", episodeNumber: 2 },
 ];
+
+export const DEMO_TAGS: Record<string, string[]> = {
+  "등대지기의 마지막 항로": ["아포칼립스", "미스터리", "성장"],
+  "검은 먹의 강호": ["사제", "필객", "완결"],
+  "오후 세 시의 약속": ["시간", "서점", "로맨스"],
+  "유리 정원의 살인": ["밀실", "추리", "완결"],
+  "궤도 위의 우체부": ["우주", "편지", "미스터리"],
+  "퇴근 후 던전 관리사무소": ["현대판타지", "공무원", "코미디"],
+  "설산에 묻은 칼": ["사제", "은퇴"],
+  "기억을 파는 골목": ["기억", "골목", "완결"],
+};
+
+export const DEMO_RATINGS: { user: DemoEmail; work: string; score: number }[] = [
+  { user: "reader2@raon.test", work: "검은 먹의 강호", score: 5 },
+  { user: "reader2@raon.test", work: "등대지기의 마지막 항로", score: 4 },
+  { user: "reader@raon.test", work: "유리 정원의 살인", score: 5 },
+  { user: "reader2@raon.test", work: "유리 정원의 살인", score: 4 },
+  { user: "reader2@raon.test", work: "기억을 파는 골목", score: 3 },
+];
+
+/** 예약 공개를 보여 주는 회차. 작가 스튜디오에만 보이고 독자에게는 보이지 않는다. */
+export const DEMO_SCHEDULED = {
+  work: "궤도 위의 우체부",
+  title: "돌아오는 호출",
+  body: "통로 끝의 호출은 점점 또렷해졌다. 나는 수신기를 들고 어둠 속으로 한 걸음 더 들어갔다.\n\n그리고 처음으로, 답신 버튼에 손을 올렸다.",
+  inDays: 3,
+};

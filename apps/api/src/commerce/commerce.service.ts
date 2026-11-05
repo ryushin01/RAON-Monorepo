@@ -9,7 +9,7 @@ import type {
   OrderResult,
   Wallet,
 } from "@raon/contracts";
-import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { isUniqueViolation } from "../common/db-errors.js";
 import type { Database, Transaction } from "../db/database.js";
 import { DB } from "../db/database.module.js";
@@ -59,6 +59,7 @@ export class CommerceService {
         and(
           eq(episodes.workId, input.workId),
           eq(episodes.status, "PUBLISHED"),
+          lte(episodes.publishedAt, sql`now()`),
           inArray(episodes.id, input.episodeIds),
         ),
       );
@@ -209,6 +210,7 @@ export class CommerceService {
         episodeTitle: episodes.title,
         episodeIsFree: episodes.isFree,
         episodeStatus: episodes.status,
+        episodePublishedAt: episodes.publishedAt,
       })
       .from(cartItems)
       .innerJoin(works, eq(cartItems.workId, works.id))
@@ -233,7 +235,11 @@ export class CommerceService {
       else if (row.episodeId && ownedEpisodes.has(row.episodeId)) unavailableReason = "이미 구매한 회차입니다.";
       else if (isWork && (row.workStatus !== "COMPLETED" || row.wholePrice === null))
         unavailableReason = "전체 구매 판매가 끝났습니다.";
-      else if (!isWork && row.episodeStatus !== "PUBLISHED") unavailableReason = "비공개로 바뀐 회차입니다.";
+      else if (
+        !isWork &&
+        (row.episodeStatus !== "PUBLISHED" || !row.episodePublishedAt || row.episodePublishedAt > new Date())
+      )
+        unavailableReason = "비공개로 바뀐 회차입니다.";
       else if (!isWork && row.episodeIsFree) unavailableReason = "무료로 바뀐 회차입니다.";
 
       return {

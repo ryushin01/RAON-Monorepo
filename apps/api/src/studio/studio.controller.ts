@@ -1,7 +1,27 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, UseGuards } from "@nestjs/common";
 import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import {
+  COVER_MAX_BYTES,
   type EpisodeInput,
   episodeInputSchema,
+  type MoveEpisodeInput,
+  moveEpisodeSchema,
+  type PublishInput,
+  publishInputSchema,
   type WorkInput,
   workInputSchema,
   workStatusInputSchema,
@@ -75,8 +95,38 @@ export class StudioController {
 
   @Post("episodes/:episodeId/publish")
   @HttpCode(200)
-  publish(@CurrentUser() user: AuthUser, @Param("episodeId", ParseUUIDPipe) episodeId: string) {
-    return this.studio.publishEpisode(user.id, episodeId);
+  publish(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Body(new ZodPipe(publishInputSchema)) body: PublishInput,
+  ) {
+    return this.studio.publishEpisode(user.id, episodeId, body.publishAt);
+  }
+
+  @Post("episodes/:episodeId/move")
+  @HttpCode(204)
+  async move(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Body(new ZodPipe(moveEpisodeSchema)) body: MoveEpisodeInput,
+  ) {
+    await this.studio.moveEpisode(user.id, episodeId, body.direction);
+  }
+
+  @Put("works/:workId/cover")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: COVER_MAX_BYTES } }))
+  cover(
+    @CurrentUser() user: AuthUser,
+    @Param("workId", ParseUUIDPipe) workId: string,
+    @UploadedFile() file: { buffer: Buffer } | undefined,
+  ) {
+    if (!file) throw new BadRequestException("이미지 파일을 골라 주세요.");
+    return this.studio.setCover(user.id, workId, file.buffer);
+  }
+
+  @Delete("works/:workId/cover")
+  removeCover(@CurrentUser() user: AuthUser, @Param("workId", ParseUUIDPipe) workId: string) {
+    return this.studio.deleteCover(user.id, workId);
   }
 
   @Post("episodes/:episodeId/unpublish")

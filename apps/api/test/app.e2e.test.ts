@@ -21,6 +21,7 @@ import {
   orderItems as orderItemsTable,
   users,
   users as usersTable,
+  works as worksTable,
 } from "../src/db/schema.js";
 import { seedDemoData } from "../src/db/seed.js";
 import { DEMO_COMMENTS, DEMO_FAVORITES, DEMO_PURCHASES, DEMO_USERS } from "../src/db/seed-data.js";
@@ -60,6 +61,7 @@ describe("RAON API", () => {
           genre: "SF",
           episodePrice: 100,
           wholePrice: 250,
+          tags: [],
         })
         .expect(201)
     ).body as StudioWorkDetail;
@@ -190,6 +192,7 @@ describe("RAON API", () => {
           genre: "SF",
           episodePrice: 100,
           wholePrice: null,
+          tags: [],
         })
       ).body as StudioWorkDetail;
       await http()
@@ -369,6 +372,7 @@ describe("RAON API", () => {
           genre: "FANTASY",
           episodePrice: 100,
           wholePrice: null,
+          tags: [],
         })
       ).body as StudioWorkDetail;
       expect(work.status).toBe("DRAFT");
@@ -576,6 +580,214 @@ describe("RAON API", () => {
       const unsold = await publishWork(author.accessToken);
       await http().delete(`/studio/works/${unsold.id}`).set(token).expect(204);
       await http().get(`/works/${unsold.id}`).expect(404);
+    });
+  });
+
+  describe("별점", () => {
+    it("일반 회원이 1~5점을 주고 고칠 수 있으며 평균을 보여 준다", async () => {
+      const author = await signup("AUTHOR");
+      const a = await signup("READER");
+      const b = await signup("READER");
+      const work = await publishWork(author.accessToken);
+
+      await http().put(`/works/${work.id}/rating`).send({ score: 5 }).expect(401);
+      await http().put(`/works/${work.id}/rating`).set(bearer(author.accessToken)).send({ score: 5 }).expect(403);
+      await http().put(`/works/${work.id}/rating`).set(bearer(a.accessToken)).send({ score: 6 }).expect(400);
+
+      await http().put(`/works/${work.id}/rating`).set(bearer(a.accessToken)).send({ score: 5 }).expect(204);
+      await http().put(`/works/${work.id}/rating`).set(bearer(a.accessToken)).send({ score: 4 }).expect(204);
+      await http().put(`/works/${work.id}/rating`).set(bearer(b.accessToken)).send({ score: 1 }).expect(204);
+      expect((await http().get(`/works/${work.id}`)).body).toMatchObject({ ratingAverage: 2.5, ratingCount: 2 });
+      expect((await http().get(`/works/${work.id}/access`).set(bearer(a.accessToken))).body.myRating).toBe(4);
+
+      await http().delete(`/works/${work.id}/rating`).set(bearer(a.accessToken)).expect(204);
+      expect((await http().get(`/works/${work.id}`)).body).toMatchObject({ ratingAverage: 1, ratingCount: 1 });
+    });
+  });
+
+  describe("태그", () => {
+    it("중복을 없애 저장하고 태그로 찾으며, 너무 많으면 거절한다", async () => {
+      const author = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const base = {
+        title: "태그 작품",
+        synopsis: "열 글자가 넘는 작품 소개입니다.",
+        genre: "SF",
+        episodePrice: 100,
+        wholePrice: null,
+      };
+      const tag = `태그${seq}`;
+      const work = (
+        await http()
+          .post("/studio/works")
+          .set(token)
+          .send({ ...base, tags: [tag, tag, "우주"] })
+          .expect(201)
+      ).body as StudioWorkDetail;
+      expect(work.tags).toEqual([tag, "우주"]);
+      await http()
+        .post("/studio/works")
+        .set(token)
+        .send({ ...base, tags: ["1", "2", "3", "4", "5", "6"] })
+        .expect(400);
+
+      const episode = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "1화", content: doc, authorNote: null, isFree: true });
+      await http().post(`/studio/episodes/${episode.body.id}/publish`).set(token).expect(200);
+
+      const found = await http().get("/works").query({ tag }).expect(200);
+      expect(found.body.items.map((item: { id: string }) => item.id)).toEqual([work.id]);
+      expect((await http().get("/works").query({ tag: "없는태그" })).body.total).toBe(0);
+    });
+  });
+
+  describe("예약 공개", () => {
+    const inHours = (hours: number) => new Date(Date.now() + hours * 3600_000).toISOString();
+
+    it("시각이 되기 전에는 독자에게 보이지 않고, 살 수도 없다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const created = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "예약 회차", content: doc, authorNote: null, isFree: false });
+      const id = created.body.id;
+      const publish = (body: object) => http().post(`/studio/episodes/${id}/publish`).set(token).send(body);
+
+      await publish({ publishAt: inHours(-1) }).expect(400);
+      expect((await publish({ publishAt: inHours(24) }).expect(200)).body.status).toBe("PUBLISHED");
+
+      const detail = (await http().get(`/works/${work.id}`)).body as WorkDetail;
+      expect(detail.episodes.map((e) => e.id)).not.toContain(id);
+      expect(detail.episodeCount).toBe(3);
+      await http().get(`/works/${work.id}/episodes/4`).expect(404);
+      await http().get(`/works/${work.id}/episodes/4`).set(token).expect(404);
+      expect((await http().get(`/works/${work.id}/episodes/3`)).body.next).toBeNull();
+      await http()
+        .post("/cart/items")
+        .set(bearer(reader.accessToken))
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [id] })
+        .expect(400);
+
+      // 바로 공개로 바꾸면 곧 보인다.
+      await publish({}).expect(200);
+      await http().get(`/works/${work.id}/episodes/4`).expect(200);
+      // 이미 공개한 회차는 다시 예약할 수 없다.
+      await publish({ publishAt: inHours(1) }).expect(409);
+    });
+
+    it("예약을 취소하면 초안으로 돌아가고 예약 시각이 지워진다", async () => {
+      const author = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "취소", content: doc, authorNote: null, isFree: true });
+      await http()
+        .post(`/studio/episodes/${body.id}/publish`)
+        .set(token)
+        .send({ publishAt: inHours(5) })
+        .expect(200);
+      const canceled = await http().post(`/studio/episodes/${body.id}/unpublish`).set(token).expect(200);
+      expect(canceled.body).toMatchObject({ status: "DRAFT", publishedAt: null });
+    });
+
+    it("보이는 회차가 없는 작품은 목록에 나오지 않는다", async () => {
+      const author = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const title = `예약만 ${seq}`;
+      const work = (
+        await http().post("/studio/works").set(token).send({
+          title,
+          synopsis: "열 글자가 넘는 작품 소개입니다.",
+          genre: "SF",
+          episodePrice: 100,
+          wholePrice: null,
+          tags: [],
+        })
+      ).body as StudioWorkDetail;
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "1화", content: doc, authorNote: null, isFree: true });
+      await http()
+        .post(`/studio/episodes/${body.id}/publish`)
+        .set(token)
+        .send({ publishAt: inHours(5) })
+        .expect(200);
+      expect((await http().get("/works").query({ q: title })).body.total).toBe(0);
+    });
+  });
+
+  describe("회차 순서", () => {
+    it("번호를 맞바꾸고, 구매와 소유권은 그대로이며, 끝에서는 더 못 옮긴다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const stranger = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const [first, second] = work.episodes;
+      await http()
+        .post("/cart/items")
+        .set(bearer(reader.accessToken))
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [second!.id] });
+      await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+      const move = (id: string, direction: string, as = token) =>
+        http().post(`/studio/episodes/${id}/move`).set(as).send({ direction });
+
+      await move(first!.id, "up").expect(400);
+      await move(second!.id, "up").expect(204);
+      await move(first!.id, "up", bearer(stranger.accessToken)).expect(404);
+
+      const after = (await http().get(`/works/${work.id}`)).body as WorkDetail;
+      expect(after.episodes.map((e) => e.id).slice(0, 2)).toEqual([second!.id, first!.id]);
+      // 산 회차는 번호가 1로 바뀌어도 읽을 수 있다.
+      const moved = await http().get(`/works/${work.id}/episodes/1`).set(bearer(reader.accessToken));
+      expect(moved.body).toMatchObject({ id: second!.id, accessible: true });
+    });
+  });
+
+  describe("표지", () => {
+    const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+
+    it("이미지만 받고, 내용으로 형식을 판별하며, 소유자만 바꾼다", async () => {
+      const author = await signup("AUTHOR");
+      const stranger = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const upload = (buffer: Buffer, filename: string, as = token) =>
+        http().put(`/studio/works/${work.id}/cover`).set(as).attach("file", buffer, filename);
+
+      expect(work.coverUpdatedAt).toBeNull();
+      await upload(Buffer.from("<svg onload=alert(1)>"), "cover.png").expect(400);
+      await upload(PNG, "cover.png", bearer(stranger.accessToken)).expect(404);
+      await upload(Buffer.alloc(2 * 1024 * 1024 + 1, 0xff), "big.jpg").expect(413);
+
+      const saved = await upload(PNG, "cover.bin").expect(200);
+      expect(saved.body.coverUpdatedAt).not.toBeNull();
+
+      const image = await http().get(`/works/${work.id}/cover`).expect(200);
+      expect(image.headers["content-type"]).toContain("image/png");
+      expect(Buffer.compare(image.body, PNG)).toBe(0);
+
+      expect((await http().get(`/works/${work.id}`)).body.coverUpdatedAt).not.toBeNull();
+      await http().delete(`/studio/works/${work.id}/cover`).set(token).expect(200);
+      await http().get(`/works/${work.id}/cover`).expect(404);
+    });
+  });
+
+  describe("뱃지", () => {
+    it("새 작품은 신작과 새 회차, 조회수가 많으면 인기를 붙인다", async () => {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      expect(work.badges).toEqual(["NEW", "UP"]);
+      await db.update(worksTable).set({ viewCount: 30000 }).where(eq(worksTable.id, work.id));
+      expect((await http().get(`/works/${work.id}`)).body.badges).toEqual(["HOT", "NEW", "UP"]);
     });
   });
 
