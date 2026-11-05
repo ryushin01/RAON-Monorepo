@@ -1,4 +1,5 @@
-import { VIEWER_STORAGE_KEY } from "@/shared/config";
+import { VIEWER_COOKIE } from "@/shared/config";
+import { readPreference, writePreference } from "@/shared/lib";
 
 export interface ViewerSettings {
   theme: "auto" | "white" | "gray" | "black";
@@ -18,10 +19,10 @@ let current: ViewerSettings | null = null;
 
 function read(): ViewerSettings {
   try {
-    const raw = localStorage.getItem(VIEWER_STORAGE_KEY);
+    const raw = readPreference(VIEWER_COOKIE);
     if (raw) return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<ViewerSettings>) };
   } catch {
-    // 저장소를 쓸 수 없거나 값이 깨졌으면 기본값을 쓴다.
+    // 값이 깨졌으면 기본값을 쓴다.
   }
   return DEFAULT_SETTINGS;
 }
@@ -50,11 +51,7 @@ export const viewerSettings = {
     next.leading = Math.round(Math.min(MAX_LEADING, Math.max(MIN_LEADING, next.leading)) * 10) / 10;
     current = next;
     apply(next);
-    try {
-      localStorage.setItem(VIEWER_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // 저장하지 못해도 이번 화면에는 적용된다.
-    }
+    writePreference(VIEWER_COOKIE, JSON.stringify(next));
     for (const listener of listeners) listener();
   },
 };

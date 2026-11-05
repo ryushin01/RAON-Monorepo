@@ -16,10 +16,16 @@ const comment: EpisodeComment = {
   canDelete: true,
 };
 
-const setup = (comments: EpisodeComment[], loggedIn = true) =>
+const setup = (comments: EpisodeComment[], loggedIn = true, total?: number) =>
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <EpisodeComments episodeId="e1" path="/works/w/episodes/1" comments={comments} loggedIn={loggedIn} />
+      <EpisodeComments
+        episodeId="e1"
+        path="/works/w/episodes/1"
+        comments={comments}
+        total={total ?? comments.length}
+        loggedIn={loggedIn}
+      />
     </QueryClientProvider>,
   );
 
@@ -48,7 +54,7 @@ it("댓글 내용을 HTML로 실행하지 않고, 삭제 버튼 이름이 구분
   expect(screen.getByText("<b>재미있어요</b>")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "삭제: 책벌레의 댓글" }));
   await waitFor(() => expect(deleteComment).toHaveBeenCalledWith("c1", "/works/w/episodes/1"));
-  await waitFor(() => expect(screen.getByRole("list")).toHaveFocus());
+  await waitFor(() => expect(screen.getByRole("heading", { name: /^댓글/ })).toHaveFocus());
 });
 
 it("비회원에게는 로그인 링크를 보여 준다", () => {
@@ -58,4 +64,10 @@ it("비회원에게는 로그인 링크를 보여 준다", () => {
     "href",
     "/login?next=%2Fworks%2Fw%2Fepisodes%2F1",
   );
+});
+
+it("보여 주는 수와 전체 수가 다르면 알려 준다", () => {
+  setup([comment], true, 250);
+  expect(screen.getByRole("heading", { name: "댓글 250개" })).toBeInTheDocument();
+  expect(screen.getByText("최신 1개를 보여 줍니다.")).toBeInTheDocument();
 });

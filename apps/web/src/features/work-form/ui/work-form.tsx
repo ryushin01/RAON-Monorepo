@@ -1,6 +1,6 @@
 "use client";
 
-import { GENRE_LABEL, GENRES, type Genre, type StudioWork } from "@raon/contracts";
+import { GENRE_LABEL, GENRES, type Genre, MAX_TAGS, type StudioWork } from "@raon/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef } from "react";
@@ -49,10 +49,13 @@ export function WorkForm({ work }: { work?: StudioWork }) {
       genre: String(form.get("genre")) as Genre,
       episodePrice: String(form.get("episodePrice")),
       wholePrice: String(form.get("wholePrice")),
+      tags: String(form.get("tags")),
     });
   };
 
   const fieldErrors = save.error instanceof FormError ? save.error.fieldErrors : undefined;
+  // 태그 하나가 잘못되면 tags.0처럼 위치가 붙어 온다.
+  const tagError = Object.entries(fieldErrors ?? {}).find(([key]) => key.startsWith("tags"))?.[1];
 
   // 오류가 있으면 첫 번째 잘못된 입력 칸으로 초점을 옮긴다.
   useEffect(() => {
@@ -84,6 +87,13 @@ export function WorkForm({ work }: { work?: StudioWork }) {
         maxLength={2000}
         hint="10자 이상으로 입력해 주세요."
         error={fieldErrors?.synopsis}
+      />
+      <TextField
+        label="태그"
+        name="tags"
+        defaultValue={work?.tags.join(", ")}
+        hint={`쉼표로 구분해 ${MAX_TAGS}개까지 입력합니다. 태그 하나는 10자 이하입니다.`}
+        error={tagError}
       />
       <div className={styles.prices}>
         <TextField

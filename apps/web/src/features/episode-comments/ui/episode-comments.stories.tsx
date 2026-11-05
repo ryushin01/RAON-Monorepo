@@ -16,6 +16,7 @@ const meta = {
     episodeId: "e1",
     path: "/works/w/episodes/1",
     loggedIn: true,
+    total: 1,
     comments: [
       {
         id: "1",

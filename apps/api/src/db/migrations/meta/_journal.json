@@ -15,6 +15,13 @@
       "when": 1793859391848,
       "tag": "0001_green_bloodscream",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793865298355,
+      "tag": "0002_thin_black_queen",
+      "breakpoints": true
     }
   ]
 }

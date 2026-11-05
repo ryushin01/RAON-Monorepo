@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import Cookies from "js-cookie";
 import { ViewerSettingsToggle } from "./viewer-settings-toggle";
 
 it("보기 설정을 키보드로 열 수 있다", async () => {
@@ -23,5 +24,6 @@ it("고른 값을 html과 저장소에 반영한다", async () => {
 
   expect(document.documentElement.dataset.viewerTheme).toBe("black");
   expect(document.documentElement.style.getPropertyValue("--viewer-size")).toBe("19px");
-  expect(JSON.parse(localStorage.getItem("raon:viewer") ?? "{}")).toMatchObject({ theme: "black", size: 19 });
+  expect(document.cookie).toContain("raon_viewer=");
+  expect(JSON.parse(Cookies.get("raon_viewer") ?? "{}")).toMatchObject({ theme: "black", size: 19 });
 });

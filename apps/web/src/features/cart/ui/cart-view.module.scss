@@ -1,16 +1,9 @@
-.layout,
-.empty {
-  &:focus {
-    outline: none;
-  }
-}
-
 .layout {
   display: grid;
   gap: 2rem;
   align-items: start;
 
-  @media (min-width: 56rem) {
+  @media (width >= 56rem) {
     grid-template-columns: 1fr 20rem;
   }
 }

@@ -10,11 +10,18 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
-import { type CommentInput, commentInputSchema, workQuerySchema } from "@raon/contracts";
+import {
+  type CommentInput,
+  commentInputSchema,
+  type RatingInput,
+  ratingInputSchema,
+  workQuerySchema,
+} from "@raon/contracts";
 import type { z } from "zod";
-import { AuthGuard, type AuthUser, CurrentUser, OptionalAuth } from "../auth/auth.guard.js";
+import { AuthGuard, type AuthUser, CurrentUser, OptionalAuth, Roles } from "../auth/auth.guard.js";
 import { ZodPipe } from "../common/zod.pipe.js";
 import { CatalogService } from "./catalog.service.js";
 
@@ -49,6 +56,18 @@ export class CatalogController {
     return this.catalog.getEpisode(workId, number, user);
   }
 
+  @Post("works/:workId/episodes/:number/view")
+  @HttpCode(204)
+  @OptionalAuth()
+  @UseGuards(AuthGuard)
+  async view(
+    @Param("workId", ParseUUIDPipe) workId: string,
+    @Param("number", ParseIntPipe) number: number,
+    @CurrentUser() user: AuthUser | undefined,
+  ) {
+    await this.catalog.recordView(workId, number, user);
+  }
+
   @Put("works/:workId/favorite")
   @HttpCode(204)
   @UseGuards(AuthGuard)
@@ -61,6 +80,32 @@ export class CatalogController {
   @UseGuards(AuthGuard)
   async unfavorite(@Param("workId", ParseUUIDPipe) workId: string, @CurrentUser() user: AuthUser) {
     await this.catalog.setFavorite(user, workId, false);
+  }
+
+  @Put("works/:workId/rating")
+  @HttpCode(204)
+  @Roles("READER")
+  @UseGuards(AuthGuard)
+  async rate(
+    @Param("workId", ParseUUIDPipe) workId: string,
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodPipe(ratingInputSchema)) body: RatingInput,
+  ) {
+    await this.catalog.setRating(user, workId, body.score);
+  }
+
+  @Delete("works/:workId/rating")
+  @HttpCode(204)
+  @Roles("READER")
+  @UseGuards(AuthGuard)
+  async unrate(@Param("workId", ParseUUIDPipe) workId: string, @CurrentUser() user: AuthUser) {
+    await this.catalog.setRating(user, workId, null);
+  }
+
+  @Get("works/:workId/cover")
+  async cover(@Param("workId", ParseUUIDPipe) workId: string) {
+    const cover = await this.catalog.getCover(workId);
+    return new StreamableFile(Buffer.from(cover.data), { type: cover.mimeType });
   }
 
   @Get("favorites")

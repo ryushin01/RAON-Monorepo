@@ -24,13 +24,14 @@ interface ApiOptions {
 
 /** NestJS API를 부른다. 브라우저는 API를 직접 부르지 않고 항상 Next 서버를 거친다. */
 export async function apiFetch<T>(path: string, { method = "GET", body, token }: ApiOptions = {}): Promise<T> {
+  const isForm = body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     method,
     headers: {
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(body === undefined || isForm ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: isForm ? body : body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
   });
 
@@ -40,6 +41,11 @@ export async function apiFetch<T>(path: string, { method = "GET", body, token }:
   }
   if (response.status === 204) return null as T;
   return (await response.json()) as T;
+}
+
+/** 이미지처럼 JSON이 아닌 응답을 그대로 받는다. */
+export function apiRaw(path: string): Promise<Response> {
+  return fetch(`${API_URL}${path}`, { cache: "no-store" });
 }
 
 /** 서버 액션에서 API 호출을 감싸 화면에 보여 줄 수 있는 결과로 바꾼다. */

@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   index,
   integer,
   jsonb,
@@ -14,6 +15,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({ dataType: () => "bytea" });
 
 export const roleEnum = pgEnum("role", ["READER", "AUTHOR"]);
 export const genreEnum = pgEnum("genre", ["FANTASY", "MARTIAL", "ROMANCE", "MODERN", "SF", "MYSTERY"]);
@@ -53,6 +56,7 @@ export const works = pgTable(
     status: workStatusEnum("status").notNull().default("DRAFT"),
     episodePrice: integer("episode_price").notNull(),
     wholePrice: integer("whole_price"),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     viewCount: integer("view_count").notNull().default(0),
     ...timestamps,
   },
@@ -191,3 +195,32 @@ export const comments = pgTable(
   },
   (t) => [index("comments_episode_idx").on(t.episodeId, t.createdAt)],
 );
+
+export const ratings = pgTable(
+  "ratings",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workId: uuid("work_id")
+      .notNull()
+      .references(() => works.id, { onDelete: "cascade" }),
+    score: integer("score").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.workId] }),
+    index("ratings_work_idx").on(t.workId),
+    check("ratings_score_range", sql`${t.score} between 1 and 5`),
+  ],
+);
+
+/** 표지 이미지. 파일 서버 없이 로컬에서 실행되도록 DB에 둔다. */
+export const workCovers = pgTable("work_covers", {
+  workId: uuid("work_id")
+    .primaryKey()
+    .references(() => works.id, { onDelete: "cascade" }),
+  mimeType: text("mime_type").notNull(),
+  data: bytea("data").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

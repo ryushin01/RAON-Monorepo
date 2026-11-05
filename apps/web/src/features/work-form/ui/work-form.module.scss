@@ -8,7 +8,7 @@
   display: grid;
   gap: 1.25rem;
 
-  @media (min-width: 40rem) {
+  @media (width >= 40rem) {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -17,5 +17,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 0.75rem;
+}
+
+.cover {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 1rem;
+  max-width: 40rem;
+  margin-bottom: 2rem;
+}
+
+.coverForm {
+  display: grid;
   gap: 0.75rem;
 }

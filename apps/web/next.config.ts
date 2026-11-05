@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   headers: async () => [{ source: "/(.*)", headers }],
+  // 표지 업로드(2MB)가 서버 액션을 거친다. 폼 구분자 몫으로 조금 더 둔다.
+  experimental: { serverActions: { bodySizeLimit: "3mb" } },
 };
 
 export default nextConfig;

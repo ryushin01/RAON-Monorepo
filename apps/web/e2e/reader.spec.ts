@@ -124,3 +124,57 @@ test("선호작에 넣고 이어 보기로 돌아오며, 댓글을 남긴다", a
   await page.getByRole("link", { name: "퇴근 후 던전 관리사무소 2화 이어 보기" }).click();
   await expect(page.getByRole("heading", { level: 1, name: /2화/ })).toBeVisible();
 });
+
+test("별점을 주면 평균에 반영되고, 다시 누르면 지운다", async ({ page }) => {
+  await login(page, READER, "일반 회원");
+  await page.goto("/works?q=설산");
+  await page.getByRole("link", { name: "설산에 묻은 칼" }).click();
+  await expect(page.getByText(/별점 /)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "4점" }).click();
+  await expect(page.getByRole("button", { name: "4점" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText(/별점 4\(1명\)/)).toBeVisible();
+
+  await page.getByRole("button", { name: "4점" }).click();
+  await expect(page.getByRole("button", { name: "4점" })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByText(/별점 4\(1명\)/)).toHaveCount(0);
+});
+
+test("태그와 별점순으로 찾고, 뱃지를 글자로 보여 준다", async ({ page }) => {
+  await page.goto("/works?q=유리");
+  await page.getByRole("link", { name: "유리 정원의 살인" }).click();
+  await page.getByRole("list", { name: "태그" }).getByRole("link", { name: "#밀실" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "#밀실 작품" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "유리 정원의 살인" })).toBeVisible();
+
+  await page.goto("/works?sort=rating");
+  await expect(page.getByRole("link", { name: "별점순" })).toHaveAttribute("aria-current", "true");
+  await expect(page.getByRole("heading", { level: 2 }).first()).toHaveText(/검은 먹의 강호|유리 정원의 살인/);
+
+  await page.goto("/works?sort=popular");
+  await expect(page.getByText("인기", { exact: true }).first()).toBeVisible();
+});
+
+test("메인 배너는 자동으로 넘어가지 않고 버튼으로 넘긴다", async ({ page }) => {
+  await page.goto("/");
+  const banner = page.getByRole("region", { name: "추천 작품" });
+  await expect(banner.getByText("인기 1위")).toBeVisible();
+  await page.waitForTimeout(1500);
+  await expect(banner.getByText("인기 1위")).toBeVisible();
+  await banner.getByRole("button", { name: "다음 배너" }).click();
+  await expect(banner.getByText("새로 올라온 회차")).toBeVisible();
+  await expect(banner.getByText("인기 1위")).toBeHidden();
+});
+
+test("테마와 뷰어 설정은 쿠키에 저장하고, 세션 토큰은 스크립트가 읽지 못한다", async ({ page, context }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "어두운 화면" }).click();
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  await login(page, READER, "일반 회원");
+  const cookies = await context.cookies();
+  expect(cookies.find((c) => c.name === "raon_theme")).toMatchObject({ value: "dark", httpOnly: false });
+  expect(cookies.find((c) => c.name === "raon_session")).toMatchObject({ httpOnly: true, sameSite: "Lax" });
+  expect(await page.evaluate(() => document.cookie)).not.toContain("raon_session");
+});

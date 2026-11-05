@@ -21,6 +21,7 @@ import {
   orderItems as orderItemsTable,
   users,
   users as usersTable,
+  works as worksTable,
 } from "../src/db/schema.js";
 import { seedDemoData } from "../src/db/seed.js";
 import { DEMO_COMMENTS, DEMO_FAVORITES, DEMO_PURCHASES, DEMO_USERS } from "../src/db/seed-data.js";
@@ -60,6 +61,7 @@ describe("RAON API", () => {
           genre: "SF",
           episodePrice: 100,
           wholePrice: 250,
+          tags: [],
         })
         .expect(201)
     ).body as StudioWorkDetail;
@@ -190,6 +192,7 @@ describe("RAON API", () => {
           genre: "SF",
           episodePrice: 100,
           wholePrice: null,
+          tags: [],
         })
       ).body as StudioWorkDetail;
       await http()
@@ -369,6 +372,7 @@ describe("RAON API", () => {
           genre: "FANTASY",
           episodePrice: 100,
           wholePrice: null,
+          tags: [],
         })
       ).body as StudioWorkDetail;
       expect(work.status).toBe("DRAFT");
@@ -440,13 +444,56 @@ describe("RAON API", () => {
       expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
     });
 
-    it("작가 본인의 열람은 조회수에 넣지 않는다", async () => {
+    it("조회수는 기록 요청으로만 늘고, 작가 본인과 읽을 수 없는 회차는 세지 않는다", async () => {
       const author = await signup("AUTHOR");
       const work = await publishWork(author.accessToken);
-      await http().get(`/works/${work.id}/episodes/1`).set(bearer(author.accessToken)).expect(200);
-      expect((await http().get(`/works/${work.id}`)).body.viewCount).toBe(0);
+      const viewCount = async () => (await http().get(`/works/${work.id}`)).body.viewCount;
+
       await http().get(`/works/${work.id}/episodes/1`).expect(200);
-      expect((await http().get(`/works/${work.id}`)).body.viewCount).toBe(1);
+      expect(await viewCount()).toBe(0);
+
+      await http().post(`/works/${work.id}/episodes/1/view`).set(bearer(author.accessToken)).expect(204);
+      await http().post(`/works/${work.id}/episodes/2/view`).expect(204);
+      expect(await viewCount()).toBe(0);
+
+      await http().post(`/works/${work.id}/episodes/1/view`).expect(204);
+      expect(await viewCount()).toBe(1);
+      await http().post(`/works/${work.id}/episodes/99/view`).expect(404);
+    });
+
+    it("전체 구매자가 있으면 공개했던 회차를 내리거나 지울 수 없다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken, { complete: true });
+      const target = work.episodes[2]!;
+      await http().post("/cart/items").set(bearer(reader.accessToken)).send({ kind: "WORK", workId: work.id });
+      await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+
+      await http().post(`/studio/episodes/${target.id}/unpublish`).set(token).expect(409);
+      expect((await http().get(`/works/${work.id}/episodes/3`).set(bearer(reader.accessToken))).body.accessible).toBe(
+        true,
+      );
+
+      // 공개한 적 없는 새 초안은 지울 수 있다.
+      const draft = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "새 초안", content: doc, authorNote: null, isFree: false });
+      await http().delete(`/studio/episodes/${draft.body.id}`).set(token).expect(204);
+    });
+
+    it("읽던 회차를 내리면 이어 보기에서 빠진다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const work = await publishWork(author.accessToken);
+      await http().get(`/works/${work.id}/episodes/1`).set(bearer(reader.accessToken)).expect(200);
+      expect((await http().get("/reading").set(bearer(reader.accessToken))).body).toHaveLength(1);
+      await http()
+        .post(`/studio/episodes/${work.episodes[0]!.id}/unpublish`)
+        .set(bearer(author.accessToken))
+        .expect(200);
+      expect((await http().get("/reading").set(bearer(reader.accessToken))).body).toHaveLength(0);
     });
 
     it("1화를 내려도 첫 공개 회차 번호를 알려 준다", async () => {
@@ -539,14 +586,14 @@ describe("RAON API", () => {
       await http().post(`/episodes/${paid!.id}/comments`).set(token).send({ body: "안 산 회차" }).expect(403);
 
       const guestView = await http().get(`/episodes/${free!.id}/comments`).expect(200);
-      expect(guestView.body[0]).toMatchObject({ body: "재미있어요", canDelete: false });
+      expect(guestView.body.items[0]).toMatchObject({ body: "재미있어요", canDelete: false });
       const mine = await http().get(`/episodes/${free!.id}/comments`).set(token);
-      expect(mine.body[0].canDelete).toBe(true);
+      expect(mine.body.items[0].canDelete).toBe(true);
 
-      const id = mine.body[0].id;
+      const id = mine.body.items[0].id;
       await http().delete(`/comments/${id}`).set(bearer(other.accessToken)).expect(403);
       await http().delete(`/comments/${id}`).set(bearer(author.accessToken)).expect(204);
-      expect((await http().get(`/episodes/${free!.id}/comments`)).body).toHaveLength(0);
+      expect((await http().get(`/episodes/${free!.id}/comments`)).body).toEqual({ items: [], total: 0 });
     });
   });
 
@@ -576,6 +623,278 @@ describe("RAON API", () => {
       const unsold = await publishWork(author.accessToken);
       await http().delete(`/studio/works/${unsold.id}`).set(token).expect(204);
       await http().get(`/works/${unsold.id}`).expect(404);
+    });
+  });
+
+  describe("별점", () => {
+    it("일반 회원이 1~5점을 주고 고칠 수 있으며 평균을 보여 준다", async () => {
+      const author = await signup("AUTHOR");
+      const a = await signup("READER");
+      const b = await signup("READER");
+      const work = await publishWork(author.accessToken);
+
+      await http().put(`/works/${work.id}/rating`).send({ score: 5 }).expect(401);
+      await http().put(`/works/${work.id}/rating`).set(bearer(author.accessToken)).send({ score: 5 }).expect(403);
+      await http().put(`/works/${work.id}/rating`).set(bearer(a.accessToken)).send({ score: 6 }).expect(400);
+
+      await http().put(`/works/${work.id}/rating`).set(bearer(a.accessToken)).send({ score: 5 }).expect(204);
+      await http().put(`/works/${work.id}/rating`).set(bearer(a.accessToken)).send({ score: 4 }).expect(204);
+      await http().put(`/works/${work.id}/rating`).set(bearer(b.accessToken)).send({ score: 1 }).expect(204);
+      expect((await http().get(`/works/${work.id}`)).body).toMatchObject({ ratingAverage: 2.5, ratingCount: 2 });
+      expect((await http().get(`/works/${work.id}/access`).set(bearer(a.accessToken))).body.myRating).toBe(4);
+
+      await http().delete(`/works/${work.id}/rating`).set(bearer(a.accessToken)).expect(204);
+      expect((await http().get(`/works/${work.id}`)).body).toMatchObject({ ratingAverage: 1, ratingCount: 1 });
+    });
+  });
+
+  describe("태그", () => {
+    it("중복을 없애 저장하고 태그로 찾으며, 너무 많으면 거절한다", async () => {
+      const author = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const base = {
+        title: "태그 작품",
+        synopsis: "열 글자가 넘는 작품 소개입니다.",
+        genre: "SF",
+        episodePrice: 100,
+        wholePrice: null,
+      };
+      const tag = `태그${seq}`;
+      const work = (
+        await http()
+          .post("/studio/works")
+          .set(token)
+          .send({ ...base, tags: [tag, tag, "우주"] })
+          .expect(201)
+      ).body as StudioWorkDetail;
+      expect(work.tags).toEqual([tag, "우주"]);
+      await http()
+        .post("/studio/works")
+        .set(token)
+        .send({ ...base, tags: ["1", "2", "3", "4", "5", "6"] })
+        .expect(400);
+
+      const episode = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "1화", content: doc, authorNote: null, isFree: true });
+      await http().post(`/studio/episodes/${episode.body.id}/publish`).set(token).expect(200);
+
+      const found = await http().get("/works").query({ tag }).expect(200);
+      expect(found.body.items.map((item: { id: string }) => item.id)).toEqual([work.id]);
+      expect((await http().get("/works").query({ tag: "없는태그" })).body.total).toBe(0);
+    });
+  });
+
+  describe("예약 공개", () => {
+    const inHours = (hours: number) => new Date(Date.now() + hours * 3600_000).toISOString();
+
+    it("시각이 되기 전에는 독자에게 보이지 않고, 살 수도 없다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const created = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "예약 회차", content: doc, authorNote: null, isFree: false });
+      const id = created.body.id;
+      const publish = (body: object) => http().post(`/studio/episodes/${id}/publish`).set(token).send(body);
+
+      await publish({ publishAt: inHours(-1) }).expect(400);
+      expect((await publish({ publishAt: inHours(24) }).expect(200)).body.status).toBe("PUBLISHED");
+
+      const detail = (await http().get(`/works/${work.id}`)).body as WorkDetail;
+      expect(detail.episodes.map((e) => e.id)).not.toContain(id);
+      expect(detail.episodeCount).toBe(3);
+      await http().get(`/works/${work.id}/episodes/4`).expect(404);
+      await http().get(`/works/${work.id}/episodes/4`).set(token).expect(404);
+      expect((await http().get(`/works/${work.id}/episodes/3`)).body.next).toBeNull();
+      await http()
+        .post("/cart/items")
+        .set(bearer(reader.accessToken))
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [id] })
+        .expect(400);
+
+      // 바로 공개로 바꾸면 곧 보인다.
+      await publish({}).expect(200);
+      await http().get(`/works/${work.id}/episodes/4`).expect(200);
+      // 이미 공개한 회차는 다시 예약할 수 없다.
+      await publish({ publishAt: inHours(1) }).expect(409);
+    });
+
+    it("예약을 취소하면 초안으로 돌아가고 예약 시각이 지워진다", async () => {
+      const author = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "취소", content: doc, authorNote: null, isFree: true });
+      await http()
+        .post(`/studio/episodes/${body.id}/publish`)
+        .set(token)
+        .send({ publishAt: inHours(5) })
+        .expect(200);
+      const canceled = await http().post(`/studio/episodes/${body.id}/unpublish`).set(token).expect(200);
+      expect(canceled.body).toMatchObject({ status: "DRAFT", publishedAt: null });
+    });
+
+    it("보이는 회차가 없는 작품은 목록에 나오지 않는다", async () => {
+      const author = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const title = `예약만 ${seq}`;
+      const work = (
+        await http().post("/studio/works").set(token).send({
+          title,
+          synopsis: "열 글자가 넘는 작품 소개입니다.",
+          genre: "SF",
+          episodePrice: 100,
+          wholePrice: null,
+          tags: [],
+        })
+      ).body as StudioWorkDetail;
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "1화", content: doc, authorNote: null, isFree: true });
+      await http()
+        .post(`/studio/episodes/${body.id}/publish`)
+        .set(token)
+        .send({ publishAt: inHours(5) })
+        .expect(200);
+      expect((await http().get("/works").query({ q: title })).body.total).toBe(0);
+    });
+  });
+
+  describe("회차 순서", () => {
+    it("번호를 맞바꾸고, 구매와 소유권은 그대로이며, 끝에서는 더 못 옮긴다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const stranger = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const [first, second] = work.episodes;
+      await http()
+        .post("/cart/items")
+        .set(bearer(reader.accessToken))
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [second!.id] });
+      await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+      const move = (id: string, direction: string, as = token) =>
+        http().post(`/studio/episodes/${id}/move`).set(as).send({ direction });
+
+      await move(first!.id, "up").expect(400);
+      await move(second!.id, "up").expect(204);
+      await move(first!.id, "up", bearer(stranger.accessToken)).expect(404);
+
+      const after = (await http().get(`/works/${work.id}`)).body as WorkDetail;
+      expect(after.episodes.map((e) => e.id).slice(0, 2)).toEqual([second!.id, first!.id]);
+      // 산 회차는 번호가 1로 바뀌어도 읽을 수 있다.
+      const moved = await http().get(`/works/${work.id}/episodes/1`).set(bearer(reader.accessToken));
+      expect(moved.body).toMatchObject({ id: second!.id, accessible: true });
+    });
+  });
+
+  describe("표지", () => {
+    const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+
+    it("이미지만 받고, 내용으로 형식을 판별하며, 소유자만 바꾼다", async () => {
+      const author = await signup("AUTHOR");
+      const stranger = await signup("AUTHOR");
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const upload = (buffer: Buffer, filename: string, as = token) =>
+        http().put(`/studio/works/${work.id}/cover`).set(as).attach("file", buffer, filename);
+
+      expect(work.coverUpdatedAt).toBeNull();
+      await upload(Buffer.from("<svg onload=alert(1)>"), "cover.png").expect(400);
+      await upload(PNG, "cover.png", bearer(stranger.accessToken)).expect(404);
+      await upload(Buffer.alloc(2 * 1024 * 1024 + 1, 0xff), "big.jpg").expect(413);
+
+      const saved = await upload(PNG, "cover.bin").expect(200);
+      expect(saved.body.coverUpdatedAt).not.toBeNull();
+
+      const image = await http().get(`/works/${work.id}/cover`).expect(200);
+      expect(image.headers["content-type"]).toContain("image/png");
+      expect(Buffer.compare(image.body, PNG)).toBe(0);
+
+      expect((await http().get(`/works/${work.id}`)).body.coverUpdatedAt).not.toBeNull();
+      await http().delete(`/studio/works/${work.id}/cover`).set(token).expect(200);
+      await http().get(`/works/${work.id}/cover`).expect(404);
+    });
+  });
+
+  describe("뱃지", () => {
+    it("새 작품은 신작과 새 회차, 조회수가 많으면 인기를 붙인다", async () => {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      expect(work.badges).toEqual(["NEW", "UP"]);
+      await db.update(worksTable).set({ viewCount: 30000 }).where(eq(worksTable.id, work.id));
+      expect((await http().get(`/works/${work.id}`)).body.badges).toEqual(["HOT", "NEW", "UP"]);
+    });
+  });
+
+  describe("예약과 판매", () => {
+    const inHours = (hours: number) => new Date(Date.now() + hours * 3600_000).toISOString();
+
+    async function scheduledOnlyWork(token: { Authorization: string }) {
+      const work = (
+        await http().post("/studio/works").set(token).send({
+          title: "예약만 있는 작품",
+          synopsis: "열 글자가 넘는 작품 소개입니다.",
+          genre: "SF",
+          episodePrice: 100,
+          wholePrice: 250,
+          tags: [],
+        })
+      ).body as StudioWorkDetail;
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "1화", content: doc, authorNote: null, isFree: false });
+      await http()
+        .post(`/studio/episodes/${body.id}/publish`)
+        .set(token)
+        .send({ publishAt: inHours(5) })
+        .expect(200);
+      return work.id;
+    }
+
+    it("예약만 걸린 작품은 완결로 바꿀 수 없고, 독자에게 없는 작품이며, 팔 수 없다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const token = bearer(author.accessToken);
+      const workId = await scheduledOnlyWork(token);
+
+      await http().post(`/studio/works/${workId}/status`).set(token).send({ status: "COMPLETED" }).expect(400);
+      await http().get(`/works/${workId}`).expect(404);
+      await http().put(`/works/${workId}/favorite`).set(bearer(reader.accessToken)).expect(404);
+      await http().put(`/works/${workId}/rating`).set(bearer(reader.accessToken)).send({ score: 5 }).expect(404);
+
+      // 이미 완결이어도(공개 뒤 내린 경우 등) 보이는 회차가 없으면 팔지 않는다.
+      await db.update(worksTable).set({ status: "COMPLETED" }).where(eq(worksTable.id, workId));
+      await http().post("/cart/items").set(bearer(reader.accessToken)).send({ kind: "WORK", workId }).expect(400);
+    });
+
+    it("전체 구매자가 있어도 아직 공개하지 않은 예약 회차는 취소할 수 있다", async () => {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER", 500);
+      const token = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken, { complete: true });
+      await http().post("/cart/items").set(bearer(reader.accessToken)).send({ kind: "WORK", workId: work.id });
+      await http().post("/orders").set(bearer(reader.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+
+      const { body } = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(token)
+        .send({ title: "예약", content: doc, authorNote: null, isFree: false });
+      await http()
+        .post(`/studio/episodes/${body.id}/publish`)
+        .set(token)
+        .send({ publishAt: inHours(5) })
+        .expect(200);
+      await http().post(`/studio/episodes/${body.id}/unpublish`).set(token).expect(200);
+      await http().delete(`/studio/episodes/${body.id}`).set(token).expect(204);
     });
   });
 

@@ -5,10 +5,12 @@ import { useMutation } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import { formatDateTime } from "@/shared/lib";
 import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
 import { saveEpisode, setEpisodePublished } from "../api/actions";
 import { UNTITLED } from "../model/constants";
 import { clearBackup, type DraftBackup, loggedOutSince, readBackup, writeBackup } from "../model/draft-backup";
+import { isScheduled, toPublishAt } from "../model/schedule";
 import { useAutosave } from "../model/use-autosave";
 import styles from "./episode-editor.module.scss";
 import { editorExtensions } from "./extensions";
@@ -39,6 +41,9 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [backup, setBackup] = useState<DraftBackup | null>(null);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleError, setScheduleError] = useState<string>();
+  const scheduleInputRef = useRef<HTMLInputElement>(null);
 
   // localStorage는 브라우저에만 있으므로 화면을 그린 뒤에 읽는다.
   useEffect(() => {
@@ -58,6 +63,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   const touch = () => setRevision((value) => value + 1);
   const dirty = revision !== savedRevision;
   const isDraft = episode.status !== "PUBLISHED";
+  const scheduled = !isDraft && isScheduled(episode.publishedAt);
 
   const editor = useEditor({
     extensions: editorExtensions,
@@ -85,6 +91,8 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   });
 
   const save = useMutation({
+    // 같은 scope의 저장은 앞의 요청이 끝난 뒤에 나간다. 늦게 끝난 옛 요청이 최신 원고를 덮어쓰지 않게 한다.
+    scope: { id: `episode-save:${initial.id}` },
     mutationFn: async ({ input }: SaveRequest) => {
       const result = await saveEpisode(initial.id, input);
       if (!result.ok) throw new Error(result.message);
@@ -108,14 +116,20 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   });
 
   const publish = useMutation({
-    mutationFn: async (published: boolean) => {
-      const result = await setEpisodePublished(episode.workId, initial.id, published);
+    mutationFn: async ({ published, publishAt }: { published: boolean; publishAt?: string }) => {
+      const result = await setEpisodePublished(episode.workId, initial.id, published, publishAt);
       if (!result.ok) throw new Error(result.message);
       return result.data;
     },
     onSuccess: (saved) => {
       setEpisode(saved);
-      setAnnouncement(saved.status === "PUBLISHED" ? "공개했습니다." : "비공개로 바꿨습니다.");
+      setAnnouncement(
+        saved.status !== "PUBLISHED"
+          ? "비공개로 바꿨습니다."
+          : isScheduled(saved.publishedAt)
+            ? "예약했습니다."
+            : "공개했습니다.",
+      );
       router.refresh();
     },
   });
@@ -215,7 +229,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     if (request) save.mutate(request);
   };
 
-  const onPublish = async () => {
+  const onPublish = async (publishAt?: string) => {
     const request = collect(true);
     if (!request) return;
     // 지금 화면의 내용을 먼저 저장한 뒤 공개한다.
@@ -223,7 +237,14 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
       const saved = await save.mutateAsync(request).catch(() => null);
       if (!saved) return;
     }
-    publish.mutate(true);
+    publish.mutate({ published: true, publishAt });
+  };
+
+  const onSchedule = () => {
+    const publishAt = toPublishAt(scheduleAt);
+    setScheduleError(publishAt ? undefined : "예약 시각을 입력해 주세요.");
+    if (publishAt) void onPublish(publishAt);
+    else scheduleInputRef.current?.focus();
   };
 
   const busy = save.isPending || publish.isPending;
@@ -246,7 +267,13 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     <div className={styles.editor}>
       <div className={styles.bar}>
         <p className={styles.state}>
-          {episode.number}화 · {isDraft ? "초안" : "공개 중"} · {stateText}
+          {episode.number}화 ·{" "}
+          {isDraft
+            ? "초안"
+            : scheduled && episode.publishedAt
+              ? `예약 ${formatDateTime(episode.publishedAt)}`
+              : "공개 중"}{" "}
+          · {stateText}
         </p>
         <div className={styles.actions}>
           <ButtonLink variant="ghost" small href={`/studio/works/${episode.workId}`} onClick={onLeave}>
@@ -259,8 +286,17 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
             <Button small onClick={() => void onPublish()} disabled={busy || !editor}>
               공개하기
             </Button>
+          ) : scheduled ? (
+            <>
+              <Button small disabled={busy || !editor} onClick={() => void onPublish()}>
+                지금 공개
+              </Button>
+              <Button variant="secondary" small disabled={busy} onClick={() => publish.mutate({ published: false })}>
+                예약 취소
+              </Button>
+            </>
           ) : (
-            <Button variant="secondary" small disabled={busy} onClick={() => publish.mutate(false)}>
+            <Button variant="secondary" small disabled={busy} onClick={() => publish.mutate({ published: false })}>
               비공개로 바꾸기
             </Button>
           )}
@@ -338,6 +374,23 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
         <EditorContent editor={editor} className={styles.content} />
         <p className={styles.count}>공백 제외 {(toolbar?.chars ?? 0).toLocaleString("ko-KR")}자</p>
       </div>
+
+      {isDraft && (
+        <div className={styles.schedule}>
+          <TextField
+            ref={scheduleInputRef}
+            label="예약 공개 시각(한국 시간)"
+            type="datetime-local"
+            value={scheduleAt}
+            error={scheduleError}
+            hint="이 시각이 되면 독자에게 보입니다."
+            onChange={(event) => setScheduleAt(event.target.value)}
+          />
+          <Button variant="secondary" disabled={busy || !editor} onClick={onSchedule}>
+            예약 공개
+          </Button>
+        </div>
+      )}
 
       <label className={styles.check}>
         <input

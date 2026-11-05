@@ -172,3 +172,18 @@ test.describe("상태 격리", () => {
     expect(await page.evaluate(() => document.documentElement.innerHTML.includes("보유 "))).toBe(false);
   });
 });
+
+test("스크립트가 붙기 전에 로그인 폼을 제출해도 비밀번호가 주소에 남지 않는다", async ({ page }) => {
+  // 앱 스크립트를 받지 못하게 해 폼은 보이지만 아직 동작하지 않는 상태를 만든다.
+  await page.route("**/_next/static/**/*.js", (route) => route.abort());
+  const urls: string[] = [];
+  page.on("request", (request) => urls.push(request.url()));
+
+  await page.goto("/login");
+  await page.getByLabel(/이메일/).fill(READER);
+  await page.getByLabel(/비밀번호/).fill("secret-password");
+  await page.getByRole("button", { name: "로그인" }).click();
+  await page.waitForLoadState();
+
+  expect(urls.filter((url) => url.includes("secret-password"))).toEqual([]);
+});

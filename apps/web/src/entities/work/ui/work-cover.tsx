@@ -12,7 +12,17 @@ function hash(value: string): number {
  * 작품 제목으로 만드는 흑백 표지. 같은 제목은 항상 같은 표지가 된다.
  * 카드에 제목과 작가를 글자로 함께 보여 주므로 보조기술에는 숨긴다.
  */
-export function WorkCover({ title, authorName }: { title: string; authorName: string }) {
+export function WorkCover({ title, authorName, imageUrl }: { title: string; authorName: string; imageUrl?: string }) {
+  if (imageUrl) {
+    return (
+      <div className={styles.cover} aria-hidden="true">
+        {/* 제목과 작가를 옆에 글자로 제공하므로 대체 텍스트는 비운다. */}
+        {/* biome-ignore lint/performance/noImgElement: 크기를 모르는 사용자 이미지를 같은 출처 라우트에서 그대로 전달한다. */}
+        <img className={styles.image} src={imageUrl} alt="" loading="lazy" />
+      </div>
+    );
+  }
+
   const value = hash(title);
   const pattern = PATTERNS[value % PATTERNS.length] as (typeof PATTERNS)[number];
   const tone = (value >> 3) % 3 === 0 ? styles.light : styles.dark;

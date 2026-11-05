@@ -1,6 +1,12 @@
 import { type CanActivate, type ExecutionContext, HttpException, HttpStatus, Injectable } from "@nestjs/common";
 
 const DEFAULT_LIMIT = 10;
+/** 잘못된 값(음수, Infinity 등)으로 제한이 풀리거나 모두 막히지 않게 양의 정수만 받는다. */
+function limit(): number {
+  const configured = Number(process.env.LOGIN_RATE_LIMIT);
+  return Number.isSafeInteger(configured) && configured > 0 ? configured : DEFAULT_LIMIT;
+}
+
 const WINDOW_MS = 60_000;
 
 /**
@@ -24,7 +30,7 @@ export class LoginThrottlerGuard implements CanActivate {
     entry.count += 1;
     this.attempts.set(key, entry);
 
-    if (entry.count > (Number(process.env.LOGIN_RATE_LIMIT) || DEFAULT_LIMIT)) {
+    if (entry.count > limit()) {
       throw new HttpException("로그인 시도가 너무 많습니다. 잠시 뒤 다시 시도해 주세요.", HttpStatus.TOO_MANY_REQUESTS);
     }
     return true;

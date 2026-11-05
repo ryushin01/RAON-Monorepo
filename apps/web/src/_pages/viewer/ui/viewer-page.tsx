@@ -9,9 +9,10 @@ import { getCurrentUser, getSessionToken } from "@/entities/session/index.server
 import { getWork } from "@/entities/work/index.server";
 import { AddEpisodeButton } from "@/features/cart";
 import { EpisodeComments } from "@/features/episode-comments";
+import { ViewTracker } from "@/features/episode-view";
 import { ViewerSettingsToggle } from "@/features/viewer-settings";
 import { formatCoins, formatDate } from "@/shared/lib";
-import { ButtonLink, Main } from "@/shared/ui";
+import { ButtonLink, Main, Notice } from "@/shared/ui";
 import styles from "./viewer.module.scss";
 
 type Params = Promise<{ workId: string; number: string }>;
@@ -58,7 +59,7 @@ async function ViewerContent({ params }: { params: Params }) {
   const base = `/works/${workId}/episodes`;
   const path = `${base}/${parsed}`;
   // 유료 회차는 산 사람만 댓글을 볼 수 있으므로 읽을 수 있을 때만 부른다.
-  const comments = episode.accessible ? await getComments(episode.id, token) : [];
+  const comments = episode.accessible ? await getComments(episode.id, token) : null;
   return (
     <>
       <header className={styles.bar}>
@@ -94,7 +95,20 @@ async function ViewerContent({ params }: { params: Params }) {
             </aside>
           )}
           {episode.accessible && (
-            <EpisodeComments episodeId={episode.id} path={path} comments={comments} loggedIn={Boolean(user)} />
+            <>
+              <ViewTracker workId={workId} episodeId={episode.id} number={parsed} />
+              {comments ? (
+                <EpisodeComments
+                  episodeId={episode.id}
+                  path={path}
+                  comments={comments.items}
+                  total={comments.total}
+                  loggedIn={Boolean(user)}
+                />
+              ) : (
+                <Notice>댓글을 불러오지 못했습니다. 잠시 뒤 다시 확인해 주세요.</Notice>
+              )}
+            </>
           )}
         </article>
       </Main>

@@ -71,9 +71,11 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
           <p>
             작품 전체 {formatCoins(wholePrice)}
             <small>
-              {wholePrice !== work.wholePrice
-                ? "이미 산 회차 금액을 뺀 가격입니다."
-                : `회차별로 사면 ${formatCoins(work.episodes.filter((e) => !e.isFree).length * work.episodePrice)}입니다.`}
+              {wholePrice === 0
+                ? "이미 산 회차 금액이 작품 가격을 넘어 추가 비용 없이 전체를 받을 수 있습니다."
+                : wholePrice !== work.wholePrice
+                  ? "이미 산 회차 금액을 뺀 가격입니다."
+                  : `회차별로 사면 ${formatCoins(work.episodes.filter((e) => !e.isFree).length * work.episodePrice)}입니다.`}
             </small>
           </p>
           {role === null ? (

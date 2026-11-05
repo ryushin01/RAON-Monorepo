@@ -2,8 +2,9 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useLayoutEffect } from "react";
 import { Button, Notice } from "@/shared/ui";
-import { createDraft, deleteDraft } from "../api/actions";
+import { createDraft, deleteDraft, moveEpisode } from "../api/actions";
 
 /** 빈 초안을 만들고 그 회차의 편집 화면으로 간다. */
 export function NewEpisodeButton({ workId }: { workId: string }) {
@@ -16,10 +17,15 @@ export function NewEpisodeButton({ workId }: { workId: string }) {
     },
     onSuccess: (episode) => router.push(`/studio/works/${workId}/episodes/${episode.id}`),
   });
+  // 이동을 마칠 때까지 막아 초안이 두 개 생기지 않게 하고, 다른 화면에 다녀오면 다시 쓸 수 있게 한다.
+  const { reset } = create;
+  useLayoutEffect(() => reset, [reset]);
+  const busy = create.isPending || create.isSuccess;
+
   return (
     <>
-      <Button disabled={create.isPending} onClick={() => create.mutate(workId)}>
-        {create.isPending ? "만드는 중…" : "새 회차 쓰기"}
+      <Button disabled={busy} onClick={() => create.mutate(workId)}>
+        {busy ? "만드는 중…" : "새 회차 쓰기"}
       </Button>
       {create.error && <Notice tone="error">{create.error.message}</Notice>}
     </>
@@ -49,6 +55,49 @@ export function DeleteDraftButton({ workId, episodeId, label }: { workId: string
         삭제
       </Button>
       {remove.error && <Notice tone="error">{remove.error.message}</Notice>}
+    </>
+  );
+}
+
+interface MoveProps {
+  workId: string;
+  episodeId: string;
+  label: string;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}
+
+/** 끌어 놓기 대신 버튼으로 옮긴다. 키보드와 단일 포인터로 쓸 수 있다(KWCAG 6.1.1, 6.5.1). */
+export function MoveEpisodeButtons({ workId, episodeId, label, canMoveUp, canMoveDown }: MoveProps) {
+  const router = useRouter();
+  const move = useMutation({
+    mutationFn: async (direction: "up" | "down") => {
+      const result = await moveEpisode(workId, episodeId, direction);
+      if (!result.ok) throw new Error(result.message);
+    },
+    onSuccess: () => router.refresh(),
+  });
+  return (
+    <>
+      <Button
+        variant="secondary"
+        small
+        aria-label={`위로: ${label}`}
+        disabled={!canMoveUp || move.isPending}
+        onClick={() => move.mutate("up")}
+      >
+        위로
+      </Button>
+      <Button
+        variant="secondary"
+        small
+        aria-label={`아래로: ${label}`}
+        disabled={!canMoveDown || move.isPending}
+        onClick={() => move.mutate("down")}
+      >
+        아래로
+      </Button>
+      {move.error && <Notice tone="error">{move.error.message}</Notice>}
     </>
   );
 }

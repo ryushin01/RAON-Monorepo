@@ -10,6 +10,7 @@ import {
   favorites,
   orderItems,
   orders,
+  ratings,
   readingProgress,
   users,
   works,
@@ -20,6 +21,9 @@ import {
   DEMO_PASSWORD,
   DEMO_PROGRESS,
   DEMO_PURCHASES,
+  DEMO_RATINGS,
+  DEMO_SCHEDULED,
+  DEMO_TAGS,
   DEMO_USERS,
   DEMO_WORKS,
 } from "./seed-data.js";
@@ -44,7 +48,7 @@ export async function seedDemoData(db: Database, now = new Date()): Promise<void
       const { author, freeCount, episodes: demoEpisodes, ...fields } = demo;
       const [work] = await tx
         .insert(works)
-        .values({ ...fields, authorId: userId(author) })
+        .values({ ...fields, tags: DEMO_TAGS[demo.title] ?? [], authorId: userId(author) })
         .returning({ id: works.id });
       workIds.set(demo.title, work!.id);
 
@@ -75,6 +79,24 @@ export async function seedDemoData(db: Database, now = new Date()): Promise<void
       return episode!.id;
     };
 
+    const [{ last } = { last: 0 }] = await tx
+      .select({ last: sql<number>`max(${episodes.number})::int` })
+      .from(episodes)
+      .where(eq(episodes.workId, workId(DEMO_SCHEDULED.work)));
+    const scheduled = docFromText(DEMO_SCHEDULED.body);
+    await tx.insert(episodes).values({
+      workId: workId(DEMO_SCHEDULED.work),
+      number: last + 1,
+      title: DEMO_SCHEDULED.title,
+      content: scheduled,
+      charCount: countChars(scheduled),
+      status: "PUBLISHED",
+      publishedAt: new Date(now.getTime() + DEMO_SCHEDULED.inDays * DAY),
+    });
+
+    await tx
+      .insert(ratings)
+      .values(DEMO_RATINGS.map((r) => ({ userId: userId(r.user), workId: workId(r.work), score: r.score })));
     await tx.insert(favorites).values(DEMO_FAVORITES.map((f) => ({ userId: userId(f.user), workId: workId(f.work) })));
     await tx
       .insert(readingProgress)

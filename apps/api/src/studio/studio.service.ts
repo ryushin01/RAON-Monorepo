@@ -7,10 +7,12 @@ import {
   type StudioWorkDetail,
   type WorkInput,
 } from "@raon/contracts";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { isForeignKeyViolation } from "../common/db-errors.js";
+import { detectImageType } from "../common/image.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
-import { episodes, orderItems, works } from "../db/schema.js";
+import { episodes, orderItems, workCovers, works } from "../db/schema.js";
 
 const countOf = (status: "PUBLISHED" | "DRAFT") =>
   // 단일 테이블 조회에서 Drizzle은 컬럼을 테이블 없이 출력하므로, 서브쿼리에서는 테이블명을 직접 적는다.
@@ -29,12 +31,23 @@ const workColumns = {
   draftEpisodeCount: countOf("DRAFT"),
   salesCount: sql<number>`(select count(*)::int from "order_items" o where o."work_id" = "works"."id")`,
   salesCoins: sql<number>`(select coalesce(sum(o."price"), 0)::int from "order_items" o where o."work_id" = "works"."id")`,
+  tags: works.tags,
+  coverUpdatedAt: sql<
+    string | Date | null
+  >`(select c."updated_at" from "work_covers" c where c."work_id" = "works"."id")`,
   favoriteCount: sql<number>`(select count(*)::int from "favorites" f where f."work_id" = "works"."id")`,
   updatedAt: works.updatedAt,
 };
 
-type WorkRow = Omit<StudioWork, "updatedAt"> & { updatedAt: Date };
-const toWork = (row: WorkRow): StudioWork => ({ ...row, updatedAt: row.updatedAt.toISOString() });
+type WorkRow = Omit<StudioWork, "updatedAt" | "coverUpdatedAt"> & {
+  updatedAt: Date;
+  coverUpdatedAt: string | Date | null;
+};
+const toWork = (row: WorkRow): StudioWork => ({
+  ...row,
+  updatedAt: row.updatedAt.toISOString(),
+  coverUpdatedAt: row.coverUpdatedAt ? new Date(row.coverUpdatedAt).toISOString() : null,
+});
 
 const toEpisode = (row: typeof episodes.$inferSelect): StudioEpisode => ({
   id: row.id,
@@ -104,7 +117,13 @@ export class StudioService {
 
   async setWorkStatus(authorId: string, workId: string, status: "ONGOING" | "COMPLETED"): Promise<StudioWorkDetail> {
     const work = await this.getWork(authorId, workId);
-    if (work.publishedEpisodeCount === 0) {
+    // 예약만 걸린 회차는 아직 공개한 것이 아니다.
+    const now = Date.now();
+    const visible = work.episodes.some(
+      (episode) =>
+        episode.status === "PUBLISHED" && episode.publishedAt !== null && Date.parse(episode.publishedAt) <= now,
+    );
+    if (!visible) {
       throw new BadRequestException("공개한 회차가 있어야 작품 상태를 바꿀 수 있습니다.");
     }
     await this.db.update(works).set({ status, updatedAt: new Date() }).where(eq(works.id, workId));
@@ -143,13 +162,25 @@ export class StudioService {
     return toEpisode(row!);
   }
 
-  async publishEpisode(authorId: string, episodeId: string): Promise<StudioEpisode> {
+  /** publishAt이 있으면 그 시각까지 독자에게 보이지 않는다. 예약 중인 회차는 바로 공개하거나 시각을 바꿀 수 있다. */
+  async publishEpisode(authorId: string, episodeId: string, publishAt?: string): Promise<StudioEpisode> {
     const current = await this.ownedEpisode(authorId, episodeId);
     this.assertPublishable({ content: current.content });
+    const now = new Date();
+    const alreadyPublic = current.status === "PUBLISHED" && current.publishedAt !== null && current.publishedAt <= now;
+    let publishedAt: Date;
+    if (publishAt) {
+      publishedAt = new Date(publishAt);
+      if (publishedAt <= now) throw new BadRequestException("예약 시각은 지금보다 뒤여야 합니다.");
+      if (alreadyPublic) throw new ConflictException("이미 공개한 회차는 예약할 수 없습니다.");
+    } else {
+      // 비공개로 내렸다가 다시 공개하면 처음 공개한 날짜를 유지한다.
+      publishedAt = current.publishedAt && current.publishedAt <= now ? current.publishedAt : now;
+    }
     return this.db.transaction(async (tx) => {
       const [row] = await tx
         .update(episodes)
-        .set({ status: "PUBLISHED", publishedAt: current.publishedAt ?? new Date(), updatedAt: new Date() })
+        .set({ status: "PUBLISHED", publishedAt, updatedAt: now })
         .where(eq(episodes.id, episodeId))
         .returning();
       // 첫 회차를 공개하면 작품도 목록에 나온다.
@@ -157,24 +188,75 @@ export class StudioService {
         .update(works)
         .set({
           status: sql`case when ${works.status} = 'DRAFT' then 'ONGOING'::work_status else ${works.status} end`,
-          updatedAt: new Date(),
+          updatedAt: now,
         })
         .where(eq(works.id, current.workId));
       return toEpisode(row!);
     });
   }
 
+  /** 바로 앞이나 뒤의 회차와 번호를 맞바꾼다. 구매와 댓글은 회차 id에 묶여 있어 그대로 유지된다. */
+  async moveEpisode(authorId: string, episodeId: string, direction: "up" | "down"): Promise<void> {
+    const { workId } = await this.ownedEpisode(authorId, episodeId);
+    await this.db.transaction(async (tx) => {
+      await tx.select({ id: works.id }).from(works).where(eq(works.id, workId)).for("update");
+      // 동시에 옮기는 요청이 있어도 잠근 뒤의 번호로 이웃을 찾는다.
+      const [current] = await tx
+        .select({ id: episodes.id, number: episodes.number })
+        .from(episodes)
+        .where(eq(episodes.id, episodeId));
+      if (!current) throw new NotFoundException("회차를 찾을 수 없습니다.");
+      const [neighbor] = await tx
+        .select({ id: episodes.id, number: episodes.number })
+        .from(episodes)
+        .where(
+          and(
+            eq(episodes.workId, workId),
+            direction === "up" ? lt(episodes.number, current.number) : gt(episodes.number, current.number),
+          ),
+        )
+        .orderBy(direction === "up" ? desc(episodes.number) : asc(episodes.number))
+        .limit(1);
+      if (!neighbor) throw new BadRequestException("더 옮길 수 없습니다.");
+      // (작품, 번호) 유일 제약이 있어 임시 번호를 거쳐 맞바꾼다.
+      await tx.update(episodes).set({ number: -1 }).where(eq(episodes.id, current.id));
+      await tx.update(episodes).set({ number: current.number }).where(eq(episodes.id, neighbor.id));
+      await tx.update(episodes).set({ number: neighbor.number }).where(eq(episodes.id, current.id));
+    });
+  }
+
+  async setCover(authorId: string, workId: string, data: Uint8Array): Promise<StudioWorkDetail> {
+    await this.assertOwner(authorId, workId);
+    const mimeType = detectImageType(data);
+    if (!mimeType) throw new BadRequestException("JPG, PNG, WebP 이미지만 올릴 수 있습니다.");
+    const updatedAt = new Date();
+    await this.db
+      .insert(workCovers)
+      .values({ workId, mimeType, data, updatedAt })
+      .onConflictDoUpdate({ target: workCovers.workId, set: { mimeType, data, updatedAt } });
+    return this.getWork(authorId, workId);
+  }
+
+  async deleteCover(authorId: string, workId: string): Promise<StudioWorkDetail> {
+    await this.assertOwner(authorId, workId);
+    await this.db.delete(workCovers).where(eq(workCovers.workId, workId));
+    return this.getWork(authorId, workId);
+  }
+
   async unpublishEpisode(authorId: string, episodeId: string): Promise<StudioEpisode> {
     const current = await this.ownedEpisode(authorId, episodeId);
-    const [sold] = await this.db
-      .select({ id: orderItems.id })
-      .from(orderItems)
-      .where(eq(orderItems.episodeId, episodeId))
-      .limit(1);
-    if (sold) throw new ConflictException("이미 판매한 회차는 비공개로 바꿀 수 없습니다.");
+    // 아직 공개하지 않은 예약 회차는 산 사람이 읽은 적이 없으므로 취소할 수 있다.
+    const wasPublic = current.publishedAt !== null && current.publishedAt <= new Date();
+    if (wasPublic && (await this.isSold(current.workId, episodeId))) {
+      throw new ConflictException("이미 판매한 회차는 비공개로 바꿀 수 없습니다.");
+    }
     const [row] = await this.db
       .update(episodes)
-      .set({ status: "DRAFT", updatedAt: new Date() })
+      .set({
+        status: "DRAFT",
+        publishedAt: current.publishedAt && current.publishedAt > new Date() ? null : current.publishedAt,
+        updatedAt: new Date(),
+      })
       .where(eq(episodes.id, current.id))
       .returning();
     return toEpisode(row!);
@@ -185,6 +267,9 @@ export class StudioService {
     const current = await this.ownedEpisode(authorId, episodeId);
     if (current.status === "PUBLISHED")
       throw new ConflictException("공개 중인 회차는 비공개로 바꾼 뒤 지울 수 있습니다.");
+    if (current.publishedAt && (await this.isSold(current.workId, episodeId))) {
+      throw new ConflictException("이미 판매한 회차는 지울 수 없습니다.");
+    }
     await this.db.delete(episodes).where(eq(episodes.id, episodeId));
   }
 
@@ -197,7 +282,23 @@ export class StudioService {
       .where(eq(orderItems.workId, workId))
       .limit(1);
     if (sold) throw new ConflictException("판매 기록이 있는 작품은 지울 수 없습니다.");
-    await this.db.delete(works).where(eq(works.id, workId));
+    try {
+      await this.db.delete(works).where(eq(works.id, workId));
+    } catch (error) {
+      // 확인과 삭제 사이에 결제가 끝나면 주문의 외래 키가 막는다.
+      if (isForeignKeyViolation(error)) throw new ConflictException("판매 기록이 있는 작품은 지울 수 없습니다.");
+      throw error;
+    }
+  }
+
+  /** 회차를 직접 샀거나, 작품 전체를 산 사람이 있으면 판매한 것이다. */
+  private async isSold(workId: string, episodeId: string): Promise<boolean> {
+    const [sold] = await this.db
+      .select({ id: orderItems.id })
+      .from(orderItems)
+      .where(and(eq(orderItems.workId, workId), or(eq(orderItems.episodeId, episodeId), isNull(orderItems.episodeId))))
+      .limit(1);
+    return Boolean(sold);
   }
 
   private assertPublishable(input: Pick<EpisodeInput, "content">) {
