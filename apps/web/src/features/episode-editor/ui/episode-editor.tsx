@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { formatDateTime } from "@/shared/lib";
 import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
-import { saveEpisode, setEpisodePublished } from "../api/actions";
+import { fetchEpisode, saveEpisode, setEpisodePublished } from "../api/actions";
 import { UNTITLED } from "../model/constants";
 import { clearBackup, type DraftBackup, loggedOutSince, readBackup, writeBackup } from "../model/draft-backup";
 import { isScheduled, toPublishAt } from "../model/schedule";
@@ -28,7 +28,36 @@ interface SaveRequest {
   manual: boolean;
 }
 
-export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) {
+/**
+ * Next는 지나간 화면을 숨겨 둔다. 그동안 Tiptap은 파괴되지만 React 상태는 남아서, 그대로 돌아오면 본문만 옛 내용이고
+ * 제목은 수정본인 채 저장될 수 있다. 그래서 돌아올 때마다 서버에서 최신 회차를 읽어 에디터를 새로 시작한다.
+ * 저장하지 못한 입력은 백업에 있으므로 복원을 제안한다.
+ */
+export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
+  const [current, setCurrent] = useState(episode);
+  const [generation, setGeneration] = useState(0);
+  const shown = useRef(false);
+
+  useEffect(() => {
+    if (!shown.current) {
+      shown.current = true;
+      return;
+    }
+    let active = true;
+    void fetchEpisode(episode.id).then((result) => {
+      if (!active || !result.ok) return;
+      setCurrent(result.data);
+      setGeneration((value) => value + 1);
+    });
+    return () => {
+      active = false;
+    };
+  }, [episode.id]);
+
+  return <EpisodeEditorBody key={generation} episode={current} />;
+}
+
+function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
   const router = useRouter();
   const contentLabelId = useId();
   const [episode, setEpisode] = useState(initial);
@@ -59,6 +88,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
 
   const latestRevision = useRef(0);
   const backupPending = useRef(false);
+  const discarded = useRef(false);
   const openedAt = useRef(0);
   const touch = () => setRevision((value) => value + 1);
   const dirty = revision !== savedRevision;
@@ -183,7 +213,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     backupPending.current = backup !== null;
     backupRef.current = () => {
       // 다른 탭에서 로그아웃했다면 원고를 브라우저에 남기지 않는다.
-      if (loggedOutSince(openedAt.current)) return;
+      if (loggedOutSince(openedAt.current) || discarded.current) return;
       // 복원 여부를 고르기 전에는 이전 백업을 덮어쓰지 않는다.
       const input = dirty && !backup ? collectInput() : null;
       if (input) writeBackup(initial.id, input);
@@ -230,9 +260,18 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   }, [dirty]);
 
   const onLeave = (event: MouseEvent) => {
-    // 초안은 떠날 때 자동 저장되므로 공개한 회차의 변경 사항만 묻는다.
-    if (dirty && !isDraft && !window.confirm("저장하지 않은 변경 사항이 있습니다. 저장하지 않고 나갈까요?")) {
+    // 초안은 떠날 때 자동 저장되므로 묻지 않는다. 다만 저장이 이미 실패했다면 떠난 뒤에는 알릴 방법이 없어 묻는다.
+    const failed = failedRevision === revision;
+    if (!dirty || (isDraft && !failed)) return;
+    const message = failed
+      ? "저장하지 못했습니다. 입력한 내용은 이 브라우저에 백업합니다. 그래도 나갈까요?"
+      : "저장하지 않은 변경 사항이 있습니다. 저장하지 않고 나갈까요?";
+    if (!window.confirm(message)) {
       event.preventDefault();
+    } else if (!failed) {
+      // 버리기로 했으니 백업도 남기지 않는다.
+      discarded.current = true;
+      clearBackup(initial.id);
     }
   };
 

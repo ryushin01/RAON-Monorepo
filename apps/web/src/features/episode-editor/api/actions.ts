@@ -21,6 +21,12 @@ export async function createDraft(workId: string): Promise<ActionResult<StudioEp
   return result;
 }
 
+export async function fetchEpisode(episodeId: string): Promise<ActionResult<StudioEpisode>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  return toActionResult(() => apiFetch<StudioEpisode>(`/studio/episodes/${episodeId}`, { token }));
+}
+
 /** 공개한 회차를 고치면 독자가 보는 정보도 갱신한다. */
 export async function saveEpisode(episodeId: string, input: EpisodeInput): Promise<ActionResult<StudioEpisode>> {
   const token = await getSessionToken();

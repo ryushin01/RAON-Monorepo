@@ -42,7 +42,7 @@ async function StudioWorkContent({ params }: { params: Params }) {
 
       <section aria-label="회차">
         <div className={styles.head}>
-          <h2>회차</h2>
+          <h2 tabIndex={-1}>회차</h2>
           <NewEpisodeButton workId={work.id} />
         </div>
         {work.episodes.length === 0 ? (
