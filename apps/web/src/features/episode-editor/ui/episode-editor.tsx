@@ -67,13 +67,14 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   const [now, setNow] = useState(() => Date.now());
   const scheduled = !isDraft && isScheduled(episode.publishedAt, now);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 긴 예약은 타이머가 끝날 때 now가 바뀌어 다시 잰다.
   useEffect(() => {
     if (!scheduled || !episode.publishedAt) return;
     // setTimeout이 다룰 수 있는 최대 시간(약 24일)을 넘으면 그때 다시 잰다.
     const wait = Math.min(Date.parse(episode.publishedAt) - Date.now(), 2 ** 31 - 1);
     const timer = setTimeout(() => setNow(Date.now()), Math.max(wait, 0));
     return () => clearTimeout(timer);
-  }, [scheduled, episode.publishedAt]);
+  }, [scheduled, episode.publishedAt, now]);
 
   const editor = useEditor({
     extensions: editorExtensions,
