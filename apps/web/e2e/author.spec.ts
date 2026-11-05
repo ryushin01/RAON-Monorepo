@@ -207,6 +207,37 @@ test("다시 읽기에 실패하면 옛 내용을 열지 않고 다시 시도할
   await page.unroute("**/studio/works/**");
   await page.getByRole("button", { name: "다시 시도" }).click();
   await expect(editorOf(page)).toHaveText("저장한 본문");
+  // 버튼이 사라져도 초점이 페이지 처음으로 튕기지 않고, 불러온 사실을 스크린 리더에 알린다.
+  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("DIV");
+  await expect(page.getByRole("status").filter({ hasText: "최신 내용을 불러왔습니다." })).toBeAttached();
+});
+
+test("다시 읽기 실패 원인이 로그인 만료면 네트워크 탓으로 안내하지 않는다", async ({ page, context }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `재조회 만료 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("저장한 본문");
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+
+  // 먼저 네트워크 실패로 편집 화면에 머문 다음, 다시 시도할 때 세션이 없도록 만든다.
+  await page.route("**/studio/works/**", (route) =>
+    route.request().method() === "POST" ? route.abort() : route.continue(),
+  );
+  await page.getByRole("link", { name: /^1화/ }).click();
+  const alert = page.getByRole("alert").filter({ hasText: "최신 내용을 불러오지 못했습니다" });
+  await expect(alert).toContainText("네트워크를 확인한 뒤");
+  await page.unroute("**/studio/works/**");
+
+  await context.clearCookies();
+  await page.getByRole("button", { name: "다시 시도" }).click();
+  await expect(alert).toContainText("로그인이 필요합니다.");
+  await expect(alert).not.toContainText("네트워크");
+  // 실패한 뒤에는 상태 영역에 불러오는 중이라는 안내가 남지 않는다.
+  await expect(page.getByRole("status").filter({ hasText: "최신 내용을 불러오는 중입니다." })).toHaveCount(0);
 });
 
 test("Ctrl·Cmd 클릭으로 새 탭을 열어도 편집과 백업이 계속된다", async ({ page, context }) => {

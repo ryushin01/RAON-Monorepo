@@ -54,7 +54,7 @@
 
 ## 기술 스택
 
-![Next.js, React, TypeScript, Sass, NestJS, PostgreSQL, Yarn, Jest](https://skillicons.dev/icons?i=nextjs,react,ts,sass,nestjs,postgres,yarn,jest)
+![Next.js, React, TypeScript, Sass, NestJS, PostgreSQL, Yarn, Jest, Storybook, GitHub Actions](https://skillicons.dev/icons?i=nextjs,react,ts,sass,nestjs,postgres,yarn,jest,storybook,githubactions)
 
 | 구분             | 사용 기술                                                                                                                     |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
