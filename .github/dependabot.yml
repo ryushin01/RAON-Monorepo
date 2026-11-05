@@ -7,6 +7,18 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # 도구용 TypeScript는 6에 고정한다. 타입 검사는 별칭 패키지 typescript-7로 돌린다.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # 프로젝트 기준 Node 버전(.node-version)에 맞춘다.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+      # React는 19.2로 지정된 프로젝트다. 19.2의 패치만 받는다.
+      - dependency-name: react
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major, version-update:semver-minor]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
