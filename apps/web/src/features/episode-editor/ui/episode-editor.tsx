@@ -42,10 +42,18 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
 
   // localStorage는 브라우저에만 있으므로 화면을 그린 뒤에 읽는다.
   useEffect(() => {
-    setBackup(readBackup(initial.id, initial.updatedAt));
-  }, [initial.id, initial.updatedAt]);
+    setBackup(
+      readBackup(initial.id, {
+        title: initial.title,
+        content: initial.content,
+        authorNote: initial.authorNote,
+        isFree: initial.isFree,
+      }),
+    );
+  }, [initial.id, initial.title, initial.content, initial.authorNote, initial.isFree]);
 
   const latestRevision = useRef(0);
+  const backupPending = useRef(false);
   const touch = () => setRevision((value) => value + 1);
   const dirty = revision !== savedRevision;
   const isDraft = episode.status !== "PUBLISHED";
@@ -85,7 +93,8 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
       setEpisode(saved);
       // 저장하는 동안 더 입력했다면 sent가 최신이 아니므로 변경 사항이 남은 상태로 둔다.
       setSavedRevision(sent);
-      if (sent === latestRevision.current) clearBackup(initial.id);
+      // 복원 여부를 아직 고르지 않은 백업은 이번 저장에 들어 있지 않으므로 남긴다.
+      if (sent === latestRevision.current && !backupPending.current) clearBackup(initial.id);
       setFailedRevision(null);
       const now = new Date();
       setSavedAt(now);
@@ -144,8 +153,10 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   const backupRef = useRef<() => void>(() => {});
   useEffect(() => {
     latestRevision.current = revision;
+    backupPending.current = backup !== null;
     backupRef.current = () => {
-      const input = dirty ? collectInput() : null;
+      // 복원 여부를 고르기 전에는 이전 백업을 덮어쓰지 않는다.
+      const input = dirty && !backup ? collectInput() : null;
       if (input) writeBackup(initial.id, input);
     };
   });
@@ -159,6 +170,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
 
   const restore = () => {
     if (!backup) return;
+    if (dirty && !window.confirm("지금 입력한 내용을 백업한 내용으로 바꿀까요? 지금 입력한 내용은 사라집니다.")) return;
     editor?.commands.setContent(backup.input.content);
     setTitle(backup.input.title === UNTITLED ? "" : backup.input.title);
     setAuthorNote(backup.input.authorNote ?? "");
@@ -206,7 +218,9 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   const stateText = save.isPending
     ? "저장 중…"
     : failedRevision === revision
-      ? "저장하지 못했습니다. 잠시 뒤 다시 시도합니다."
+      ? isDraft
+        ? "저장하지 못했습니다. 잠시 뒤 다시 시도합니다."
+        : "저장하지 못했습니다. 저장 버튼을 다시 눌러 주세요."
       : dirty
         ? isDraft
           ? "저장 대기 중"

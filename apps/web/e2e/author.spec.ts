@@ -155,6 +155,53 @@ test("뒤로 가기로 나가도 공개 회차의 수정 내용을 복원할 수
   await expect(page.getByRole("button", { name: "복원" })).toHaveCount(0);
 });
 
+test("복원 여부를 고르기 전에는 백업을 잃지 않는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `복원 대기 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("공개한 본문");
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+  const url = page.url();
+
+  await editorOf(page).click();
+  await page.keyboard.type(" 백업된 내용");
+  await page.goBack();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+  await page.reload();
+  await page.goto(url);
+  const restore = page.getByRole("button", { name: "복원" });
+  await expect(restore).toBeVisible();
+
+  // 복원하지 않고 저장해도 백업은 남는다.
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(page.getByText(/1화 · 공개 중 · .*저장됨/)).toBeVisible();
+  await page.reload();
+  await expect(restore).toBeVisible();
+
+  // 고르기 전에 새로 입력해도 백업을 덮어쓰지 않는다.
+  await editorOf(page).click();
+  await page.keyboard.type(" 새 입력");
+  await page.waitForTimeout(800);
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.reload();
+  await expect(restore).toBeVisible();
+
+  // 입력한 내용이 있으면 바꾸기 전에 묻고, 취소하면 그대로 둔다.
+  await editorOf(page).click();
+  await page.keyboard.type(" 지킬 내용");
+  page.once("dialog", (dialog) => void dialog.dismiss());
+  await restore.click();
+  await expect(editorOf(page)).toContainText("지킬 내용");
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await restore.click();
+  await expect(editorOf(page)).toContainText("공개한 본문 백업된 내용");
+  await expect(editorOf(page)).not.toContainText("지킬 내용");
+});
+
 test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `재시도 ${Date.now()}`);
