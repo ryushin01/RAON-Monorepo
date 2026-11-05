@@ -15,7 +15,8 @@ export function SignupForm() {
   }));
 
   return (
-    <form ref={formRef} onSubmit={onSubmit} className={styles.form}>
+    // JS가 붙기 전에 제출해도 비밀번호가 주소에 남지 않도록 POST로 둔다.
+    <form ref={formRef} method="post" onSubmit={onSubmit} className={styles.form}>
       <RoleField legend="가입 유형" />
       <TextField label="이메일" name="email" type="email" autoComplete="email" required error={fieldErrors?.email} />
       <TextField

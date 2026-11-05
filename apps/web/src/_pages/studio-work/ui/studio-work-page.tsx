@@ -59,7 +59,7 @@ async function StudioWorkContent({ params }: { params: Params }) {
                     {formatNumber(episode.charCount)}자 · 수정 {formatDate(episode.updatedAt)}
                   </small>
                 </div>
-                <span className={styles.badges}>
+                <div className={styles.badges}>
                   <Badge solid={episode.status === "PUBLISHED"}>{episodeLabel(episode)}</Badge>
                   <Badge>{episode.isFree ? "무료" : "유료"}</Badge>
                   <MoveEpisodeButtons
@@ -72,7 +72,7 @@ async function StudioWorkContent({ params }: { params: Params }) {
                   {episode.status === "DRAFT" && (
                     <DeleteDraftButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
                   )}
-                </span>
+                </div>
               </li>
             ))}
           </ol>

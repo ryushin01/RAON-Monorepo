@@ -77,3 +77,9 @@ it("화면을 떠날 때 남은 변경 사항을 저장한다", () => {
   unmount();
   expect(save).toHaveBeenCalledTimes(1);
 });
+
+it("저장 중에 더 입력하고 떠나도 남은 변경 사항을 저장한다", () => {
+  const { save, unmount } = setup({ ...base, revision: 2, savedRevision: 0, isSaving: true });
+  unmount();
+  expect(save).toHaveBeenCalledTimes(1);
+});

@@ -226,6 +226,8 @@ test("다른 탭에서 로그아웃하면 편집 중인 탭도 원고를 브라�
   await createWork(page, `탭 로그아웃 ${Date.now()}`);
   await page.getByRole("button", { name: "새 회차 쓰기" }).click();
   await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  // 에디터가 열린 뒤에 로그아웃해야 이 탭이 그 사실을 구분할 수 있다.
+  await expect(editorOf(page)).toBeVisible();
   const backups = () =>
     page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("raon:episode-backup:")));
 

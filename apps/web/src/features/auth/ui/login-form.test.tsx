@@ -33,8 +33,9 @@ describe("LoginForm", () => {
     expect(screen.getByLabelText(/비밀번호/)).toHaveAttribute("autocomplete", "current-password");
   });
 
-  it("폼에 빈 action이 생기지 않는다", () => {
+  it("JS가 붙기 전에 제출해도 비밀번호가 주소에 남지 않게 POST다. 빈 action도 없다", () => {
     const { container } = setup();
+    expect(container.querySelector("form")).toHaveAttribute("method", "post");
     expect(container.querySelector("form")).not.toHaveAttribute("action");
   });
 

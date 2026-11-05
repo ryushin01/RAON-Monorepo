@@ -14,12 +14,13 @@ interface Props {
   episodeId: string;
   path: string;
   comments: EpisodeComment[];
+  total: number;
   loggedIn: boolean;
 }
 
-export function EpisodeComments({ episodeId, path, comments, loggedIn }: Props) {
+export function EpisodeComments({ episodeId, path, comments, total, loggedIn }: Props) {
   const router = useRouter();
-  const listRef = useRef<HTMLUListElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const [body, setBody] = useState("");
 
   const add = useMutation({
@@ -39,15 +40,18 @@ export function EpisodeComments({ episodeId, path, comments, loggedIn }: Props) 
       if (!result.ok) throw new Error(result.message);
     },
     onSuccess: () => {
-      // 누른 버튼이 사라지므로 초점을 목록으로 옮긴다.
-      listRef.current?.focus({ preventScroll: true });
+      // 누른 버튼이 사라지고 목록도 없어질 수 있으므로 항상 남아 있는 제목으로 초점을 옮긴다.
+      headingRef.current?.focus({ preventScroll: true });
       router.refresh();
     },
   });
 
   return (
     <section className={styles.section} aria-label="댓글">
-      <h2 className={styles.title}>댓글 {comments.length}개</h2>
+      <h2 ref={headingRef} className={styles.title} tabIndex={-1}>
+        댓글 {total}개
+      </h2>
+      {total > comments.length && <p className={styles.more}>최신 {comments.length}개를 보여 줍니다.</p>}
       {loggedIn ? (
         <form
           className={styles.form}
@@ -78,7 +82,7 @@ export function EpisodeComments({ episodeId, path, comments, loggedIn }: Props) 
       {comments.length === 0 ? (
         <p>첫 댓글을 남겨 보세요.</p>
       ) : (
-        <ul ref={listRef} className={styles.list} tabIndex={-1}>
+        <ul className={styles.list}>
           {comments.map((comment) => (
             <li key={comment.id} className={styles.item}>
               <div className={styles.meta}>

@@ -9,6 +9,15 @@
 .title {
   font-size: 1.125rem;
   font-weight: 700;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.more {
+  color: var(--muted);
+  font-size: 0.875rem;
 }
 
 .form {
@@ -25,10 +34,6 @@
   display: grid;
   padding: 0;
   list-style: none;
-
-  &:focus {
-    outline: none;
-  }
 }
 
 .item {

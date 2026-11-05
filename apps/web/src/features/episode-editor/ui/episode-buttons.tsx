@@ -2,6 +2,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useLayoutEffect } from "react";
 import { Button, Notice } from "@/shared/ui";
 import { createDraft, deleteDraft, moveEpisode } from "../api/actions";
 
@@ -16,10 +17,15 @@ export function NewEpisodeButton({ workId }: { workId: string }) {
     },
     onSuccess: (episode) => router.push(`/studio/works/${workId}/episodes/${episode.id}`),
   });
+  // 이동을 마칠 때까지 막아 초안이 두 개 생기지 않게 하고, 다른 화면에 다녀오면 다시 쓸 수 있게 한다.
+  const { reset } = create;
+  useLayoutEffect(() => reset, [reset]);
+  const busy = create.isPending || create.isSuccess;
+
   return (
     <>
-      <Button disabled={create.isPending} onClick={() => create.mutate(workId)}>
-        {create.isPending ? "만드는 중…" : "새 회차 쓰기"}
+      <Button disabled={busy} onClick={() => create.mutate(workId)}>
+        {busy ? "만드는 중…" : "새 회차 쓰기"}
       </Button>
       {create.error && <Notice tone="error">{create.error.message}</Notice>}
     </>

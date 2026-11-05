@@ -34,7 +34,8 @@ export function useAutosave({
 
   useEffect(() => {
     saveRef.current = save;
-    pendingRef.current = enabled && dirty && !isSaving;
+    // 저장 중이어도 그 뒤에 입력한 내용이 남아 있으면 떠날 때 한 번 더 보낸다.
+    pendingRef.current = enabled && dirty;
   });
 
   const waitMs = revision === failedRevision ? retryMs : delayMs;
