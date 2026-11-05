@@ -1,6 +1,6 @@
 {
   "name": "raon",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -12,17 +12,20 @@
     "dev:api": "turbo run dev --filter=@raon/api",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
+    "lint": "biome check . && yarn lint:css",
+    "lint:fix": "biome check --write . && stylelint --fix \"apps/web/src/**/*.scss\"",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
     "e2e": "turbo run e2e",
     "storybook": "yarn workspace @raon/web storybook",
     "build-storybook": "yarn workspace @raon/web build-storybook",
-    "screenshots": "yarn workspace @raon/web screenshots"
+    "screenshots": "yarn workspace @raon/web screenshots",
+    "lint:css": "stylelint \"apps/web/src/**/*.scss\""
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
+    "stylelint": "^17.0.0",
+    "stylelint-config-standard-scss": "17.0.0",
     "turbo": "2.11.10"
   },
   "engines": {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { episodeDocSchema } from "./document.js";
-import { COIN_PACKAGES, genreSchema, roleSchema, workSortSchema } from "./domain.js";
+import { COIN_PACKAGES, genreSchema, MAX_TAGS, roleSchema, workSortSchema } from "./domain.js";
 
 const email = z
   .email("이메일 형식을 확인해 주세요.")
@@ -34,6 +34,7 @@ export const workQuerySchema = z.object({
   status: z.enum(["ONGOING", "COMPLETED"]).optional(),
   sort: workSortSchema.default("popular"),
   q: z.string().trim().max(50).optional(),
+  tag: z.string().trim().max(10).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(48).default(12),
 });
@@ -55,6 +56,10 @@ export const workInputSchema = z.object({
     .max(2000, "소개는 2,000자 이하로 입력해 주세요."),
   genre: genreSchema,
   episodePrice: coins("회차 가격"),
+  tags: z
+    .array(z.string().trim().min(1, "태그를 입력해 주세요.").max(10, "태그는 10자 이하로 입력해 주세요."))
+    .max(MAX_TAGS, `태그는 ${MAX_TAGS}개까지 입력할 수 있습니다.`)
+    .transform((tags) => [...new Set(tags)]),
   /** 작품 전체 구매 가격. 비워 두면 회차로만 판매한다. 완결 작품에서만 판매된다. */
   wholePrice: coins("작품 가격").nullable(),
 });
@@ -75,6 +80,16 @@ export const addCartItemSchema = z.union([
   z.strictObject({ kind: z.literal("WORK"), workId: z.uuid() }),
 ]);
 export type AddCartItemInput = z.infer<typeof addCartItemSchema>;
+
+export const ratingInputSchema = z.object({ score: z.number().int().min(1).max(5) });
+export type RatingInput = z.infer<typeof ratingInputSchema>;
+
+/** publishAt이 있으면 그 시각에 독자에게 보이는 예약 공개다. */
+export const publishInputSchema = z.object({ publishAt: z.iso.datetime().optional() }).default({});
+export type PublishInput = z.infer<typeof publishInputSchema>;
+
+export const moveEpisodeSchema = z.object({ direction: z.enum(["up", "down"]) });
+export type MoveEpisodeInput = z.infer<typeof moveEpisodeSchema>;
 
 export const commentInputSchema = z.object({
   body: z.string().trim().min(1, "댓글 내용을 입력해 주세요.").max(500, "댓글은 500자 이하로 입력해 주세요."),

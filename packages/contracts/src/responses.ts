@@ -1,5 +1,5 @@
 import type { EpisodeDoc } from "./document.js";
-import type { EpisodeStatus, Genre, Role, WorkStatus } from "./domain.js";
+import type { EpisodeStatus, Genre, Role, WorkBadge, WorkStatus } from "./domain.js";
 
 export interface User {
   id: string;
@@ -26,6 +26,13 @@ export interface WorkSummary {
   /** 공개한 회차 중 첫 번째 번호. 공개한 회차가 없으면 null이다. */
   firstEpisodeNumber: number | null;
   latestEpisodeAt: string | null;
+  tags: string[];
+  /** 평점이 없으면 null이다. */
+  ratingAverage: number | null;
+  ratingCount: number;
+  /** 표지 이미지를 올렸을 때의 시각. 없으면 제목으로 만든 표지를 쓴다. */
+  coverUpdatedAt: string | null;
+  badges: WorkBadge[];
 }
 
 export interface Paginated<T> {
@@ -58,6 +65,7 @@ export interface WorkAccess {
   cartEpisodeIds: string[];
   workInCart: boolean;
   isFavorite: boolean;
+  myRating: number | null;
   /** 마지막으로 읽은 회차 번호 */
   lastReadNumber: number | null;
   /** 이미 산 회차 금액을 뺀 작품 전체 가격. 전체 구매를 팔지 않으면 null이다. */
@@ -168,6 +176,8 @@ export interface StudioWork {
   salesCount: number;
   salesCoins: number;
   favoriteCount: number;
+  tags: string[];
+  coverUpdatedAt: string | null;
   updatedAt: string;
 }
 
