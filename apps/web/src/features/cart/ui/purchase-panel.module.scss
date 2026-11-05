@@ -107,4 +107,8 @@
 .wrap {
   display: grid;
   gap: 1rem;
+
+  &:focus {
+    outline: none;
+  }
 }

@@ -1,3 +1,10 @@
+.layout,
+.empty {
+  &:focus {
+    outline: none;
+  }
+}
+
 .layout {
   display: grid;
   gap: 2rem;

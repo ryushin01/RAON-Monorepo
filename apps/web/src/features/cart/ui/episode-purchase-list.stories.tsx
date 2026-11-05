@@ -23,7 +23,15 @@ const meta = {
   ],
   args: {
     role: "READER",
-    access: { ownsWork: false, ownedEpisodeIds: ["e2"], cartEpisodeIds: [], workInCart: false },
+    access: {
+      ownsWork: false,
+      ownedEpisodeIds: ["e2"],
+      cartEpisodeIds: [],
+      workInCart: false,
+      isFavorite: false,
+      lastReadNumber: null,
+      wholePriceForUser: 150,
+    },
     work: {
       id: "w1",
       title: "작품",
@@ -33,6 +41,7 @@ const meta = {
       synopsis: "소개",
       viewCount: 1,
       episodeCount: 4,
+      firstEpisodeNumber: 1,
       latestEpisodeAt: null,
       episodePrice: 100,
       wholePrice: 250,

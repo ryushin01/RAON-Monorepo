@@ -23,6 +23,7 @@
   display: flex;
   flex: 1 1 100%;
   order: 3;
+  min-width: 0;
 
   @media (min-width: 48rem) {
     flex: 0 1 22rem;
@@ -32,10 +33,12 @@
   form {
     display: flex;
     flex: 1;
+    min-width: 0;
   }
 
   input {
     flex: 1;
+    width: 100%;
     min-width: 0;
     min-height: 2.75rem;
     padding-inline: 0.75rem;
@@ -49,6 +52,7 @@
     min-height: 2.75rem;
     padding-inline: 1rem;
     border: 1px solid var(--fg);
+    flex: none;
     background: var(--fg);
     color: var(--bg);
     font-weight: 600;

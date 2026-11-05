@@ -11,6 +11,7 @@ const work: WorkSummary = {
   synopsis: "소개",
   viewCount: 48210,
   episodeCount: 5,
+  firstEpisodeNumber: 1,
   latestEpisodeAt: null,
 };
 

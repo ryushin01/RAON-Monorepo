@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { WorkCard, WorkCover } from "@/entities/work";
 import { getWorks } from "@/entities/work/index.server";
 import { formatCompact, formatDate } from "@/shared/lib";
-import { ButtonLink } from "@/shared/ui";
+import { ButtonLink, Main } from "@/shared/ui";
 import styles from "./home.module.scss";
 
 export const homeMetadata: Metadata = { title: { absolute: "RAON 라온 | 웹소설 연재·감상 플랫폼" } };
@@ -16,7 +16,7 @@ function Section({ title, more, children }: { title: string; more: string; child
     <section aria-label={title}>
       <div className={styles.heading}>
         <h2>{title}</h2>
-        <Link href={more} aria-label={`${title} 더 보기`}>
+        <Link href={more} aria-label={`더 보기: ${title}`}>
           더 보기
         </Link>
       </div>
@@ -38,11 +38,16 @@ function Feature({ work }: { work: WorkSummary }) {
           {work.authorName} · {GENRE_LABEL[work.genre]} · {WORK_STATUS_LABEL[work.status]} · {work.episodeCount}화
         </p>
         <p>{work.synopsis}</p>
-        <p style={{ marginTop: "1rem" }}>
-          <ButtonLink href={`/works/${work.id}/episodes/1`} aria-label={`${work.title} 첫 화 보기`}>
-            첫 화 보기
-          </ButtonLink>
-        </p>
+        {work.firstEpisodeNumber !== null && (
+          <p className={styles.cta}>
+            <ButtonLink
+              href={`/works/${work.id}/episodes/${work.firstEpisodeNumber}`}
+              aria-label={`첫 화 보기: ${work.title}`}
+            >
+              첫 화 보기
+            </ButtonLink>
+          </p>
+        )}
       </div>
     </article>
   );
@@ -85,7 +90,7 @@ async function HomeContent() {
         <ol className={styles.rank}>
           {latest.items.map((work) => (
             <li key={work.id}>
-              <Link href={`/works/${work.id}`} style={{ gridTemplateColumns: "1fr auto" }}>
+              <Link href={`/works/${work.id}`} className={styles.latestLink}>
                 <strong>
                   [{GENRE_LABEL[work.genre]}] {work.title}
                 </strong>
@@ -113,11 +118,11 @@ async function HomeContent() {
 
 export function HomePage() {
   return (
-    <main id="main" className={`page ${styles.main}`}>
+    <Main className={`page ${styles.main}`}>
       <h1 className="visually-hidden">라온 웹소설</h1>
       <Suspense fallback={<div className={styles.skeleton} aria-busy="true" />}>
         <HomeContent />
       </Suspense>
-    </main>
+    </Main>
   );
 }

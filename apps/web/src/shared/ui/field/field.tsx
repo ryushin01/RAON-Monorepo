@@ -11,8 +11,10 @@ function Field({
   label,
   hint,
   error,
+  required,
   children,
 }: FieldProps & {
+  required?: boolean;
   children: (a11y: { id: string; "aria-invalid"?: true; "aria-describedby"?: string }) => ReactElement;
 }) {
   const id = useId();
@@ -24,6 +26,7 @@ function Field({
     <div className={styles.field}>
       <label className={styles.label} htmlFor={id}>
         {label}
+        {required && <span className={styles.required}> (필수)</span>}
       </label>
       {children({ id, ...(error ? { "aria-invalid": true } : {}), "aria-describedby": describedBy })}
       {error && (
@@ -42,15 +45,15 @@ function Field({
 
 export function TextField({ label, hint, error, ...props }: FieldProps & ComponentProps<"input">) {
   return (
-    <Field label={label} hint={hint} error={error}>
-      {(a11y) => <input className={styles.control} {...a11y} {...props} />}
+    <Field label={label} hint={hint} error={error} required={props.required}>
+      {(a11y) => <input className={styles.control} type="text" {...a11y} {...props} />}
     </Field>
   );
 }
 
 export function TextAreaField({ label, hint, error, ...props }: FieldProps & ComponentProps<"textarea">) {
   return (
-    <Field label={label} hint={hint} error={error}>
+    <Field label={label} hint={hint} error={error} required={props.required}>
       {(a11y) => <textarea className={styles.control} {...a11y} {...props} />}
     </Field>
   );
@@ -58,7 +61,7 @@ export function TextAreaField({ label, hint, error, ...props }: FieldProps & Com
 
 export function SelectField({ label, hint, error, ...props }: FieldProps & ComponentProps<"select">) {
   return (
-    <Field label={label} hint={hint} error={error}>
+    <Field label={label} hint={hint} error={error} required={props.required}>
       {(a11y) => <select className={styles.control} {...a11y} {...props} />}
     </Field>
   );

@@ -14,3 +14,8 @@ describe("TextField", () => {
     expect(input).toHaveAccessibleDescription("형식을 확인해 주세요. 예: a@b.c");
   });
 });
+
+it("필수 입력을 글자로 알려 준다", () => {
+  render(<TextField label="닉네임" required />);
+  expect(screen.getByRole("textbox", { name: "닉네임 (필수)" })).toBeRequired();
+});

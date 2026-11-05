@@ -6,11 +6,16 @@
 
 .head {
   display: grid;
-  grid-template-columns: minmax(7rem, 10rem) 1fr;
-  gap: 1rem 1.5rem;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 1rem;
+
+  @media (min-width: 30rem) {
+    grid-template-columns: 10rem minmax(0, 1fr);
+    gap: 1rem 1.5rem;
+  }
 
   @media (min-width: 48rem) {
-    grid-template-columns: 14rem 1fr;
+    grid-template-columns: 14rem minmax(0, 1fr);
   }
 }
 
@@ -54,6 +59,9 @@
 }
 
 .cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-top: 1rem;
 }
 

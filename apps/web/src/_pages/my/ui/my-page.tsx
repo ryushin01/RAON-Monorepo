@@ -1,11 +1,13 @@
+import { WORK_STATUS_LABEL } from "@raon/contracts";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getLibrary, getWallet } from "@/entities/cart/index.server";
 import { requireUser } from "@/entities/session/index.server";
+import { getFavorites, getReading } from "@/entities/work/index.server";
 import { ChargeCoins } from "@/features/wallet";
 import { formatCoins, formatDate } from "@/shared/lib";
-import { Notice } from "@/shared/ui";
+import { Main, Notice } from "@/shared/ui";
 import styles from "./my.module.scss";
 
 export const myMetadata: Metadata = { title: "내 서재" };
@@ -16,16 +18,61 @@ const REASON_LABEL = { CHARGE: "충전", PURCHASE: "구매" } as const;
 
 async function MyContent({ searchParams }: { searchParams: SearchParams }) {
   const { token } = await requireUser("READER", "/my");
-  const [wallet, library, { purchased }] = await Promise.all([getWallet(token), getLibrary(token), searchParams]);
+  const [wallet, library, favorites, reading, { purchased }] = await Promise.all([
+    getWallet(token),
+    getLibrary(token),
+    getFavorites(token),
+    getReading(token),
+    searchParams,
+  ]);
 
   return (
     <>
       {purchased && <Notice>결제를 마쳤습니다. 구매한 회차를 바로 읽을 수 있습니다.</Notice>}
 
-      <section aria-labelledby="library-heading">
-        <h2 id="library-heading" className={styles.h2}>
-          구매한 작품
-        </h2>
+      <section aria-label="이어 보기">
+        <h2 className={styles.h2}>이어 보기</h2>
+        {reading.length === 0 ? (
+          <p>아직 읽은 작품이 없습니다.</p>
+        ) : (
+          <ul className={styles.list}>
+            {reading.map((work) => (
+              <li key={work.id}>
+                <Link href={`/works/${work.id}/episodes/${work.lastReadNumber}`}>
+                  {work.title} {work.lastReadNumber}화 이어 보기
+                </Link>
+                <small>
+                  {work.authorName} · 총 {work.episodeCount}화 · {formatDate(work.lastReadAt)}
+                </small>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-label="선호작">
+        <h2 className={styles.h2}>선호작</h2>
+        {favorites.length === 0 ? (
+          <p>
+            아직 선호작이 없습니다. <Link href="/works">작품 둘러보기</Link>
+          </p>
+        ) : (
+          <ul className={styles.list}>
+            {favorites.map((work) => (
+              <li key={work.id}>
+                <Link href={`/works/${work.id}`}>{work.title}</Link>
+                <small>
+                  {work.authorName} · {WORK_STATUS_LABEL[work.status]} · 총 {work.episodeCount}화
+                  {work.lastReadNumber !== null && ` · ${work.lastReadNumber}화까지 읽음`}
+                </small>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-label="구매한 작품">
+        <h2 className={styles.h2}>구매한 작품</h2>
         {library.length === 0 ? (
           <p>
             아직 구매한 작품이 없습니다. <Link href="/works">작품 둘러보기</Link>
@@ -67,19 +114,15 @@ async function MyContent({ searchParams }: { searchParams: SearchParams }) {
         )}
       </section>
 
-      <section aria-labelledby="charge">
-        <h2 id="charge" className={styles.h2}>
-          코인
-        </h2>
+      <section id="charge" aria-label="코인">
+        <h2 className={styles.h2}>코인</h2>
         <p className={styles.balance}>보유 {formatCoins(wallet.coinBalance)}</p>
         <ChargeCoins />
       </section>
 
       {wallet.entries.length > 0 && (
-        <section aria-labelledby="ledger-heading">
-          <h2 id="ledger-heading" className={styles.h2}>
-            코인 내역
-          </h2>
+        <section aria-label="코인 내역">
+          <h2 className={styles.h2}>코인 내역</h2>
           <div className={styles.scroll}>
             <table className={styles.table}>
               <caption className="visually-hidden">최근 코인 충전과 사용 내역</caption>
@@ -112,11 +155,11 @@ async function MyContent({ searchParams }: { searchParams: SearchParams }) {
 
 export function MyPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <main id="main" className={`page ${styles.main}`}>
+    <Main className={`page ${styles.main}`}>
       <h1 className={styles.title}>내 서재</h1>
       <Suspense fallback={<p aria-busy="true">내 서재를 불러오는 중입니다.</p>}>
         <MyContent searchParams={searchParams} />
       </Suspense>
-    </main>
+    </Main>
   );
 }

@@ -3,7 +3,7 @@
 import { GENRE_LABEL, GENRES, type Genre, type StudioWork } from "@raon/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import type { FormEvent } from "react";
+import { type FormEvent, useEffect, useRef } from "react";
 import { Button, Notice, SelectField, TextAreaField, TextField } from "@/shared/ui";
 import { saveWork } from "../api/actions";
 import styles from "./work-form.module.scss";
@@ -21,6 +21,7 @@ class FormError extends Error {
 
 export function WorkForm({ work }: { work?: StudioWork }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const save = useMutation({
     mutationFn: async (draft: Draft) => {
       const result = await saveWork(work?.id ?? null, draft);
@@ -28,8 +29,14 @@ export function WorkForm({ work }: { work?: StudioWork }) {
       return result.data;
     },
     onSuccess: (saved) => {
-      if (work) router.refresh();
-      else router.push(`/studio/works/${saved.id}`);
+      if (work) {
+        router.refresh();
+        return;
+      }
+      // 새 작품 화면은 숨겨져 남으므로 다음에 열 때 지난 입력이 보이지 않게 비운다.
+      formRef.current?.reset();
+      save.reset();
+      router.push(`/studio/works/${saved.id}`);
     },
   });
 
@@ -47,8 +54,13 @@ export function WorkForm({ work }: { work?: StudioWork }) {
 
   const fieldErrors = save.error instanceof FormError ? save.error.fieldErrors : undefined;
 
+  // 오류가 있으면 첫 번째 잘못된 입력 칸으로 초점을 옮긴다.
+  useEffect(() => {
+    if (fieldErrors) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [fieldErrors]);
+
   return (
-    <form className={styles.form} onSubmit={onSubmit} noValidate>
+    <form ref={formRef} className={styles.form} onSubmit={onSubmit} noValidate>
       <TextField
         label="작품명"
         name="title"

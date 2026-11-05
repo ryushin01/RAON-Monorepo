@@ -27,13 +27,22 @@ const work: WorkDetail = {
   synopsis: "소개",
   viewCount: 1,
   episodeCount: 3,
+  firstEpisodeNumber: 1,
   latestEpisodeAt: null,
   episodePrice: 100,
   wholePrice: 150,
   episodes: [episode(1, true), episode(2, false), episode(3, false)],
 };
 
-const noAccess = { ownsWork: false, ownedEpisodeIds: [], cartEpisodeIds: [], workInCart: false };
+const noAccess = {
+  ownsWork: false,
+  ownedEpisodeIds: [],
+  cartEpisodeIds: [],
+  workInCart: false,
+  isFavorite: false,
+  lastReadNumber: null,
+  wholePriceForUser: 150,
+};
 
 function setup(props: Partial<ComponentProps<typeof EpisodePurchaseList>>) {
   return render(
@@ -84,6 +93,12 @@ describe("EpisodePurchaseList", () => {
     setup({ access: { ...noAccess, ownedEpisodeIds: ["e2"] } });
     expect(screen.getByText("구매함")).toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /2화/ })).not.toBeInTheDocument();
+  });
+
+  it("이미 산 회차가 있으면 차감한 작품 가격을 보여 준다", () => {
+    setup({ access: { ...noAccess, ownedEpisodeIds: ["e2"], wholePriceForUser: 50 } });
+    expect(screen.getByText(/작품 전체 50코인/)).toBeInTheDocument();
+    expect(screen.getByText("이미 산 회차 금액을 뺀 가격입니다.")).toBeInTheDocument();
   });
 
   it("비회원과 작가에게는 고르는 칸이 없다", () => {

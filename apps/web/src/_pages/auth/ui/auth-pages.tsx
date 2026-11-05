@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { LoginForm, SignupForm } from "@/features/auth";
 import { safeNextPath } from "@/shared/lib";
+import { Main } from "@/shared/ui";
 import styles from "./auth-pages.module.scss";
 
 export const loginMetadata: Metadata = { title: "로그인" };
@@ -18,7 +19,7 @@ async function LoginFormWithNext({ searchParams }: { searchParams: SearchParams 
 
 export function LoginPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <main id="main" className={styles.main}>
+    <Main className={styles.main}>
       <h1 className={styles.title}>로그인</h1>
       <Suspense fallback={<div aria-busy="true" />}>
         <LoginFormWithNext searchParams={searchParams} />
@@ -26,18 +27,18 @@ export function LoginPage({ searchParams }: { searchParams: SearchParams }) {
       <p>
         아직 회원이 아니신가요? <Link href="/signup">회원가입</Link>
       </p>
-    </main>
+    </Main>
   );
 }
 
 export function SignupPage() {
   return (
-    <main id="main" className={styles.main}>
+    <Main className={styles.main}>
       <h1 className={styles.title}>회원가입</h1>
       <SignupForm />
       <p>
         이미 회원이신가요? <Link href="/login">로그인</Link>
       </p>
-    </main>
+    </Main>
   );
 }

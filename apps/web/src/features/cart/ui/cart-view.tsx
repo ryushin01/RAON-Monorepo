@@ -4,7 +4,7 @@ import type { Cart } from "@raon/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CART_QUERY_KEY } from "@/entities/cart";
 import { formatCoins } from "@/shared/lib";
 import { Button, ButtonLink, Notice } from "@/shared/ui";
@@ -17,6 +17,8 @@ export function CartView({ cart }: { cart: Cart }) {
   // 더블클릭과 재시도에도 한 번만 결제되게 하는 키. 결제가 끝나면 다음 주문을 위해 새로 만든다.
   const [orderKey, setOrderKey] = useState(() => crypto.randomUUID());
 
+  const rootRef = useRef<HTMLDivElement>(null);
+
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
     router.refresh();
@@ -27,7 +29,11 @@ export function CartView({ cart }: { cart: Cart }) {
       const result = await removeFromCart(itemId);
       if (!result.ok) throw new Error(result.message);
     },
-    onSuccess: refresh,
+    onSuccess: () => {
+      // 누른 버튼이 사라지므로 초점을 장바구니 영역으로 옮긴다.
+      rootRef.current?.focus({ preventScroll: true });
+      refresh();
+    },
   });
 
   const pay = useMutation({
@@ -44,7 +50,7 @@ export function CartView({ cart }: { cart: Cart }) {
 
   if (cart.items.length === 0) {
     return (
-      <div className={styles.empty}>
+      <div ref={rootRef} className={styles.empty} tabIndex={-1}>
         <p>장바구니가 비어 있습니다.</p>
         <ButtonLink href="/works">작품 둘러보기</ButtonLink>
       </div>
@@ -55,7 +61,7 @@ export function CartView({ cart }: { cart: Cart }) {
   const blocked = cart.items.some((item) => item.unavailableReason);
 
   return (
-    <div className={styles.layout}>
+    <div ref={rootRef} className={styles.layout} tabIndex={-1}>
       <ul className={styles.list} aria-label="장바구니 항목">
         {cart.items.map((item) => {
           const name = item.kind === "WORK" ? "작품 전체" : `${item.episodeNumber}화. ${item.episodeTitle}`;
@@ -72,7 +78,7 @@ export function CartView({ cart }: { cart: Cart }) {
                 small
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(item.id)}
-                aria-label={`${item.workTitle} ${name} 빼기`}
+                aria-label={`빼기: ${item.workTitle} ${name}`}
               >
                 빼기
               </Button>
@@ -81,10 +87,8 @@ export function CartView({ cart }: { cart: Cart }) {
         })}
       </ul>
 
-      <section className={styles.summary} aria-labelledby="cart-summary">
-        <h2 id="cart-summary" className="visually-hidden">
-          결제 정보
-        </h2>
+      <section className={styles.summary} aria-label="결제 정보">
+        <h2 className="visually-hidden">결제 정보</h2>
         <dl>
           <div>
             <dt>보유 코인</dt>

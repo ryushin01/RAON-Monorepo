@@ -36,9 +36,9 @@ textarea.control {
 
 .error {
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
+}
 
-  &::before {
-    content: "! ";
-  }
+.required {
+  font-weight: 400;
 }

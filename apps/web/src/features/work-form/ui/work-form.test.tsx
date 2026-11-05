@@ -18,8 +18,8 @@ const setup = () =>
 it("입력한 값을 저장하고 작품 관리로 이동한다", async () => {
   (saveWork as jest.Mock).mockResolvedValue({ ok: true, data: { id: "w9" } });
   setup();
-  await userEvent.type(screen.getByLabelText("작품명"), "새 작품");
-  await userEvent.type(screen.getByLabelText("작품 소개"), "열 글자가 넘는 소개입니다.");
+  await userEvent.type(screen.getByLabelText(/작품명/), "새 작품");
+  await userEvent.type(screen.getByLabelText(/작품 소개/), "열 글자가 넘는 소개입니다.");
   await userEvent.click(screen.getByRole("button", { name: "작품 만들기" }));
   await waitFor(() => expect(push).toHaveBeenCalledWith("/studio/works/w9"));
   expect(saveWork).toHaveBeenCalledWith(
@@ -37,5 +37,5 @@ it("서버의 필드 오류를 입력 칸에 연결한다", async () => {
   setup();
   await userEvent.click(screen.getByRole("button", { name: "작품 만들기" }));
   expect(await screen.findByText("작품명을 입력해 주세요.")).toBeInTheDocument();
-  expect(screen.getByLabelText("작품명")).toBeInvalid();
+  expect(screen.getByLabelText(/작품명/)).toBeInvalid();
 });

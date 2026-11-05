@@ -96,7 +96,9 @@
 
 .settingsPanel {
   flex-basis: 100%;
+  max-height: 60dvh;
   padding-bottom: 0.75rem;
+  overflow-y: auto;
 }
 
 .body {

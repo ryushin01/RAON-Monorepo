@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { WorkCard } from "@/entities/work";
 import { getWorks } from "@/entities/work/index.server";
 import { formatNumber } from "@/shared/lib";
-import { Pagination } from "@/shared/ui";
+import { Main, Pagination } from "@/shared/ui";
 import styles from "./works.module.scss";
 
 export const worksMetadata: Metadata = { title: "전체 작품" };
@@ -139,10 +139,10 @@ async function WorksContent({ searchParams }: { searchParams: Promise<SearchPara
 
 export function WorksPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
-    <main id="main" className={`page ${styles.main}`}>
+    <Main className={`page ${styles.main}`}>
       <Suspense fallback={<div className={styles.skeleton} aria-busy="true" />}>
         <WorksContent searchParams={searchParams} />
       </Suspense>
-    </main>
+    </Main>
   );
 }

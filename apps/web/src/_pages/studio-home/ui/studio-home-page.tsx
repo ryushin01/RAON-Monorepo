@@ -6,7 +6,7 @@ import { requireUser } from "@/entities/session/index.server";
 import { getStudioWorks } from "@/entities/studio/index.server";
 import { WorkForm } from "@/features/work-form";
 import { formatCompact, formatDate } from "@/shared/lib";
-import { ButtonLink } from "@/shared/ui";
+import { ButtonLink, Main } from "@/shared/ui";
 import styles from "./studio.module.scss";
 
 export const studioHomeMetadata: Metadata = { title: "작가 스튜디오" };
@@ -31,7 +31,8 @@ async function StudioWorks() {
           <Link href={`/studio/works/${work.id}`}>{work.title}</Link>
           <p>
             {GENRE_LABEL[work.genre]} · {WORK_STATUS_LABEL[work.status]} · 공개 {work.publishedEpisodeCount}화 · 초안{" "}
-            {work.draftEpisodeCount}화 · 조회 {formatCompact(work.viewCount)} · 수정 {formatDate(work.updatedAt)}
+            {work.draftEpisodeCount}화 · 조회 {formatCompact(work.viewCount)} · 판매 {work.salesCount}건 · 선호작{" "}
+            {work.favoriteCount}명 · 수정 {formatDate(work.updatedAt)}
           </p>
         </li>
       ))}
@@ -41,7 +42,7 @@ async function StudioWorks() {
 
 export function StudioHomePage() {
   return (
-    <main id="main" className={`page ${styles.main}`}>
+    <Main className={`page ${styles.main}`}>
       <div className={styles.head}>
         <h1 className={styles.title}>작가 스튜디오</h1>
         <ButtonLink href="/studio/works/new">새 작품 만들기</ButtonLink>
@@ -49,7 +50,7 @@ export function StudioHomePage() {
       <Suspense fallback={<p aria-busy="true">작품을 불러오는 중입니다.</p>}>
         <StudioWorks />
       </Suspense>
-    </main>
+    </Main>
   );
 }
 
@@ -61,12 +62,12 @@ async function AuthorGate() {
 
 export function StudioNewWorkPage() {
   return (
-    <main id="main" className={`page ${styles.main}`}>
+    <Main className={`page ${styles.main}`}>
       <h1 className={styles.title}>새 작품 만들기</h1>
       <Suspense fallback={null}>
         <AuthorGate />
       </Suspense>
       <WorkForm />
-    </main>
+    </Main>
   );
 }

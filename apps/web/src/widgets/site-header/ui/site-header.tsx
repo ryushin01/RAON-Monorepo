@@ -9,7 +9,7 @@ export function SiteHeader() {
   return (
     <header className={styles.header}>
       <div className={`page ${styles.top}`}>
-        <Link href="/" className={styles.logo} aria-label="라온 첫 화면">
+        <Link href="/" className={styles.logo} aria-label="RAON 첫 화면">
           RAON
         </Link>
         <search className={styles.search}>

@@ -26,3 +26,12 @@
     font-weight: 700;
   }
 }
+
+.gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2.75rem;
+  color: var(--muted);
+}
