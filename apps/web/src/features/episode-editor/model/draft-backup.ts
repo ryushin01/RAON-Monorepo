@@ -1,4 +1,5 @@
-import type { EpisodeInput } from "@raon/contracts";
+import { type EpisodeInput, episodeDocSchema } from "@raon/contracts";
+import { z } from "zod";
 import { EPISODE_BACKUP_PREFIX } from "@/shared/config";
 
 export interface DraftBackup {
@@ -6,6 +7,17 @@ export interface DraftBackup {
   /** 언제 쓴 글인지 작가에게 보여 주는 용도다. 브라우저와 서버의 시계가 다를 수 있어 판단에는 쓰지 않는다. */
   savedAt: number;
 }
+
+/** 저장소의 값은 깨졌거나 예전 형식일 수 있으므로 쓰기 전에 형식을 확인한다. */
+const backupSchema = z.object({
+  savedAt: z.number(),
+  input: z.object({
+    title: z.string(),
+    content: episodeDocSchema,
+    authorNote: z.string().nullable(),
+    isFree: z.boolean(),
+  }),
+});
 
 const keyOf = (episodeId: string) => `${EPISODE_BACKUP_PREFIX}${episodeId}`;
 
@@ -39,7 +51,7 @@ export function readBackup(episodeId: string, current: EpisodeInput): DraftBacku
   try {
     const raw = localStorage.getItem(keyOf(episodeId));
     if (!raw) return null;
-    const backup = JSON.parse(raw) as DraftBackup;
+    const backup: DraftBackup = backupSchema.parse(JSON.parse(raw));
     if (canonical(backup.input) !== canonical(current)) return backup;
   } catch {
     // 깨진 값은 아래에서 지운다.

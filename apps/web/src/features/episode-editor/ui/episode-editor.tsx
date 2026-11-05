@@ -167,6 +167,12 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
     return () => clearTimeout(timer);
   }, [dirty, revision]);
   useEffect(() => () => backupRef.current(), []);
+  // 탭을 닫으면 위의 정리 함수가 돌지 않으므로 마지막 입력을 여기서 남긴다.
+  useEffect(() => {
+    const onPageHide = () => backupRef.current();
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, []);
 
   const restore = () => {
     if (!backup) return;

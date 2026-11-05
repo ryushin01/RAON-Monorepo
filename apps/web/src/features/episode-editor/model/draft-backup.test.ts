@@ -30,7 +30,12 @@ it("회차마다 따로 보관하고 지울 수 있다", () => {
   expect(readBackup("e1", server)).toBeNull();
 });
 
-it("깨진 값은 없는 것으로 다룬다", () => {
-  localStorage.setItem("raon:episode-backup:e1", "{");
+it.each([
+  ["JSON이 아닌 값", "{"],
+  ["형식이 다른 값", "{}"],
+  ["본문이 잘못된 값", '{"savedAt":1,"input":{"title":"a"}}'],
+])("%s은 없는 것으로 다루고 지운다", (_, raw) => {
+  localStorage.setItem("raon:episode-backup:e1", raw);
   expect(readBackup("e1", server)).toBeNull();
+  expect(localStorage.length).toBe(0);
 });
