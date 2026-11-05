@@ -10,12 +10,20 @@ import {
   type StudioWorkDetail,
   type WorkDetail,
 } from "@raon/contracts";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import request from "supertest";
 import { AppModule } from "../src/app.module.js";
 import { type Database, type DatabaseHandle, openDatabase } from "../src/db/database.js";
 import { DATABASE_HANDLE } from "../src/db/database.module.js";
-import { users } from "../src/db/schema.js";
+import {
+  comments as commentsTable,
+  favorites as favoritesTable,
+  orderItems as orderItemsTable,
+  users,
+  users as usersTable,
+} from "../src/db/schema.js";
+import { seedDemoData } from "../src/db/seed.js";
+import { DEMO_COMMENTS, DEMO_FAVORITES, DEMO_PURCHASES, DEMO_USERS } from "../src/db/seed-data.js";
 
 const doc = docFromText("본문 첫 문단입니다.\n\n둘째 문단입니다.");
 const PAID_MARKER = "둘째 문단입니다.";
@@ -568,6 +576,27 @@ describe("RAON API", () => {
       const unsold = await publishWork(author.accessToken);
       await http().delete(`/studio/works/${unsold.id}`).set(token).expect(204);
       await http().get(`/works/${unsold.id}`).expect(404);
+    });
+  });
+
+  describe("가상 데이터", () => {
+    it("빈 DB에 넣으면 내 서재와 작가 통계가 채워지고, 다시 실행해도 늘지 않는다", async () => {
+      const fresh = await openDatabase({});
+      await seedDemoData(fresh.db);
+      await seedDemoData(fresh.db);
+
+      const count = async (
+        table: typeof usersTable | typeof commentsTable | typeof favoritesTable | typeof orderItemsTable,
+      ) => (await fresh.db.select({ n: sql<number>`count(*)::int` }).from(table))[0]?.n;
+      expect(await count(usersTable)).toBe(DEMO_USERS.length);
+      expect(await count(commentsTable)).toBe(DEMO_COMMENTS.length);
+      expect(await count(favoritesTable)).toBe(DEMO_FAVORITES.length);
+      expect(await count(orderItemsTable)).toBe(DEMO_PURCHASES.length);
+
+      // 잔액은 구매 뒤 값이고 0 아래로 내려가지 않는다.
+      const [buyer] = await fresh.db.select().from(usersTable).where(eq(usersTable.email, "reader2@raon.test"));
+      expect(buyer?.coinBalance).toBe(800);
+      await fresh.close();
     });
   });
 
