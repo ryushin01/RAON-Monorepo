@@ -29,13 +29,5 @@
       "passThroughEnv": ["DATABASE_URL", "PGLITE_DATA_DIR", "JWT_SECRET", "API_URL", "SEED_DEMO", "PORT"]
     }
   },
-  "globalPassThroughEnv": [
-    "DATABASE_URL",
-    "PGLITE_DATA_DIR",
-    "JWT_SECRET",
-    "API_URL",
-    "SEED_DEMO",
-    "NEXT_OUTPUT",
-    "SCREENSHOTS"
-  ]
+  "globalPassThroughEnv": ["DATABASE_URL", "PGLITE_DATA_DIR", "JWT_SECRET", "API_URL", "SEED_DEMO", "SCREENSHOTS"]
 }
