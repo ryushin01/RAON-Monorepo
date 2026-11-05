@@ -4,7 +4,7 @@ import { countChars, type EpisodeDoc, type EpisodeInput, type StudioEpisode } fr
 import { useMutation } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
-import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { formatDateTime } from "@/shared/lib";
 import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
 import { fetchEpisode, saveEpisode, setEpisodePublished } from "../api/actions";
@@ -36,24 +36,29 @@ interface SaveRequest {
 export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
   const [current, setCurrent] = useState(episode);
   const [generation, setGeneration] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const shown = useRef(false);
 
-  useEffect(() => {
+  // 화면이 그려지기 전에 편집 칸을 내려서, 다시 읽는 동안 쓴 글이 교체로 사라지는 일이 없게 한다.
+  useLayoutEffect(() => {
     if (!shown.current) {
       shown.current = true;
       return;
     }
     let active = true;
+    setRefreshing(true);
     void fetchEpisode(episode.id).then((result) => {
-      if (!active || !result.ok) return;
-      setCurrent(result.data);
+      if (!active) return;
+      if (result.ok) setCurrent(result.data);
       setGeneration((value) => value + 1);
+      setRefreshing(false);
     });
     return () => {
       active = false;
     };
   }, [episode.id]);
 
+  if (refreshing) return <p aria-busy="true">최신 내용을 불러오는 중입니다.</p>;
   return <EpisodeEditorBody key={generation} episode={current} />;
 }
 
@@ -259,9 +264,10 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const onLeave = (event: MouseEvent) => {
+  // onClick이 아니라 onNavigate를 쓴다. Ctrl·Cmd 클릭은 새 탭으로 열려 이 화면을 떠나지 않으므로 호출되지 않는다.
+  const onLeave = (event: { preventDefault: () => void }) => {
     // 초안은 떠날 때 자동 저장되므로 묻지 않는다. 다만 저장이 이미 실패했다면 떠난 뒤에는 알릴 방법이 없어 묻는다.
-    const failed = failedRevision === revision;
+    const failed = failedRevision !== null;
     if (!dirty || (isDraft && !failed)) return;
     const message = failed
       ? "저장하지 못했습니다. 입력한 내용은 이 브라우저에 백업합니다. 그래도 나갈까요?"
@@ -333,7 +339,7 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
           · {stateText}
         </p>
         <div className={styles.actions}>
-          <ButtonLink variant="ghost" small href={`/studio/works/${episode.workId}`} onClick={onLeave}>
+          <ButtonLink variant="ghost" small href={`/studio/works/${episode.workId}`} onNavigate={onLeave}>
             작품 관리로
           </ButtonLink>
           <Button variant="secondary" small onClick={onSave} disabled={busy || !editor}>

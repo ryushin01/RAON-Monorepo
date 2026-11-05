@@ -164,6 +164,59 @@ test("자동 저장 뒤 나갔다 돌아오면 최신 원고가 보인다", asyn
   await expect(editorOf(page)).toHaveText("저장된 본문");
 });
 
+test("돌아온 직후 다시 읽는 동안에는 입력 칸을 내려 쓴 글이 사라지지 않는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `재조회 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("저장한 본문");
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+
+  await page.route("**/studio/works/**", async (route) => {
+    if (route.request().method() === "POST") await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await expect(page.getByText("최신 내용을 불러오는 중입니다.")).toBeVisible();
+  await expect(editorOf(page)).toHaveCount(0);
+  await expect(editorOf(page)).toHaveText("저장한 본문", { timeout: 10_000 });
+  await page.unroute("**/studio/works/**");
+});
+
+test("Ctrl·Cmd 클릭으로 새 탭을 열어도 편집과 백업이 계속된다", async ({ page, context }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `새 탭 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("공개 본문");
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+  await editorOf(page).click();
+  await page.keyboard.type(" 고치는 중");
+
+  const dialogs: string[] = [];
+  page.on("dialog", (dialog) => {
+    dialogs.push(dialog.message());
+    void dialog.dismiss();
+  });
+  const opened = context.waitForEvent("page");
+  await page.getByRole("link", { name: "작품 관리로" }).click({ modifiers: ["ControlOrMeta"] });
+  await (await opened).close();
+  expect(dialogs).toEqual([]);
+
+  await editorOf(page).click();
+  await page.keyboard.type(" 더");
+  await page.waitForTimeout(800);
+  const backups = await page.evaluate(() =>
+    Object.keys(localStorage).filter((key) => key.startsWith("raon:episode-backup:")),
+  );
+  expect(backups).toHaveLength(1);
+});
+
 test("자동 저장이 실패한 채 나가려 하면 묻는다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `실패 경고 ${Date.now()}`);
@@ -176,6 +229,8 @@ test("자동 저장이 실패한 채 나가려 하면 묻는다", async ({ page 
   await editorOf(page).click();
   await page.keyboard.type("저장 못 한 글");
   await expect(page.getByText(/잠시 뒤 다시 시도합니다/)).toBeVisible({ timeout: 10_000 });
+  // 실패한 뒤 더 입력해도, 저장에 성공하기 전까지는 나갈 때 묻는다.
+  await page.keyboard.type(" 더 쓴 글");
 
   const messages: string[] = [];
   page.once("dialog", (dialog) => {
