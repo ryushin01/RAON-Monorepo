@@ -91,6 +91,8 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
   });
 
   const save = useMutation({
+    // 같은 scope의 저장은 앞의 요청이 끝난 뒤에 나간다. 늦게 끝난 옛 요청이 최신 원고를 덮어쓰지 않게 한다.
+    scope: { id: `episode-save:${initial.id}` },
     mutationFn: async ({ input }: SaveRequest) => {
       const result = await saveEpisode(initial.id, input);
       if (!result.ok) throw new Error(result.message);
@@ -377,7 +379,7 @@ export function EpisodeEditor({ episode: initial }: { episode: StudioEpisode }) 
         <div className={styles.schedule}>
           <TextField
             ref={scheduleInputRef}
-            label="예약 공개 시각"
+            label="예약 공개 시각(한국 시간)"
             type="datetime-local"
             value={scheduleAt}
             error={scheduleError}

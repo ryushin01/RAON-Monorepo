@@ -11,8 +11,8 @@ describe("isScheduled", () => {
 });
 
 describe("toPublishAt", () => {
-  it("입력값을 ISO 시각으로 바꾼다", () => {
-    expect(toPublishAt("2026-11-06T09:30")).toBe(new Date("2026-11-06T09:30").toISOString());
+  it("입력값을 한국 시간으로 읽는다", () => {
+    expect(toPublishAt("2026-11-06T09:30")).toBe("2026-11-06T00:30:00.000Z");
   });
 
   it("비어 있으면 null이다", () => {

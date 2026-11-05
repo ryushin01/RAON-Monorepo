@@ -4,24 +4,37 @@ import { useEffect } from "react";
 import { recordView } from "../api/actions";
 
 const KEY_PREFIX = "raon:viewed:";
+const inFlight = new Set<string>();
 
-function firstVisit(episodeId: string): boolean {
+function alreadyViewed(episodeId: string): boolean {
   try {
-    const key = `${KEY_PREFIX}${episodeId}`;
-    if (sessionStorage.getItem(key)) return false;
-    sessionStorage.setItem(key, "1");
-    return true;
+    return sessionStorage.getItem(`${KEY_PREFIX}${episodeId}`) !== null;
   } catch {
-    return true;
+    return false;
+  }
+}
+
+function markViewed(episodeId: string) {
+  try {
+    sessionStorage.setItem(`${KEY_PREFIX}${episodeId}`, "1");
+  } catch {
+    // 저장하지 못하면 다음 방문에 한 번 더 세어질 뿐이다.
   }
 }
 
 /**
  * 조회수를 탭 하나에 회차당 한 번만 올린다. 서버 렌더링마다 세면 새로고침이나 댓글 등록만으로 조회수가 늘어난다.
+ * 기록에 실패하면 표시하지 않아 다음 방문 때 다시 보낸다.
  */
 export function ViewTracker({ workId, episodeId, number }: { workId: string; episodeId: string; number: number }) {
   useEffect(() => {
-    if (firstVisit(episodeId)) void recordView(workId, number);
+    if (alreadyViewed(episodeId) || inFlight.has(episodeId)) return;
+    inFlight.add(episodeId);
+    void recordView(workId, number)
+      .then((ok) => {
+        if (ok) markViewed(episodeId);
+      })
+      .finally(() => inFlight.delete(episodeId));
   }, [workId, episodeId, number]);
   return null;
 }

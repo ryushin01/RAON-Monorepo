@@ -11,7 +11,9 @@ import styles from "./work-form.module.scss";
 
 function validate(file: File | undefined): string | null {
   if (!file || file.size === 0) return "이미지 파일을 골라 주세요.";
-  if (!(COVER_MIME_TYPES as readonly string[]).includes(file.type)) return "JPG, PNG, WebP 이미지만 올릴 수 있습니다.";
+  // 브라우저가 형식을 모르면 빈 값이다. 그때는 서버가 내용으로 판별한다.
+  if (file.type && !(COVER_MIME_TYPES as readonly string[]).includes(file.type))
+    return "JPG, PNG, WebP 이미지만 올릴 수 있습니다.";
   if (file.size > COVER_MAX_BYTES) return "2MB 이하의 이미지만 올릴 수 있습니다.";
   return null;
 }
@@ -55,6 +57,7 @@ export function CoverUpload({ work }: { work: StudioWork }) {
     if (problem || !file) return;
     const data = new FormData();
     data.append("file", file);
+    remove.reset();
     upload.mutate(data);
   };
 
@@ -85,7 +88,15 @@ export function CoverUpload({ work }: { work: StudioWork }) {
             {upload.isPending ? "올리는 중…" : "표지 올리기"}
           </Button>
           {work.coverUpdatedAt && (
-            <Button variant="secondary" disabled={busy} onClick={() => remove.mutate(work.id)}>
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => {
+                upload.reset();
+                setSaved("");
+                remove.mutate(work.id);
+              }}
+            >
               표지 지우기
             </Button>
           )}

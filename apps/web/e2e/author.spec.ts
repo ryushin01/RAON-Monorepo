@@ -93,6 +93,35 @@ test("저장하는 동안 쓴 내용도 잃지 않는다", async ({ page }) => {
   await expect(editorOf(page)).toContainText("앞 문장 뒤 문장");
 });
 
+test("저장 중에 더 쓰고 나가도 최신 원고가 남는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `저장 순서 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  const url = page.url();
+
+  // 첫 저장만 늦춘다. 순서가 뒤집히면 늦게 끝난 첫 저장이 최신 원고를 덮어쓴다.
+  let first = true;
+  await page.route("**/studio/works/**", async (route) => {
+    if (route.request().method() === "POST" && first) {
+      first = false;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    await route.continue();
+  });
+  await editorOf(page).click();
+  await page.keyboard.type("앞 문장");
+  await expect(page.getByText(/저장 중/)).toBeVisible({ timeout: 5000 });
+  await page.keyboard.type(" 뒤 문장");
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByRole("button", { name: "새 회차 쓰기" })).toBeVisible();
+
+  await page.waitForTimeout(3500);
+  await page.unroute("**/studio/works/**");
+  await page.goto(url);
+  await expect(editorOf(page)).toContainText("앞 문장 뒤 문장");
+});
+
 test("초안은 나갈 때 저장하고, 공개한 회차는 나가기 전에 묻는다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `나가기 ${Date.now()}`);
@@ -255,11 +284,11 @@ test("예약 공개는 시각 전까지 독자에게 보이지 않고, 취소하
 
   // 시각을 넣지 않으면 그 칸으로 안내한다.
   await page.getByRole("button", { name: "예약 공개", exact: true }).click();
-  await expect(page.getByLabel("예약 공개 시각")).toHaveAccessibleDescription(/예약 시각을 입력해 주세요/);
+  await expect(page.getByLabel(/예약 공개 시각/)).toHaveAccessibleDescription(/예약 시각을 입력해 주세요/);
 
   const tomorrow = new Date(Date.now() + 24 * 3600_000);
   const local = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-  await page.getByLabel("예약 공개 시각").fill(local);
+  await page.getByLabel(/예약 공개 시각/).fill(local);
   await page.getByRole("button", { name: "예약 공개", exact: true }).click();
   await expect(page.getByText(/1화 · 예약 /)).toBeVisible();
 

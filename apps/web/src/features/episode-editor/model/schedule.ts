@@ -3,8 +3,8 @@ export function isScheduled(publishedAt: string | null, now = Date.now()): boole
   return publishedAt !== null && Date.parse(publishedAt) > now;
 }
 
-/** datetime-local 입력값(브라우저 시간대)을 서버에 보낼 ISO 시각으로 바꾼다. 비었거나 잘못되면 null이다. */
+/** datetime-local 입력값을 한국 시간으로 읽어 ISO 시각으로 바꾼다. 화면의 날짜 표시도 한국 시간이다. 잘못되면 null이다. */
 export function toPublishAt(localValue: string): string | null {
-  const time = Date.parse(localValue);
+  const time = Date.parse(`${localValue}+09:00`);
   return Number.isNaN(time) ? null : new Date(time).toISOString();
 }
