@@ -236,6 +236,8 @@ test("다시 읽기 실패 원인이 로그인 만료면 네트워크 탓으로 
   await page.getByRole("button", { name: "다시 시도" }).click();
   await expect(alert).toContainText("로그인이 필요합니다.");
   await expect(alert).not.toContainText("네트워크");
+  // 실패한 뒤에는 상태 영역에 불러오는 중이라는 안내가 남지 않는다.
+  await expect(page.getByRole("status").filter({ hasText: "최신 내용을 불러오는 중입니다." })).toHaveCount(0);
 });
 
 test("Ctrl·Cmd 클릭으로 새 탭을 열어도 편집과 백업이 계속된다", async ({ page, context }) => {

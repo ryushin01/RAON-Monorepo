@@ -55,6 +55,7 @@ export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
         // 옛 내용으로 다시 시작하면 최신 원고를 덮어쓸 수 있으므로, 읽지 못하면 편집 칸을 열지 않는다.
         if (!result.ok) {
           setFailure(result.message);
+          setNotice("");
           setStatus("failed");
           return;
         }
@@ -66,6 +67,7 @@ export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
       .catch(() => {
         if (id !== attempt.current) return;
         setFailure("네트워크를 확인한 뒤 다시 시도해 주세요.");
+        setNotice("");
         setStatus("failed");
       });
   };
