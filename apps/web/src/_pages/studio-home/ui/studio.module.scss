@@ -1,0 +1,54 @@
+.main {
+  display: grid;
+  gap: 1.5rem;
+  padding-block: 2rem;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 900;
+}
+
+.list {
+  padding: 0;
+  list-style: none;
+  border-top: 2px solid var(--fg);
+}
+
+.item {
+  display: grid;
+  gap: 0.25rem;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--line);
+
+  a {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  p {
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+  padding-block: 3rem;
+}

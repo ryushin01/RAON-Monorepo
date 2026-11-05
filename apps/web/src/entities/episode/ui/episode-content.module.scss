@@ -1,0 +1,20 @@
+.content {
+  display: grid;
+  gap: 1.2em;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+
+  blockquote {
+    display: grid;
+    gap: 1.2em;
+    padding-left: 1em;
+    border-left: 3px solid currentcolor;
+  }
+
+  hr {
+    width: 4rem;
+    margin: 1em auto;
+    border: 0;
+    border-top: 1px solid currentcolor;
+  }
+}

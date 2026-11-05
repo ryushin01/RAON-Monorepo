@@ -1,0 +1,99 @@
+.layout {
+  display: grid;
+  gap: 2rem;
+  align-items: start;
+
+  @media (min-width: 56rem) {
+    grid-template-columns: 1fr 20rem;
+  }
+}
+
+.list {
+  padding: 0;
+  list-style: none;
+  border-top: 2px solid var(--fg);
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.name {
+  flex: 1 1 14rem;
+  min-width: 0;
+
+  a {
+    font-weight: 700;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  small {
+    display: block;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  em {
+    display: block;
+    font-size: 0.875rem;
+    font-style: normal;
+    font-weight: 700;
+  }
+}
+
+.price {
+  font-weight: 700;
+}
+
+.summary {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--fg);
+
+  dl {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  dt {
+    color: var(--muted);
+  }
+
+  dd {
+    font-weight: 700;
+  }
+}
+
+.total {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--fg);
+  font-size: 1.125rem;
+
+  dt {
+    color: var(--fg);
+  }
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+  padding-block: 3rem;
+}

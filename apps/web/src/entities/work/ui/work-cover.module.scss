@@ -1,0 +1,62 @@
+.cover {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  aspect-ratio: 3 / 4;
+  padding: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--fg);
+  background: var(--cover-bg);
+  color: var(--cover-fg);
+  container-type: inline-size;
+}
+
+.dark {
+  --cover-bg: #0a0a0a;
+  --cover-fg: #fafafa;
+}
+
+.light {
+  --cover-bg: #fafafa;
+  --cover-fg: #0a0a0a;
+}
+
+.pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.16;
+}
+
+.lines {
+  background: repeating-linear-gradient(0deg, var(--cover-fg) 0 1px, transparent 1px 10%);
+}
+
+.diagonal {
+  background: repeating-linear-gradient(135deg, var(--cover-fg) 0 1px, transparent 1px 8%);
+}
+
+.circle {
+  background: radial-gradient(circle at 70% 30%, var(--cover-fg) 0 34%, transparent 34.5%);
+}
+
+.grid {
+  background:
+    linear-gradient(var(--cover-fg) 1px, transparent 1px) 0 0 / 100% 16%,
+    linear-gradient(90deg, var(--cover-fg) 1px, transparent 1px) 0 0 / 16% 100%;
+}
+
+.title {
+  position: relative;
+  font-family: var(--font-serif);
+  font-size: clamp(0.8125rem, 11cqi, 1.75rem);
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.author {
+  position: relative;
+  font-size: clamp(0.6875rem, 6.5cqi, 0.9375rem);
+}

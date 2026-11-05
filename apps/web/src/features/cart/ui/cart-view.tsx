@@ -1,0 +1,110 @@
+"use client";
+
+import type { Cart } from "@raon/contracts";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { CART_QUERY_KEY } from "@/entities/cart";
+import { formatCoins } from "@/shared/lib";
+import { Button, ButtonLink, Notice } from "@/shared/ui";
+import { checkout, removeFromCart } from "../api/actions";
+import styles from "./cart-view.module.scss";
+
+export function CartView({ cart }: { cart: Cart }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  // 더블클릭과 재시도에도 한 번만 결제되게 하는 키. 결제가 끝나면 다음 주문을 위해 새로 만든다.
+  const [orderKey, setOrderKey] = useState(() => crypto.randomUUID());
+
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+    router.refresh();
+  };
+
+  const remove = useMutation({
+    mutationFn: async (itemId: string) => {
+      const result = await removeFromCart(itemId);
+      if (!result.ok) throw new Error(result.message);
+    },
+    onSuccess: refresh,
+  });
+
+  const pay = useMutation({
+    mutationFn: async (idempotencyKey: string) => {
+      const result = await checkout(idempotencyKey);
+      if (!result.ok) throw new Error(result.message);
+    },
+    onSuccess: () => {
+      setOrderKey(crypto.randomUUID());
+      void queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+      router.push("/my?purchased=1");
+    },
+  });
+
+  if (cart.items.length === 0) {
+    return (
+      <div className={styles.empty}>
+        <p>장바구니가 비어 있습니다.</p>
+        <ButtonLink href="/works">작품 둘러보기</ButtonLink>
+      </div>
+    );
+  }
+
+  const shortage = cart.total - cart.coinBalance;
+  const blocked = cart.items.some((item) => item.unavailableReason);
+
+  return (
+    <div className={styles.layout}>
+      <ul className={styles.list} aria-label="장바구니 항목">
+        {cart.items.map((item) => {
+          const name = item.kind === "WORK" ? "작품 전체" : `${item.episodeNumber}화. ${item.episodeTitle}`;
+          return (
+            <li key={item.id} className={styles.item}>
+              <div className={styles.name}>
+                <Link href={`/works/${item.workId}`}>{item.workTitle}</Link>
+                <small>{name}</small>
+                {item.unavailableReason && <em>{item.unavailableReason} 빼고 결제해 주세요.</em>}
+              </div>
+              <span className={styles.price}>{formatCoins(item.price)}</span>
+              <Button
+                variant="secondary"
+                small
+                disabled={remove.isPending}
+                onClick={() => remove.mutate(item.id)}
+                aria-label={`${item.workTitle} ${name} 빼기`}
+              >
+                빼기
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+
+      <section className={styles.summary} aria-labelledby="cart-summary">
+        <h2 id="cart-summary" className="visually-hidden">
+          결제 정보
+        </h2>
+        <dl>
+          <div>
+            <dt>보유 코인</dt>
+            <dd>{formatCoins(cart.coinBalance)}</dd>
+          </div>
+          <div className={styles.total}>
+            <dt>결제 코인</dt>
+            <dd>{formatCoins(cart.total)}</dd>
+          </div>
+        </dl>
+        {shortage > 0 && (
+          <p>
+            코인이 {formatCoins(shortage)} 부족합니다. <Link href="/my#charge">코인 충전하기</Link>
+          </p>
+        )}
+        {(pay.error ?? remove.error) && <Notice tone="error">{(pay.error ?? remove.error)?.message}</Notice>}
+        <Button block disabled={pay.isPending || shortage > 0 || blocked} onClick={() => pay.mutate(orderKey)}>
+          {pay.isPending ? "결제 중…" : `${formatCoins(cart.total)} 결제하기`}
+        </Button>
+      </section>
+    </div>
+  );
+}

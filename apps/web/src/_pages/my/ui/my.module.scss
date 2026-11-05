@@ -1,0 +1,50 @@
+.main {
+  display: grid;
+  gap: 2.5rem;
+  padding-block: 2rem;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 900;
+}
+
+.h2 {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--fg);
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.balance {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+
+  th,
+  td {
+    padding: 0.625rem 0.5rem 0.625rem 0;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    border-bottom-color: var(--fg);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+}
+
+.scroll {
+  overflow-x: auto;
+}

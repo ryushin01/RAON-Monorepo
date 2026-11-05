@@ -1,0 +1,13 @@
+.main {
+  display: grid;
+  gap: 1rem;
+  max-width: 52rem;
+  margin-inline: auto;
+  padding: 1rem var(--gutter) 4rem;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 900;
+}

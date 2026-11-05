@@ -1,0 +1,28 @@
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border: 1px solid transparent;
+  text-decoration: none;
+
+  &:hover {
+    border-color: var(--fg);
+  }
+
+  &[aria-current="page"] {
+    background: var(--fg);
+    color: var(--bg);
+    font-weight: 700;
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "extends": "@raon/config/tsconfig.next.json",
+  "compilerOptions": {
+    "paths": { "@/*": ["./src/*"] },
+    "types": ["jest", "node", "@testing-library/jest-dom"]
+  },
+  "include": [
+    "next-env.d.ts",
+    "src",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "e2e",
+    ".storybook",
+    "*.ts",
+    "*.mjs"
+  ],
+  "exclude": ["node_modules"]
+}

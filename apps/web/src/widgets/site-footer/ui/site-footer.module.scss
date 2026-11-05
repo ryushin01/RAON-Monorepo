@@ -1,0 +1,13 @@
+.footer {
+  margin-top: 4rem;
+  padding-block: 2rem;
+  border-top: 2px solid var(--fg);
+  color: var(--muted);
+  font-size: 0.875rem;
+
+  strong {
+    color: var(--fg);
+    font-family: var(--font-serif);
+    letter-spacing: 0.12em;
+  }
+}
