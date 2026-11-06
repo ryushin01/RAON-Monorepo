@@ -17,7 +17,9 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import {
   COVER_MAX_BYTES,
   type EpisodeInput,
+  type EpisodeVersionInput,
   episodeInputSchema,
+  episodeVersionInputSchema,
   type MoveEpisodeInput,
   moveEpisodeSchema,
   type PublishInput,
@@ -91,6 +93,49 @@ export class StudioController {
     @Body(new ZodPipe(episodeInputSchema)) body: EpisodeInput,
   ) {
     return this.studio.saveEpisode(user.id, episodeId, body);
+  }
+
+  @Get("episodes/:episodeId/versions")
+  versions(@CurrentUser() user: AuthUser, @Param("episodeId", ParseUUIDPipe) episodeId: string) {
+    return this.studio.listVersions(user.id, episodeId);
+  }
+
+  @Post("episodes/:episodeId/versions")
+  createVersion(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Body(new ZodPipe(episodeVersionInputSchema)) body: EpisodeVersionInput,
+  ) {
+    return this.studio.createVersion(user.id, episodeId, body.label);
+  }
+
+  @Get("episodes/:episodeId/versions/:versionId")
+  version(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Param("versionId", ParseUUIDPipe) versionId: string,
+  ) {
+    return this.studio.getVersion(user.id, episodeId, versionId);
+  }
+
+  @Post("episodes/:episodeId/versions/:versionId/restore")
+  @HttpCode(200)
+  restoreVersion(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Param("versionId", ParseUUIDPipe) versionId: string,
+  ) {
+    return this.studio.restoreVersion(user.id, episodeId, versionId);
+  }
+
+  @Delete("episodes/:episodeId/versions/:versionId")
+  @HttpCode(204)
+  async deleteVersion(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Param("versionId", ParseUUIDPipe) versionId: string,
+  ) {
+    await this.studio.deleteVersion(user.id, episodeId, versionId);
   }
 
   @Post("episodes/:episodeId/publish")

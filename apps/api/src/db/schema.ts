@@ -22,6 +22,7 @@ export const roleEnum = pgEnum("role", ["READER", "AUTHOR"]);
 export const genreEnum = pgEnum("genre", ["FANTASY", "MARTIAL", "ROMANCE", "MODERN", "SF", "MYSTERY"]);
 export const workStatusEnum = pgEnum("work_status", ["DRAFT", "ONGOING", "COMPLETED"]);
 export const episodeStatusEnum = pgEnum("episode_status", ["DRAFT", "PUBLISHED"]);
+export const episodeVersionKindEnum = pgEnum("episode_version_kind", ["AUTO", "MANUAL"]);
 export const coinReasonEnum = pgEnum("coin_reason", ["CHARGE", "PURCHASE"]);
 
 const timestamps = {
@@ -81,6 +82,25 @@ export const episodes = pgTable(
     ...timestamps,
   },
   (t) => [uniqueIndex("episodes_work_number_uq").on(t.workId, t.number)],
+);
+
+/** 회차의 지난 내용. 가격과 공개 상태는 판매와 맞물리므로 담지 않고 원고만 담는다. */
+export const episodeVersions = pgTable(
+  "episode_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    episodeId: uuid("episode_id")
+      .notNull()
+      .references(() => episodes.id, { onDelete: "cascade" }),
+    kind: episodeVersionKindEnum("kind").notNull(),
+    label: text("label"),
+    title: text("title").notNull(),
+    content: jsonb("content").$type<EpisodeDoc>().notNull(),
+    authorNote: text("author_note"),
+    charCount: integer("char_count").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("episode_versions_episode_created_idx").on(t.episodeId, t.createdAt)],
 );
 
 /** episodeId가 없으면 작품 전체를 담은 항목이다. */

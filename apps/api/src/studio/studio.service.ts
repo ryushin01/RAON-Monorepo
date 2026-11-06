@@ -1,18 +1,37 @@
+import { isDeepStrictEqual } from "node:util";
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
   countChars,
   type EpisodeInput,
+  type EpisodeVersion,
+  type EpisodeVersionSummary,
   type StudioEpisode,
   type StudioWork,
   type StudioWorkDetail,
   type WorkInput,
 } from "@raon/contracts";
-import { and, asc, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { isForeignKeyViolation } from "../common/db-errors.js";
 import { detectImageType } from "../common/image.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
-import { episodes, orderItems, workCovers, works } from "../db/schema.js";
+import { episodes, episodeVersions, orderItems, workCovers, works } from "../db/schema.js";
+
+/** 자동 버전은 이 간격마다 하나만 남긴다. 초안은 입력이 멈출 때마다 저장되기 때문이다. */
+export const AUTO_VERSION_INTERVAL_MS = 10 * 60 * 1000;
+const MAX_AUTO_VERSIONS = 30;
+const MAX_MANUAL_VERSIONS = 50;
+
+type VersionRow = typeof episodeVersions.$inferSelect;
+
+const toVersionSummary = (row: Omit<VersionRow, "content" | "authorNote" | "episodeId">): EpisodeVersionSummary => ({
+  id: row.id,
+  kind: row.kind,
+  label: row.label,
+  title: row.title,
+  charCount: row.charCount,
+  createdAt: row.createdAt.toISOString(),
+});
 
 const countOf = (status: "PUBLISHED" | "DRAFT") =>
   // 단일 테이블 조회에서 Drizzle은 컬럼을 테이블 없이 출력하므로, 서브쿼리에서는 테이블명을 직접 적는다.
@@ -154,12 +173,145 @@ export class StudioService {
   async saveEpisode(authorId: string, episodeId: string, input: EpisodeInput): Promise<StudioEpisode> {
     const current = await this.ownedEpisode(authorId, episodeId);
     if (current.status === "PUBLISHED") this.assertPublishable(input);
-    const [row] = await this.db
-      .update(episodes)
-      .set({ ...input, charCount: countChars(input.content), updatedAt: new Date() })
-      .where(eq(episodes.id, episodeId))
+    return this.db.transaction(async (tx) => {
+      await this.snapshotBeforeSave(tx, current, input);
+      const [row] = await tx
+        .update(episodes)
+        .set({ ...input, charCount: countChars(input.content), updatedAt: new Date() })
+        .where(eq(episodes.id, episodeId))
+        .returning();
+      return toEpisode(row!);
+    });
+  }
+
+  /** 덮어쓰기 전의 원고를 남긴다. 빈 원고나 바뀌지 않은 저장은 남기지 않는다. */
+  private async snapshotBeforeSave(
+    tx: Pick<Database, "select" | "insert" | "delete">,
+    current: typeof episodes.$inferSelect,
+    input: EpisodeInput,
+  ) {
+    if (current.charCount === 0) return;
+    const unchanged =
+      current.title === input.title &&
+      current.authorNote === input.authorNote &&
+      // jsonb는 키 순서를 바꿔 저장하므로 문자열로 비교하면 같은 원고도 다르게 나온다.
+      isDeepStrictEqual(current.content, input.content);
+    if (unchanged) return;
+    const [latest] = await tx
+      .select({ createdAt: episodeVersions.createdAt })
+      .from(episodeVersions)
+      .where(and(eq(episodeVersions.episodeId, current.id), eq(episodeVersions.kind, "AUTO")))
+      .orderBy(desc(episodeVersions.createdAt))
+      .limit(1);
+    if (latest && Date.now() - latest.createdAt.getTime() < AUTO_VERSION_INTERVAL_MS) return;
+    await this.insertVersion(tx, current, "AUTO", null);
+    const stale = await tx
+      .select({ id: episodeVersions.id })
+      .from(episodeVersions)
+      .where(and(eq(episodeVersions.episodeId, current.id), eq(episodeVersions.kind, "AUTO")))
+      .orderBy(desc(episodeVersions.createdAt))
+      .offset(MAX_AUTO_VERSIONS);
+    if (stale.length) {
+      await tx.delete(episodeVersions).where(
+        inArray(
+          episodeVersions.id,
+          stale.map((row) => row.id),
+        ),
+      );
+    }
+  }
+
+  private async insertVersion(
+    tx: Pick<Database, "insert">,
+    episode: typeof episodes.$inferSelect,
+    kind: "AUTO" | "MANUAL",
+    label: string | null,
+  ) {
+    const [row] = await tx
+      .insert(episodeVersions)
+      .values({
+        episodeId: episode.id,
+        kind,
+        label,
+        title: episode.title,
+        content: episode.content,
+        authorNote: episode.authorNote,
+        charCount: episode.charCount,
+      })
       .returning();
-    return toEpisode(row!);
+    return row!;
+  }
+
+  async listVersions(authorId: string, episodeId: string): Promise<EpisodeVersionSummary[]> {
+    await this.ownedEpisode(authorId, episodeId);
+    const rows = await this.db
+      .select({
+        id: episodeVersions.id,
+        kind: episodeVersions.kind,
+        label: episodeVersions.label,
+        title: episodeVersions.title,
+        charCount: episodeVersions.charCount,
+        createdAt: episodeVersions.createdAt,
+      })
+      .from(episodeVersions)
+      .where(eq(episodeVersions.episodeId, episodeId))
+      .orderBy(desc(episodeVersions.createdAt), desc(episodeVersions.id));
+    return rows.map(toVersionSummary);
+  }
+
+  async createVersion(authorId: string, episodeId: string, label: string | null): Promise<EpisodeVersionSummary> {
+    const current = await this.ownedEpisode(authorId, episodeId);
+    const [{ count } = { count: 0 }] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(episodeVersions)
+      .where(and(eq(episodeVersions.episodeId, episodeId), eq(episodeVersions.kind, "MANUAL")));
+    if (count >= MAX_MANUAL_VERSIONS) {
+      throw new ConflictException(`직접 남긴 버전은 ${MAX_MANUAL_VERSIONS}개까지입니다. 필요 없는 버전을 지워 주세요.`);
+    }
+    return toVersionSummary(await this.insertVersion(this.db, current, "MANUAL", label || null));
+  }
+
+  async getVersion(authorId: string, episodeId: string, versionId: string): Promise<EpisodeVersion> {
+    await this.ownedEpisode(authorId, episodeId);
+    const row = await this.versionOf(episodeId, versionId);
+    return { ...toVersionSummary(row), content: row.content, authorNote: row.authorNote };
+  }
+
+  /** 지금 원고를 버전으로 남긴 뒤 되돌린다. 복원도 복원할 수 있고, 가격과 공개 상태는 그대로다. */
+  async restoreVersion(authorId: string, episodeId: string, versionId: string): Promise<StudioEpisode> {
+    const current = await this.ownedEpisode(authorId, episodeId);
+    const version = await this.versionOf(episodeId, versionId);
+    if (current.status === "PUBLISHED") this.assertPublishable({ content: version.content });
+    return this.db.transaction(async (tx) => {
+      await this.insertVersion(tx, current, "AUTO", "복원 전");
+      const [row] = await tx
+        .update(episodes)
+        .set({
+          title: version.title,
+          content: version.content,
+          authorNote: version.authorNote,
+          charCount: version.charCount,
+          updatedAt: new Date(),
+        })
+        .where(eq(episodes.id, episodeId))
+        .returning();
+      return toEpisode(row!);
+    });
+  }
+
+  async deleteVersion(authorId: string, episodeId: string, versionId: string): Promise<void> {
+    await this.ownedEpisode(authorId, episodeId);
+    await this.versionOf(episodeId, versionId);
+    await this.db.delete(episodeVersions).where(eq(episodeVersions.id, versionId));
+  }
+
+  private async versionOf(episodeId: string, versionId: string): Promise<VersionRow> {
+    const [row] = await this.db
+      .select()
+      .from(episodeVersions)
+      .where(and(eq(episodeVersions.id, versionId), eq(episodeVersions.episodeId, episodeId)));
+    if (!row) throw new NotFoundException("버전을 찾을 수 없습니다.");
+    return row;
   }
 
   /** publishAt이 있으면 그 시각까지 독자에게 보이지 않는다. 예약 중인 회차는 바로 공개하거나 시각을 바꿀 수 있다. */

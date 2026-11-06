@@ -5,6 +5,7 @@ import { Test } from "@nestjs/testing";
 import {
   type AuthResult,
   type Cart,
+  countChars,
   docFromText,
   type EpisodeView,
   type StudioWorkDetail,
@@ -17,6 +18,7 @@ import { type Database, type DatabaseHandle, openDatabase } from "../src/db/data
 import { DATABASE_HANDLE } from "../src/db/database.module.js";
 import {
   comments as commentsTable,
+  episodeVersions as episodeVersionsTable,
   favorites as favoritesTable,
   orderItems as orderItemsTable,
   users,
@@ -927,6 +929,201 @@ describe("RAON API", () => {
 
       await http().post(`/studio/episodes/${body.id}/publish`).set(token).expect(200);
       expect(await favorites()).toHaveLength(1);
+    });
+  });
+
+  describe("회차 버전", () => {
+    const save = (token: string, id: string, text: string) =>
+      http()
+        .put(`/studio/episodes/${id}`)
+        .set(bearer(token))
+        .send({ title: "제목", content: docFromText(text), authorNote: null, isFree: false })
+        .expect(200);
+
+    async function draft(token: string) {
+      const work = (
+        await http()
+          .post("/studio/works")
+          .set(bearer(token))
+          .send({
+            title: "버전 작품",
+            synopsis: "열 글자가 넘는 작품 소개입니다.",
+            genre: "SF",
+            episodePrice: 100,
+            wholePrice: null,
+            tags: [],
+          })
+          .expect(201)
+      ).body as StudioWorkDetail;
+      const episode = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(bearer(token))
+        .send({
+          title: "제목",
+          content: { type: "doc", content: [{ type: "paragraph" }] },
+          authorNote: null,
+          isFree: false,
+        })
+        .expect(201);
+      return episode.body.id as string;
+    }
+
+    const versions = async (token: string, id: string) =>
+      (await http().get(`/studio/episodes/${id}/versions`).set(bearer(token)).expect(200)).body as {
+        id: string;
+        kind: string;
+        label: string | null;
+        charCount: number;
+      }[];
+
+    it("빈 원고나 바뀌지 않은 저장은 남기지 않고, 자동 버전은 간격마다 하나만 남긴다", async () => {
+      const { accessToken: token } = await signup("AUTHOR");
+      const id = await draft(token);
+      await save(token, id, "첫 원고입니다.");
+      expect(await versions(token, id)).toHaveLength(0);
+
+      await save(token, id, "첫 원고입니다.");
+      expect(await versions(token, id)).toHaveLength(0);
+
+      await save(token, id, "고친 원고입니다.");
+      const [first] = await versions(token, id);
+      expect(first).toMatchObject({ kind: "AUTO", charCount: countChars(docFromText("첫 원고입니다.")) });
+
+      await save(token, id, "다시 고친 원고입니다.");
+      expect(await versions(token, id)).toHaveLength(1);
+
+      await db
+        .update(episodeVersionsTable)
+        .set({ createdAt: new Date(Date.now() - 11 * 60 * 1000) })
+        .where(eq(episodeVersionsTable.episodeId, id));
+      await save(token, id, "또 고친 원고입니다.");
+      expect(await versions(token, id)).toHaveLength(2);
+    });
+
+    it("자동 버전은 개수를 제한하지만 직접 남긴 버전은 지우지 않는다", async () => {
+      const { accessToken: token } = await signup("AUTHOR");
+      const id = await draft(token);
+      await save(token, id, "원고입니다.");
+      await http().post(`/studio/episodes/${id}/versions`).set(bearer(token)).send({ label: "남길 버전" }).expect(201);
+      const old = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      await db.insert(episodeVersionsTable).values(
+        Array.from({ length: 30 }, () => ({
+          episodeId: id,
+          kind: "AUTO" as const,
+          title: "옛 제목",
+          content: docFromText("옛 원고"),
+          charCount: 3,
+          createdAt: old,
+        })),
+      );
+      await save(token, id, "새 원고입니다.");
+      const list = await versions(token, id);
+      expect(list.filter((version) => version.kind === "AUTO")).toHaveLength(30);
+      expect(list.some((version) => version.label === "남길 버전")).toBe(true);
+    });
+
+    it("이름을 붙여 남기고, 복원하면 지금 내용을 먼저 남기며 판매 설정은 바꾸지 않는다", async () => {
+      const { accessToken: token } = await signup("AUTHOR");
+      const id = await draft(token);
+      await http()
+        .put(`/studio/episodes/${id}`)
+        .set(bearer(token))
+        .send({ title: "처음 제목", content: docFromText("처음 원고"), authorNote: "처음 말", isFree: true })
+        .expect(200);
+      const created = await http()
+        .post(`/studio/episodes/${id}/versions`)
+        .set(bearer(token))
+        .send({ label: "  초고  " })
+        .expect(201);
+      expect(created.body).toMatchObject({ kind: "MANUAL", label: "초고", title: "처음 제목" });
+      expect(created.body).not.toHaveProperty("content");
+
+      await http()
+        .put(`/studio/episodes/${id}`)
+        .set(bearer(token))
+        .send({ title: "나중 제목", content: docFromText("나중 원고"), authorNote: null, isFree: false })
+        .expect(200);
+
+      const detail = await http()
+        .get(`/studio/episodes/${id}/versions/${created.body.id}`)
+        .set(bearer(token))
+        .expect(200);
+      expect(detail.body.content).toEqual(docFromText("처음 원고"));
+
+      const restored = await http()
+        .post(`/studio/episodes/${id}/versions/${created.body.id}/restore`)
+        .set(bearer(token))
+        .expect(200);
+      expect(restored.body).toMatchObject({
+        title: "처음 제목",
+        authorNote: "처음 말",
+        isFree: false,
+        charCount: countChars(docFromText("처음 원고")),
+      });
+      expect((await versions(token, id)).map((version) => version.label)).toContain("복원 전");
+    });
+
+    it("공개한 회차는 빈 버전으로 되돌릴 수 없다", async () => {
+      const { accessToken: token } = await signup("AUTHOR");
+      const id = await draft(token);
+      const [empty] = await db
+        .insert(episodeVersionsTable)
+        .values({ episodeId: id, kind: "MANUAL", title: "빈", content: { type: "doc", content: [] }, charCount: 0 })
+        .returning();
+      await save(token, id, "공개할 원고입니다.");
+      await http().post(`/studio/episodes/${id}/publish`).set(bearer(token)).send({}).expect(200);
+      await http().post(`/studio/episodes/${id}/versions/${empty?.id}/restore`).set(bearer(token)).expect(400);
+    });
+
+    it("직접 남긴 버전 수를 제한하고, 지울 수 있다", async () => {
+      const { accessToken: token } = await signup("AUTHOR");
+      const id = await draft(token);
+      await db.insert(episodeVersionsTable).values(
+        Array.from({ length: 50 }, () => ({
+          episodeId: id,
+          kind: "MANUAL" as const,
+          title: "제목",
+          content: docFromText("원고"),
+          charCount: 2,
+        })),
+      );
+      await http().post(`/studio/episodes/${id}/versions`).set(bearer(token)).send({ label: null }).expect(409);
+      const [first] = await versions(token, id);
+      await http().delete(`/studio/episodes/${id}/versions/${first?.id}`).set(bearer(token)).expect(204);
+      await http().post(`/studio/episodes/${id}/versions`).set(bearer(token)).send({ label: null }).expect(201);
+    });
+
+    it("다른 작가의 회차와 다른 회차의 버전은 다룰 수 없고, 독자는 쓸 수 없다", async () => {
+      const owner = await signup("AUTHOR");
+      const other = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const id = await draft(owner.accessToken);
+      const otherId = await draft(owner.accessToken);
+      const created = await http()
+        .post(`/studio/episodes/${id}/versions`)
+        .set(bearer(owner.accessToken))
+        .send({ label: null })
+        .expect(201);
+      const version = created.body.id as string;
+
+      await http().get(`/studio/episodes/${id}/versions`).set(bearer(other.accessToken)).expect(404);
+      await http().get(`/studio/episodes/${id}/versions/${version}`).set(bearer(other.accessToken)).expect(404);
+      await http()
+        .post(`/studio/episodes/${id}/versions/${version}/restore`)
+        .set(bearer(other.accessToken))
+        .expect(404);
+      await http().delete(`/studio/episodes/${id}/versions/${version}`).set(bearer(other.accessToken)).expect(404);
+      await http().get(`/studio/episodes/${otherId}/versions/${version}`).set(bearer(owner.accessToken)).expect(404);
+      await http()
+        .post(`/studio/episodes/${otherId}/versions/${version}/restore`)
+        .set(bearer(owner.accessToken))
+        .expect(404);
+      await http().get(`/studio/episodes/${id}/versions`).set(bearer(reader.accessToken)).expect(403);
+      await http()
+        .post(`/studio/episodes/${id}/versions`)
+        .set(bearer(owner.accessToken))
+        .send({ label: "가".repeat(41) })
+        .expect(400);
     });
   });
 
