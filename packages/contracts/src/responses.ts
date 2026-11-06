@@ -208,6 +208,21 @@ export interface StudioEpisode extends StudioEpisodeSummary {
   authorNote: string | null;
 }
 
+export interface EpisodeVersionSummary {
+  id: string;
+  /** AUTO는 저장할 때 일정 간격으로, MANUAL은 작가가 직접 남긴 버전이다. */
+  kind: "AUTO" | "MANUAL";
+  label: string | null;
+  title: string;
+  charCount: number;
+  createdAt: string;
+}
+
+export interface EpisodeVersion extends EpisodeVersionSummary {
+  content: EpisodeDoc;
+  authorNote: string | null;
+}
+
 export interface ApiErrorBody {
   statusCode: number;
   message: string;
