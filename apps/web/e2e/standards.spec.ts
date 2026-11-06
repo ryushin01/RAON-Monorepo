@@ -127,6 +127,21 @@ test.describe("KWCAG 운용", () => {
     }
   });
 
+  test("6.1.2 가로로 스크롤하는 머리글 메뉴가 초점 표시를 자르지 않는다", async ({ page }) => {
+    await page.goto("/");
+    const nav = page.getByRole("navigation", { name: "주요 메뉴" });
+    const space = await nav
+      .getByRole("link")
+      .first()
+      .evaluate((link) => {
+        // 초점 표시는 outline 3px와 offset 2px를 합쳐 요소 밖으로 5px 나간다.
+        const box = link.getBoundingClientRect();
+        const clip = (link.closest("ul") as HTMLElement).getBoundingClientRect();
+        return Math.min(box.left - clip.left, box.top - clip.top, clip.bottom - box.bottom);
+      });
+    expect(space).toBeGreaterThanOrEqual(5);
+  });
+
   test("6.1.3 새 화면의 조작 요소도 6mm 이상이다", async ({ page }) => {
     const MIN_DIAGONAL_PX = (6 / 25.4) * 96;
     const smallControls = () =>

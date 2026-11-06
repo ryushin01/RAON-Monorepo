@@ -155,6 +155,12 @@ test("태그와 별점순으로 찾고, 뱃지를 글자로 보여 준다", asyn
   await expect(page.getByText("인기", { exact: true }).first()).toBeVisible();
 });
 
+test("모바일 첫 화면에서 추천 작품이 보인다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 780 });
+  await page.goto("/");
+  await expect(page.getByRole("region", { name: "추천 작품" }).getByRole("heading", { level: 2 })).toBeInViewport();
+});
+
 test("메인 배너는 자동으로 넘어가지 않고 버튼으로 넘긴다", async ({ page }) => {
   await page.goto("/");
   const banner = page.getByRole("region", { name: "추천 작품" });

@@ -12,7 +12,11 @@
   gap: 1.25rem;
   align-content: center;
   justify-items: start;
-  padding: 2.5rem var(--gutter);
+  padding: 1.5rem var(--gutter);
+
+  @media (width >= 48rem) {
+    padding-block: 2.5rem;
+  }
 
   @media (width >= 56rem) {
     padding-inline: max(var(--gutter), calc((100vw - var(--page-width)) / 2 + var(--gutter))) 3rem;
@@ -38,15 +42,21 @@
 }
 
 .title {
-  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-size: clamp(1.75rem, 5vw, 3.5rem);
   font-weight: 500;
   line-height: 1.15;
 }
 
+/* 좁은 화면에서는 작품이 첫 화면에 보이도록 소개 문장과 장식을 뺀다. */
 .lead {
+  display: none;
   max-width: 32rem;
   color: var(--muted);
   font-size: 1.0625rem;
+
+  @media (width >= 48rem) {
+    display: block;
+  }
 }
 
 .actions {
@@ -56,6 +66,7 @@
 }
 
 .art {
+  display: none;
   position: relative;
   min-height: 12rem;
   overflow: hidden;
@@ -63,6 +74,10 @@
   background-image: radial-gradient(circle, var(--panel-line) 1px, transparent 1.25px);
   background-size: 12px 12px;
   color: var(--panel-fg);
+
+  @media (width >= 48rem) {
+    display: block;
+  }
 }
 
 .spiral {

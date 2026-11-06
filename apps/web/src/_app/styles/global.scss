@@ -38,6 +38,7 @@
 
   // Geist에 한글이 없으므로 한글은 Noto Sans KR로 이어진다.
   --font-sans: var(--font-geist), var(--font-noto-sans), -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+
   // Geist Mono의 공백이 한글 사이에서 너무 넓어 줄인다.
   --mono-word-spacing: -0.3em;
   --font-mono: var(--font-geist-mono), var(--font-noto-sans), ui-monospace, "Apple SD Gothic Neo", "Malgun Gothic", monospace;
