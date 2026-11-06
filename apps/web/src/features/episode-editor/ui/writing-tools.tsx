@@ -81,7 +81,7 @@ function Repetitions({ editor, onFind }: { editor: Editor; onFind: (text: string
     <>
       <RepetitionList title="반복한 낱말" items={words} onFind={onFind} />
       <RepetitionList title="반복한 문장 끝맺음" items={endings} onFind={onFind} />
-      <p className={styles.note}>누르면 본문에서 찾습니다.</p>
+      {words.length + endings.length > 0 && <p className={styles.note}>누르면 본문에서 찾습니다.</p>}
     </>
   );
 }

@@ -9,10 +9,10 @@ import { useNotes } from "./use-notes";
 
 /** 이 회차에 딸린 메모. 독자에게 보이지 않는다. */
 export function EpisodeMemo({ workId, episodeId }: { workId: string; episodeId: string }) {
-  const { data, error, invalidate } = useNotes(workId);
+  const { data, error, isFetching, invalidate } = useNotes(workId);
   const memo = data?.find((note) => note.episodeId === episodeId);
   // 최신 목록을 모르면 다른 창에서 쓴 메모를 덮어쓸 수 있으므로 저장을 막는다. 입력한 내용은 그대로 둔다.
-  const ready = data !== undefined && !error;
+  const ready = data !== undefined && !error && !isFetching;
   // 고치기 전에는 저장된 메모를 그대로 보여 준다.
   const [draft, setDraft] = useState<string | null>(null);
   const [message, setMessage] = useState("");

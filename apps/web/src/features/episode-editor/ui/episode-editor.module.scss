@@ -113,12 +113,13 @@
       box-shadow: none;
     }
 
-    .search-match {
+    /* ProseMirror 장식이 붙이는 전역 클래스다. 모듈 해시가 붙으면 적용되지 않는다. */
+    :global(.search-match) {
       background: var(--surface);
       text-decoration: underline;
     }
 
-    .search-current {
+    :global(.search-current) {
       background: var(--fg);
       color: var(--bg);
     }
