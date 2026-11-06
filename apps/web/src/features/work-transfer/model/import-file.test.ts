@@ -36,6 +36,30 @@ describe("parseImportFile", () => {
     expect(docToText(content)).toBe("본문");
   });
 
+  it("# 뒤에 제목이 없으면 다음 줄을 제목으로 삼지 않는다", () => {
+    const { title, content } = parseImportFile("파일.md", utf8("#\n본문 첫 줄"));
+    expect(title).toBe("파일");
+    expect(docToText(content)).toContain("본문 첫 줄");
+  });
+
+  it("UTF-16 파일을 읽는다", () => {
+    const le = new Uint8Array([0xff, 0xfe, 0x00, 0xac]);
+    const be = new Uint8Array([0xfe, 0xff, 0xac, 0x00]);
+    expect(docToText(parseImportFile("a.txt", le).content)).toBe("가");
+    expect(docToText(parseImportFile("a.txt", be).content)).toBe("가");
+  });
+
+  it("NUL이 있으면 텍스트가 아니라고 알린다", () => {
+    expect(() => parseImportFile("a.txt", utf8("가\0나"))).toThrow(/읽을 수 없습니다/);
+  });
+
+  it("1MB 한글은 가져오고, 문서로 바꾸면 한도를 넘는 파일은 이유를 알린다", () => {
+    const korean = "가".repeat(Math.floor(MAX_IMPORT_BYTES / 3) - 1);
+    expect(parseImportFile("긴.txt", utf8(korean)).content.content).toHaveLength(1);
+    const breaks = "가\n".repeat(MAX_IMPORT_BYTES / 5);
+    expect(() => parseImportFile("줄.txt", utf8(breaks))).toThrow(/줄바꿈이 너무 많아/);
+  });
+
   it("글자는 HTML로 해석하지 않는다", () => {
     expect(docToText(parseImportFile("a.txt", utf8("<b>굵게</b>")).content)).toBe("<b>굵게</b>");
   });

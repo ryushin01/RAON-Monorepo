@@ -12,7 +12,11 @@ it("파일 이름과 형식을 지정해 내려받고 임시 주소를 정리한
     names.push(this.download);
   });
 
+  jest.useFakeTimers();
   downloadText("원고.txt", "본문", "text/plain");
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  jest.runAllTimers();
+  jest.useRealTimers();
 
   expect(names).toEqual(["원고.txt"]);
   expect(blobs[0]?.type).toBe("text/plain;charset=utf-8");

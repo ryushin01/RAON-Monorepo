@@ -21,7 +21,9 @@ export function EpisodeExport({ getEpisode }: { getEpisode: () => ExportInput })
     const episode = getEpisode();
     const name = exportFileName(`${episode.number}화 ${episode.title}`, format);
     downloadText(name, renderEpisodeExport(format, episode), exportMimeType(format));
-    setMessage(`${name} 파일을 내보냈습니다.`);
+    // 같은 문구를 다시 넣으면 스크린 리더가 읽지 않으므로 비웠다가 다음 차례에 넣는다.
+    setMessage("");
+    setTimeout(() => setMessage(`${name} 파일을 내보냈습니다.`), 0);
   };
   return (
     <>

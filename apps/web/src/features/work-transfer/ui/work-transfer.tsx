@@ -38,6 +38,8 @@ export function WorkTransfer({ workId }: { workId: string }) {
       );
       return episodes.length;
     },
+    // 같은 문구를 다시 넣으면 스크린 리더가 읽지 않으므로 시작할 때 비운다.
+    onMutate: () => setMessage(""),
     onSuccess: (count) => setMessage(`${count}개 회차를 내보냈습니다.`),
     onError: () => setMessage(""),
   });

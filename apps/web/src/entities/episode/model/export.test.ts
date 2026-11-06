@@ -67,6 +67,71 @@ describe("renderEpisodeExport", () => {
   });
 });
 
+describe("Markdown 이스케이프", () => {
+  const paragraph = (...content: EpisodeDoc["content"]) =>
+    renderEpisodeExport("md", { number: 1, title: "제목", content: { type: "doc", content }, authorNote: null });
+  const text = (value: string) => paragraph({ type: "paragraph", content: [{ type: "text", text: value }] });
+
+  it.each([
+    ["1) 항목", "1\\) 항목"],
+    ["2. 항목", "2\\. 항목"],
+    ["---", "\\---"],
+    ["===", "\\==="],
+    ["&copy;", "\\&copy;"],
+    ["#", "\\#"],
+    ["# 제목 아님", "\\# 제목 아님"],
+    ["+ 목록", "\\+ 목록"],
+  ])("%s를 글자로 남긴다", (input, expected) => {
+    expect(text(input)).toContain(`\n${expected}`);
+  });
+
+  it("줄 중간의 기호는 그대로 둔다", () => {
+    expect(text("가 - 나 1. 다 # 라")).toContain("가 - 나 1. 다 # 라");
+  });
+
+  it("줄바꿈 뒤의 줄도 줄 맨 앞으로 판단하고, 구분선 블록은 유지한다", () => {
+    const output = paragraph(
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "제목" }, { type: "hardBreak" }, { type: "text", text: "===" }],
+      },
+      { type: "horizontalRule" },
+    );
+    expect(output).toContain("제목  \n\\===");
+    expect(output).toMatch(/\n---\n?/);
+  });
+
+  it("서식 조각 뒤에서 시작하는 글자는 줄 맨 앞이 아니다", () => {
+    const output = paragraph({
+      type: "paragraph",
+      content: [
+        { type: "text", text: "굵게", marks: [{ type: "bold" }] },
+        { type: "text", text: "- 이어짐" },
+      ],
+    });
+    expect(output).toContain("**굵게**- 이어짐");
+  });
+
+  it("서식 조각에서 줄이 시작해도 뒤따르는 글자를 보호한다", () => {
+    const output = paragraph({
+      type: "paragraph",
+      content: [{ type: "hardBreak" }, { type: "text", text: "- 목록" }],
+    });
+    expect(output).toContain("\\- 목록");
+  });
+
+  it("제목 끝의 #과 작가의 말의 줄바꿈을 보존한다", () => {
+    const output = renderEpisodeExport("md", {
+      number: 1,
+      title: "샵 #",
+      content: docFromText("본문"),
+      authorNote: "첫 줄\n- 둘째 줄",
+    });
+    expect(output).toContain("# 1화. 샵 \\#");
+    expect(output).toContain("첫 줄  \n\\- 둘째 줄");
+  });
+});
+
 describe("renderWorkExport", () => {
   const work = {
     title: "작품 <1>",

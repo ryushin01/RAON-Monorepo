@@ -300,7 +300,21 @@ test("파일을 새 회차로 가져오고, 회차와 작품을 내보낸다", a
   await page.getByRole("button", { name: "새 회차로 가져오기" }).click();
   await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
   await expect(page.getByLabel("회차 제목")).toHaveValue("첫 이야기");
+  const firstEpisodeUrl = page.url();
   await expect(editorOf(page)).toContainText("둘째 단락 <b>굵게</b>");
+
+  // 저장 한도를 넘지 않는지 큰 파일로도 확인한다(API 기본 한도 100KB의 몇 배).
+  await page.goto(workUrl);
+  await page.getByLabel("가져올 파일").setInputFiles({
+    name: "긴 이야기.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("가".repeat(300_000)),
+  });
+  await page.getByRole("button", { name: "새 회차로 가져오기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await expect(page.getByLabel("회차 제목")).toHaveValue("긴 이야기");
+  await expect(page.getByText("공백 포함 300,000자 · 공백 제외 300,000자")).toBeVisible();
+  await page.goto(firstEpisodeUrl);
 
   // 저장하지 않은 입력도 이 회차 내보내기에 들어간다.
   await editorOf(page).click();
@@ -327,7 +341,7 @@ test("파일을 새 회차로 가져오고, 회차와 작품을 내보낸다", a
   const html = await readFile(await wholeFile.path(), "utf8");
   expect(html).toContain("&lt;b&gt;굵게&lt;/b&gt;");
   expect(html).not.toContain("<b>굵게");
-  await expect(page.getByRole("status").filter({ hasText: "1개 회차를 내보냈습니다." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "2개 회차를 내보냈습니다." })).toBeVisible();
 });
 
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {

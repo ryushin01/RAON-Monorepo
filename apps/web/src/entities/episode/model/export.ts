@@ -50,13 +50,29 @@ function blockHtml(block: EpisodeBlock): string {
   }
 }
 
-/** 본문의 글자가 마크다운 문법으로 읽히지 않게 한다. */
-const escapeMarkdown = (text: string) =>
-  text.replace(/([\\`*_[\]<>])/g, "\\$1").replace(/^(\s*)([#+-]|\d+\.)(\s)/gm, "$1\\$2$3");
+/** 줄 안의 어디서든 문법이 되는 글자. */
+const escapeInlineMarkdown = (text: string) => text.replace(/([\\`*_[\]<>&])/g, "\\$1");
+
+/** 줄 맨 앞에서만 문법이 되는 글자. 서식이 있는 조각을 이은 뒤 전체 줄을 기준으로 판단한다. */
+const escapeLineStart = (line: string) =>
+  line
+    .replace(/^(\s*)(#{1,6}(?=\s|$)|[+-](?=\s)|\d+[.)](?=\s))/, (_, space: string, mark: string) =>
+      /^\d/.test(mark) ? `${space}${mark.slice(0, -1)}\\${mark.slice(-1)}` : `${space}\\${mark}`,
+    )
+    // 구분선(---)과 제목 밑줄(===, ---)로 읽히는 줄
+    .replace(/^(\s*)([-=])(?=[-=\s]*$)/, "$1\\$2");
+
+const escapeMarkdownLines = (text: string) => text.split("\n").map(escapeLineStart).join("\n");
+
+/** 일반 글자 전체를 이스케이프한다. 줄바꿈은 그대로 보이도록 두 칸 띄운다. */
+const escapeMarkdown = (text: string) => escapeMarkdownLines(escapeInlineMarkdown(text)).replace(/\n/g, "  \n");
+
+/** 제목은 줄 끝의 #도 닫는 표시로 읽힌다. */
+const escapeMarkdownHeading = (text: string) => escapeInlineMarkdown(text).replace(/(#+)(\s*)$/, "\\$1$2");
 
 function inlineMarkdown(node: EpisodeInline): string {
   if (node.type === "hardBreak") return "  \n";
-  let text = escapeMarkdown(node.text);
+  let text = escapeInlineMarkdown(node.text);
   for (const mark of node.marks ?? []) text = mark.type === "bold" ? `**${text}**` : `*${text}*`;
   return text;
 }
@@ -73,7 +89,7 @@ function blockMarkdown(block: EpisodeBlock): string {
         .map((line) => `> ${line}`.trimEnd())
         .join("\n");
     case "paragraph":
-      return (block.content ?? []).map(inlineMarkdown).join("");
+      return escapeMarkdownLines((block.content ?? []).map(inlineMarkdown).join(""));
   }
 }
 
@@ -90,7 +106,7 @@ function episodeBody(format: ExportFormat, episode: ExportEpisode, level: 1 | 2)
   }
   if (format === "md") {
     const note = authorNote ? `\n\n${"#".repeat(level + 1)} ${NOTE_LABEL}\n\n${escapeMarkdown(authorNote)}` : "";
-    return `${"#".repeat(level)} ${escapeMarkdown(heading(episode))}\n\n${docMarkdown(content)}${note}`;
+    return `${"#".repeat(level)} ${escapeMarkdownHeading(heading(episode))}\n\n${docMarkdown(content)}${note}`;
   }
   const note = authorNote
     ? `<h${level + 1}>${NOTE_LABEL}</h${level + 1}><p>${escapeHtml(authorNote).replace(/\n/g, "<br>")}</p>`
@@ -109,6 +125,6 @@ export function renderEpisodeExport(format: ExportFormat, episode: ExportEpisode
 export function renderWorkExport(format: ExportFormat, work: { title: string; episodes: ExportEpisode[] }): string {
   const bodies = work.episodes.map((episode) => episodeBody(format, episode, 2));
   if (format === "txt") return `${work.title}\n\n\n${bodies.join("\n\n\n")}\n`;
-  if (format === "md") return `# ${escapeMarkdown(work.title)}\n\n${bodies.join("\n\n")}\n`;
+  if (format === "md") return `# ${escapeMarkdownHeading(work.title)}\n\n${bodies.join("\n\n")}\n`;
   return htmlDocument(work.title, `<h1>${escapeHtml(work.title)}</h1>\n${bodies.join("\n")}`);
 }
