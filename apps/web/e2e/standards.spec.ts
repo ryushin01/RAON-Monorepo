@@ -280,7 +280,15 @@ test.describe("KWCAG 운용", () => {
     await expect(editor).not.toBeFocused();
     await expect(page.getByRole("textbox", { name: /회차 목표/ })).toBeFocused();
     // 접힌 집필 도구를 지나 다음 입력으로 간다.
-    for (const name of ["단락 분석", "반복 표현", "집필 타이머", "상용구와 특수문자", "버전 기록"]) {
+    for (const name of [
+      "단락 분석",
+      "반복 표현",
+      "집필 타이머",
+      "상용구와 특수문자",
+      "버전 기록",
+      "설정집 참조",
+      "회차 메모",
+    ]) {
       await page.keyboard.press("Tab");
       await expect(page.getByText(name, { exact: true })).toBeFocused();
     }

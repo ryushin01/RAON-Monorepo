@@ -80,6 +80,27 @@ export const episodeVersionInputSchema = z.object({
 });
 export type EpisodeVersionInput = z.infer<typeof episodeVersionInputSchema>;
 
+export const NOTE_KINDS = ["SETTING", "MEMO"] as const;
+export type NoteKind = (typeof NOTE_KINDS)[number];
+
+export const noteInputSchema = z.object({
+  kind: z.enum(NOTE_KINDS),
+  category: z.string().trim().max(20, "분류는 20자 이하로 입력해 주세요."),
+  title: z.string().trim().min(1, "제목을 입력해 주세요.").max(60, "제목은 60자 이하로 입력해 주세요."),
+  aliases: z
+    .array(z.string().trim().min(1).max(30, "다른 이름은 30자 이하로 입력해 주세요."))
+    .max(10, "다른 이름은 10개까지 입력할 수 있습니다.")
+    .transform((aliases) => [...new Set(aliases)]),
+  body: z.string().max(20_000, "내용은 20,000자 이하로 입력해 주세요."),
+  /** 회차별 메모일 때만 값이 있다. */
+  episodeId: z.uuid().nullable(),
+});
+export type NoteInput = z.input<typeof noteInputSchema>;
+
+export const workSearchQuerySchema = z.object({
+  q: z.string().trim().min(1, "검색어를 입력해 주세요.").max(50, "검색어는 50자 이하로 입력해 주세요."),
+});
+
 export const addCartItemSchema = z.union([
   z.strictObject({ kind: z.literal("EPISODES"), workId: z.uuid(), episodeIds: z.array(z.uuid()).min(1).max(200) }),
   z.strictObject({ kind: z.literal("WORK"), workId: z.uuid() }),

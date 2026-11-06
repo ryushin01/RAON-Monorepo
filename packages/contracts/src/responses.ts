@@ -223,6 +223,30 @@ export interface EpisodeVersion extends EpisodeVersionSummary {
   authorNote: string | null;
 }
 
+export interface WorkNote {
+  id: string;
+  workId: string;
+  episodeId: string | null;
+  kind: "SETTING" | "MEMO";
+  category: string;
+  title: string;
+  aliases: string[];
+  body: string;
+  updatedAt: string;
+}
+
+export interface WorkSearchHit {
+  id: string;
+  title: string;
+  matches: number;
+  snippet: string;
+}
+
+export interface WorkSearchResult {
+  episodes: (WorkSearchHit & { number: number })[];
+  notes: (WorkSearchHit & { kind: "SETTING" | "MEMO" })[];
+}
+
 export interface ApiErrorBody {
   statusCode: number;
   message: string;

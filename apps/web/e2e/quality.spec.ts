@@ -76,11 +76,24 @@ for (const theme of ["light", "dark"] as const) {
         await page.goto("/studio");
         await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
         await assertClean(page, "studio-work");
+        await page.getByRole("link", { name: "설정집과 메모" }).click();
+        await page.getByRole("heading", { level: 1 }).waitFor();
+        await page.getByRole("button", { name: "새 문서" }).click();
+        await assertClean(page, "studio-notes");
+        await page.goBack();
         await page.getByRole("link", { name: /1화/ }).click();
         await assertClean(page, "editor");
         await page.getByRole("button", { name: "찾기·바꾸기" }).click();
         await page.getByRole("textbox", { name: "찾을 글자" }).fill("바다");
-        for (const name of ["단락 분석", "반복 표현", "집필 타이머", "상용구와 특수문자", "버전 기록"]) {
+        for (const name of [
+          "단락 분석",
+          "반복 표현",
+          "집필 타이머",
+          "상용구와 특수문자",
+          "버전 기록",
+          "설정집 참조",
+          "회차 메모",
+        ]) {
           await page.getByText(name, { exact: true }).click();
         }
         await assertClean(page, "editor-tools");

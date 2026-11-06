@@ -1,0 +1,141 @@
+.manager {
+  display: grid;
+  gap: 2rem;
+}
+
+.subheading {
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 500;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.actions,
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.filters {
+  margin-bottom: 1rem;
+}
+
+.field,
+.searchForm {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.searchRow {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.error {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.note {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.body {
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.results,
+.list,
+.reference {
+  display: grid;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    gap: 0.25rem;
+    padding-block: 0.75rem;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.results {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--line);
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  button {
+    justify-self: start;
+  }
+}
+
+.group {
+  margin-top: 1.5rem;
+}
+
+.groupTitle {
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid var(--fg);
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.noteTitle,
+.referenceTitle {
+  font-size: 1rem;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.category {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}

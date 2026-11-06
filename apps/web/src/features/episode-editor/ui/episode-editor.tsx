@@ -10,7 +10,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { formatDateTime } from "@/shared/lib";
 import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
 import { fetchEpisode, saveEpisode, setEpisodePublished } from "../api/actions";
@@ -44,7 +44,7 @@ interface SaveRequest {
  * 제목은 수정본인 채 저장될 수 있다. 그래서 돌아올 때마다 서버에서 최신 회차를 읽어 에디터를 새로 시작한다.
  * 저장하지 못한 입력은 백업에 있으므로 복원을 제안한다.
  */
-export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
+export function EpisodeEditor({ episode, tools }: { episode: StudioEpisode; tools?: ReactNode }) {
   const [current, setCurrent] = useState(episode);
   const [generation, setGeneration] = useState(0);
   const [status, setStatus] = useState<"ready" | "refreshing" | "failed">("ready");
@@ -122,6 +122,7 @@ export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
         <EpisodeEditorBody
           key={generation}
           episode={current}
+          tools={tools}
           onRestored={(restored) => {
             // 눌렀던 복원 버튼이 사라지므로 초점을 남아 있는 영역으로 옮긴다.
             regionRef.current?.focus();
@@ -137,9 +138,11 @@ export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
 
 function EpisodeEditorBody({
   episode: initial,
+  tools,
   onRestored,
 }: {
   episode: StudioEpisode;
+  tools?: ReactNode;
   onRestored: (episode: StudioEpisode) => void;
 }) {
   const router = useRouter();
@@ -624,6 +627,7 @@ function EpisodeEditorBody({
               }}
             />
           </Tool>
+          {tools}
         </WritingTools>
       )}
 

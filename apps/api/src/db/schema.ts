@@ -23,6 +23,7 @@ export const genreEnum = pgEnum("genre", ["FANTASY", "MARTIAL", "ROMANCE", "MODE
 export const workStatusEnum = pgEnum("work_status", ["DRAFT", "ONGOING", "COMPLETED"]);
 export const episodeStatusEnum = pgEnum("episode_status", ["DRAFT", "PUBLISHED"]);
 export const episodeVersionKindEnum = pgEnum("episode_version_kind", ["AUTO", "MANUAL"]);
+export const noteKindEnum = pgEnum("note_kind", ["SETTING", "MEMO"]);
 export const coinReasonEnum = pgEnum("coin_reason", ["CHARGE", "PURCHASE"]);
 
 const timestamps = {
@@ -101,6 +102,29 @@ export const episodeVersions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("episode_versions_episode_created_idx").on(t.episodeId, t.createdAt)],
+);
+
+/** 작가만 보는 설정 문서와 메모. episodeId가 있으면 그 회차에 딸린 메모다. */
+export const workNotes = pgTable(
+  "work_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workId: uuid("work_id")
+      .notNull()
+      .references(() => works.id, { onDelete: "cascade" }),
+    episodeId: uuid("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
+    kind: noteKindEnum("kind").notNull(),
+    category: text("category").notNull().default(""),
+    title: text("title").notNull(),
+    aliases: text("aliases").array().notNull().default(sql`'{}'::text[]`),
+    body: text("body").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [
+    index("work_notes_work_idx").on(t.workId, t.kind),
+    // 회차 메모는 회차마다 하나다.
+    uniqueIndex("work_notes_episode_uq").on(t.episodeId).where(sql`${t.episodeId} is not null`),
+  ],
 );
 
 /** episodeId가 없으면 작품 전체를 담은 항목이다. */

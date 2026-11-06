@@ -1,4 +1,4 @@
-import { countChars, countCharsWithSpaces, docFromText, EMPTY_DOC, episodeDocSchema } from "./document.js";
+import { countChars, countCharsWithSpaces, docFromText, docToText, EMPTY_DOC, episodeDocSchema } from "./document.js";
 
 describe("episodeDocSchema", () => {
   it("에디터 문서를 받아들인다", () => {
@@ -41,6 +41,25 @@ describe("episodeDocSchema", () => {
     ["알 수 없는 속성", { type: "doc", content: [{ type: "paragraph", attrs: { onclick: "x" } }] }],
   ])("%s는 거부한다", (_, doc) => {
     expect(episodeDocSchema.safeParse(doc).success).toBe(false);
+  });
+});
+
+describe("docToText", () => {
+  it("단락과 줄바꿈, 인용문의 글자를 뽑고 구분선과 빈 단락은 뺀다", () => {
+    expect(
+      docToText({
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "첫" }, { type: "hardBreak" }, { type: "text", text: "줄" }],
+          },
+          { type: "horizontalRule" },
+          { type: "paragraph" },
+          { type: "blockquote", content: [{ type: "paragraph", content: [{ type: "text", text: "인용" }] }] },
+        ],
+      }),
+    ).toBe("첫\n줄\n\n인용");
   });
 });
 
