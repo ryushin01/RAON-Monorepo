@@ -70,8 +70,15 @@ export class NotesService {
         .select({ count: sql<number>`count(*)::int` })
         .from(workNotes)
         .where(eq(workNotes.workId, workId));
+      const existing = input.episodeId
+        ? await tx.select({ id: workNotes.id }).from(workNotes).where(eq(workNotes.episodeId, input.episodeId))
+        : [];
+      // 이미 있는 회차 메모를 고칠 때만 개수가 늘지 않는다.
+      if (count >= MAX_NOTES && existing.length === 0) {
+        throw new ConflictException(`문서는 작품마다 ${MAX_NOTES}개까지 만들 수 있습니다.`);
+      }
       if (input.episodeId) {
-        // 회차 메모는 회차마다 하나이므로 이미 있으면 고친다. 개수도 늘지 않는다.
+        // 회차 메모는 회차마다 하나이므로 이미 있으면 고친다.
         const [row] = await tx
           .insert(workNotes)
           .values({ ...input, workId })
@@ -83,7 +90,6 @@ export class NotesService {
           .returning();
         return toNote(row!);
       }
-      if (count >= MAX_NOTES) throw new ConflictException(`문서는 작품마다 ${MAX_NOTES}개까지 만들 수 있습니다.`);
       const [row] = await tx
         .insert(workNotes)
         .values({ ...input, workId })

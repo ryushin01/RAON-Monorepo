@@ -1303,6 +1303,27 @@ describe("RAON API", () => {
       await http().post(`/studio/works/${work.id}/notes`).set(bearer(token)).send(note()).expect(409);
     });
 
+    it("가득 찬 작품에는 새 회차 메모를 만들 수 없지만 있는 메모는 고칠 수 있다", async () => {
+      const { token, work } = await setup();
+      const detail = (await http().get(`/studio/works/${work.id}`).set(bearer(token)).expect(200))
+        .body as StudioWorkDetail;
+      const [first, second] = detail.episodes.map((episode) => episode.id);
+      const memo = (episodeId: string | undefined, body: string) =>
+        note({ kind: "MEMO", title: "회차 메모", body, episodeId, aliases: [] });
+      const post = (body: object) => http().post(`/studio/works/${work.id}/notes`).set(bearer(token)).send(body);
+      await post(memo(first, "처음")).expect(201);
+      await db.insert(workNotesTable).values(
+        Array.from({ length: 499 }, (_, index) => ({
+          workId: work.id,
+          kind: "SETTING" as const,
+          title: `문서${index}`,
+        })),
+      );
+      await post(memo(second, "새 메모")).expect(409);
+      const updated = await post(memo(first, "고친 메모")).expect(201);
+      expect(updated.body.body).toBe("고친 메모");
+    });
+
     it("회차와 문서를 함께 검색하고, 대소문자와 다른 이름도 찾으며, 앞뒤 글자를 보여 준다", async () => {
       const { token, work } = await setup();
       await http()
