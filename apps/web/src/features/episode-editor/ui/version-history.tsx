@@ -13,7 +13,7 @@ const nameOf = (version: EpisodeVersionSummary) =>
   version.label ?? (version.kind === "AUTO" ? "자동 저장" : "이름 없는 버전");
 
 function Diff({ lines }: { lines: DiffLine[] }) {
-  if (lines.every((line) => line.type === "same")) return <p className={styles.note}>지금 본문과 같습니다.</p>;
+  if (lines.every((line) => line.type === "same")) return <p className={styles.note}>지금 본문과 글자가 같습니다.</p>;
   return (
     <ol className={styles.diff}>
       {lines.map((line, index) => (
@@ -141,7 +141,11 @@ export function VersionHistory({
           label="버전 이름"
           value={label}
           maxLength={40}
-          hint="비워 두어도 됩니다. 지금 본문을 저장한 뒤 남깁니다."
+          hint={
+            isPublic
+              ? "비워 두어도 됩니다. 지금 본문을 저장한 뒤 남기며, 공개 중인 회차라 저장한 내용이 독자에게 바로 보입니다."
+              : "비워 두어도 됩니다. 지금 본문을 저장한 뒤 남깁니다."
+          }
           onChange={(event) => setLabel(event.target.value)}
         />
         <Button variant="secondary" small type="submit" aria-disabled={busy}>
@@ -218,6 +222,9 @@ export function VersionHistory({
       {compare && (
         <section className={styles.compare} aria-label={`${compare.name} 버전과 지금 본문 비교`}>
           <h4 className={styles.compareTitle}>‘{compare.name}’ 버전에서 바뀐 곳</h4>
+          <p className={styles.note}>
+            본문의 글자만 비교합니다. 서식은 비교하지 않으며, 복원하면 제목과 작가의 말도 이 버전으로 바뀝니다.
+          </p>
           <Diff lines={compare.lines} />
         </section>
       )}

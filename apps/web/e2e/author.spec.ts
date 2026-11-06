@@ -187,6 +187,39 @@ test("버전을 남겨 비교하고 복원하며, 복원 전 내용도 남는다
   await expect(page.getByRole("listitem").filter({ hasText: "복원 전" })).toBeVisible();
 });
 
+test("복원 여부를 고르지 않은 백업은 버전을 복원해도 남는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.waitForURL("/studio");
+  await createWork(page, `백업 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("서버에 저장한 원고");
+  await page.getByText("버전 기록", { exact: true }).click();
+  await page.getByRole("textbox", { name: "버전 이름" }).fill("저장본");
+  await page.getByRole("button", { name: "지금 버전 남기기" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "저장본" })).toBeVisible();
+
+  // 저장하지 못한 입력을 브라우저 백업으로 만든다.
+  await page.route("**/*", (route) => (route.request().method() === "POST" ? route.abort() : route.continue()));
+  await editorOf(page).click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type(" 그리고 저장하지 못한 입력");
+  await expect(page.getByText("저장하지 못했습니다. 잠시 뒤 다시 시도합니다.")).toBeVisible({ timeout: 10_000 });
+  await page.unroute("**/*");
+  await page.reload();
+  const prompt = page.getByRole("status").filter({ hasText: "저장하지 못한 내용이 있습니다" });
+  await expect(prompt).toBeVisible();
+
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByText("버전 기록", { exact: true }).click();
+  await page.getByRole("button", { name: "복원: 저장본" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "선택한 버전으로 되돌렸습니다." })).toBeAttached();
+  await expect(prompt).toBeVisible();
+  await page.getByRole("button", { name: "복원", exact: true }).click();
+  await expect(editorOf(page)).toContainText("저장하지 못한 입력");
+});
+
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {
   const title = `테스트 작품 ${Date.now()}`;
   await login(page, AUTHOR, "작가");

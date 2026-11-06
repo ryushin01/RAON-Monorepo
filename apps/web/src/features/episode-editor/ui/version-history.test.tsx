@@ -61,6 +61,12 @@ it("버전이 없으면 언제 생기는지 알려 준다", async () => {
   expect(await screen.findByText(/본문을 고쳐 저장하면 자동으로 남습니다/)).toBeInTheDocument();
 });
 
+it("공개 회차는 버전을 남길 때 저장한 내용이 독자에게 보인다고 알린다", async () => {
+  setup({ isPublic: true });
+  await screen.findByText("초고");
+  expect(screen.getByRole("textbox", { name: "버전 이름" })).toHaveAccessibleDescription(/독자에게 바로 보입니다/);
+});
+
 it("저장한 뒤 버전을 남기고, 저장에 실패하면 남기지 않는다", async () => {
   (createVersion as jest.Mock).mockResolvedValue(ok(manual));
   const { saveFirst } = setup();
@@ -91,7 +97,8 @@ it("같으면 같다고 알린다", async () => {
   (getVersion as jest.Mock).mockResolvedValue(ok({ ...manual, content: docFromText("같은 단락\n\n새 단락") }));
   setup();
   await userEvent.click(await screen.findByRole("button", { name: "비교: 초고" }));
-  expect(await screen.findByText("지금 본문과 같습니다.")).toBeInTheDocument();
+  expect(await screen.findByText("지금 본문과 글자가 같습니다.")).toBeInTheDocument();
+  expect(screen.getByText(/복원하면 제목과 작가의 말도 이 버전으로 바뀝니다/)).toBeInTheDocument();
 });
 
 it("확인하면 저장한 뒤 복원하고, 공개 회차는 독자에게 보인다고 알린다", async () => {

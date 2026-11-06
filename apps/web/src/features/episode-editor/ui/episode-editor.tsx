@@ -617,9 +617,9 @@ function EpisodeEditorBody({
                 );
               }}
               onRestored={(restored) => {
-                // 복원 앞에 저장했으므로 브라우저 백업은 필요 없다.
+                // 복원 앞에 저장했으므로 이번 입력의 백업은 필요 없다. 복원 여부를 고르지 않은 이전 백업은 다른 원고이므로 남긴다.
                 discarded.current = true;
-                clearBackup(initial.id);
+                if (!backupPending.current) clearBackup(initial.id);
                 onRestored(restored);
               }}
             />
