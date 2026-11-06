@@ -38,6 +38,9 @@ async function StudioWorkContent({ params }: { params: Params }) {
           선호작 {formatNumber(work.favoriteCount)}명
         </p>
         <WorkStatusControl workId={work.id} status={work.status} />
+        <p className={styles.notesLink}>
+          <Link href={`/studio/works/${work.id}/notes`}>설정집과 메모</Link>
+        </p>
       </div>
 
       <section aria-label="회차">

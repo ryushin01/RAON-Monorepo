@@ -1,0 +1,25 @@
+.main {
+  display: grid;
+  gap: 2rem;
+  max-width: 48rem;
+  padding-block: 2rem;
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+}
+
+.title {
+  font-size: 2.25rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.meta {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}

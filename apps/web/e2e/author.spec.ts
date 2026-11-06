@@ -220,6 +220,65 @@ test("복원 여부를 고르지 않은 백업은 버전을 복원해도 남는�
   await expect(editorOf(page)).toContainText("저장하지 못한 입력");
 });
 
+test("설정집과 메모를 쓰고, 에디터에서 참조하며, 작품 전체를 검색한다", async ({ page, browser }) => {
+  const title = `설정집 ${Date.now()}`;
+  await login(page, AUTHOR, "작가");
+  await page.waitForURL("/studio");
+  await createWork(page, title);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  const editorUrl = page.url();
+  await editorOf(page).click();
+  await page.keyboard.type("이안은 소금 사막의 등대에 올랐다.");
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+
+  // 설정 문서를 만든다. 제목이 비면 그 칸으로 초점을 옮긴다.
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await page.getByRole("link", { name: "설정집과 메모" }).click();
+  await page.getByRole("button", { name: "새 문서" }).click();
+  await page.getByRole("button", { name: "문서 저장" }).click();
+  await expect(page.getByRole("textbox", { name: /제목/ })).toBeFocused();
+  await page.getByRole("textbox", { name: /제목/ }).fill("이안");
+  await page.getByRole("textbox", { name: "분류" }).fill("인물");
+  await page.getByRole("textbox", { name: /다른 이름/ }).fill("등대지기, 막내");
+  await page.getByRole("textbox", { name: "내용" }).fill("소금 사막의 마지막 등대지기.");
+  await page.getByRole("button", { name: "문서 저장" }).click();
+  await expect(page.getByRole("heading", { name: "이안" })).toBeVisible();
+  await expect(page.getByText("다른 이름: 등대지기, 막내")).toBeVisible();
+
+  // 본문과 설정을 함께 검색한다.
+  await page.getByRole("searchbox", { name: /작품 전체 검색/ }).fill("등대");
+  await page.getByRole("button", { name: "검색", exact: true }).last().click();
+  await expect(page.getByRole("link", { name: /1화/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /검색 결과 열기: 이안/ })).toBeVisible();
+
+  // 에디터에서 설정을 찾아 읽고 회차 메모를 남긴다.
+  await page.goto(editorUrl);
+  await page.getByText("설정집 참조", { exact: true }).click();
+  await page.getByRole("searchbox", { name: "설정 찾기" }).fill("막내");
+  await expect(page.getByText("소금 사막의 마지막 등대지기.")).toBeVisible();
+  await page.getByText("회차 메모", { exact: true }).click();
+  await page.getByRole("textbox", { name: "이 회차의 메모" }).fill("다음 화 복선");
+  await page.getByRole("button", { name: "메모 저장" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "메모를 저장했습니다." })).toBeVisible();
+  await page.reload();
+  await page.getByText("회차 메모", { exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "이 회차의 메모" })).toHaveValue("다음 화 복선");
+
+  // 독자에게는 설정과 메모가 나오지 않는다. 본문까지 확인하도록 무료로 공개한다.
+  await page.getByLabel("무료 회차로 공개").check();
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+  const guest = await (await browser.newContext()).newPage();
+  await guest.goto(`/works?q=${encodeURIComponent(title)}`);
+  await guest.getByRole("link", { name: title }).click();
+  await expect(guest.getByText("마지막 등대지기")).toHaveCount(0);
+  await guest.getByRole("link", { name: "첫 화 보기" }).click();
+  await expect(guest.getByText("이안은 소금 사막")).toBeVisible();
+  await expect(guest.getByText("다음 화 복선")).toHaveCount(0);
+  await guest.close();
+});
+
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {
   const title = `테스트 작품 ${Date.now()}`;
   await login(page, AUTHOR, "작가");

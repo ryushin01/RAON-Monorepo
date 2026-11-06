@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioEpisode, getStudioWork } from "@/entities/studio/index.server";
-import { EpisodeEditor } from "@/features/episode-editor";
+import { EpisodeEditor, Tool } from "@/features/episode-editor";
+import { EpisodeMemo, NoteReference } from "@/features/work-notes";
 import { Main } from "@/shared/ui";
 import styles from "./studio-episode.module.scss";
 
@@ -20,7 +21,20 @@ async function EditorContent({ params }: { params: Params }) {
   return (
     <>
       <h1 className={styles.title}>{work.title}</h1>
-      <EpisodeEditor key={episode.id} episode={episode} />
+      <EpisodeEditor
+        key={episode.id}
+        episode={episode}
+        tools={
+          <>
+            <Tool title="설정집 참조">
+              <NoteReference workId={workId} />
+            </Tool>
+            <Tool title="회차 메모">
+              <EpisodeMemo workId={workId} episodeId={episode.id} />
+            </Tool>
+          </>
+        }
+      />
     </>
   );
 }
