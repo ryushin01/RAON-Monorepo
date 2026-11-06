@@ -23,7 +23,8 @@ import { CharGoal } from "./char-goal";
 import styles from "./episode-editor.module.scss";
 import { editorExtensions } from "./extensions";
 import { FindReplace } from "./find-replace";
-import { WritingTools } from "./writing-tools";
+import { VersionHistory } from "./version-history";
+import { Tool, WritingTools } from "./writing-tools";
 
 const AUTOSAVE_MS = 2000;
 const RETRY_MS = 15_000;
@@ -117,12 +118,30 @@ export function EpisodeEditor({ episode }: { episode: StudioEpisode }) {
           </div>
         </div>
       )}
-      {status === "ready" && <EpisodeEditorBody key={generation} episode={current} />}
+      {status === "ready" && (
+        <EpisodeEditorBody
+          key={generation}
+          episode={current}
+          onRestored={(restored) => {
+            // 눌렀던 복원 버튼이 사라지므로 초점을 남아 있는 영역으로 옮긴다.
+            regionRef.current?.focus();
+            setCurrent(restored);
+            setGeneration((value) => value + 1);
+            setNotice("선택한 버전으로 되돌렸습니다.");
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
+function EpisodeEditorBody({
+  episode: initial,
+  onRestored,
+}: {
+  episode: StudioEpisode;
+  onRestored: (episode: StudioEpisode) => void;
+}) {
   const router = useRouter();
   const contentLabelId = useId();
   const [episode, setEpisode] = useState(initial);
@@ -399,7 +418,8 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
   // 브라우저의 페이지 저장 대신 원고를 저장한다. 조합 키라 글자 입력과 겹치지 않는다(KWCAG 6.1.4).
   const busy = save.isPending || publish.isPending;
   const saveShortcut = useRef(onSave);
-  useEffect(() => {
+  // 다음 키 입력 전에 최신 처리 상태가 반영되도록 화면을 그린 직후에 바꾼다.
+  useLayoutEffect(() => {
     // 저장 버튼이 막힌 동안에는 단축키도 막아 중복 저장을 만들지 않는다.
     saveShortcut.current = () => {
       if (!busy && editor) onSave();
@@ -581,7 +601,30 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
             setFindQuery(text);
             setFindOpen(true);
           }}
-        />
+        >
+          <Tool title="버전 기록">
+            <VersionHistory
+              episodeId={initial.id}
+              isPublic={!isDraft}
+              getDoc={() => editor.getJSON() as EpisodeDoc}
+              saveFirst={async () => {
+                if (!dirty) return true;
+                const request = collect(true);
+                if (!request) return false;
+                return save.mutateAsync(request).then(
+                  () => true,
+                  () => false,
+                );
+              }}
+              onRestored={(restored) => {
+                // 복원 앞에 저장했으므로 브라우저 백업은 필요 없다.
+                discarded.current = true;
+                clearBackup(initial.id);
+                onRestored(restored);
+              }}
+            />
+          </Tool>
+        </WritingTools>
       )}
 
       {isDraft && !prefs.focus && (

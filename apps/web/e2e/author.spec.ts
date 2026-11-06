@@ -153,6 +153,40 @@ test("저장 단축키를 누르고 있어도 한 번만 저장하고, 처리 �
   await expect(page.getByRole("status").filter({ hasText: /에 저장했습니다/ })).toBeAttached();
 });
 
+test("버전을 남겨 비교하고 복원하며, 복원 전 내용도 남는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.waitForURL("/studio");
+  await createWork(page, `버전 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("첫 문단입니다.");
+
+  await page.getByText("버전 기록", { exact: true }).click();
+  // 저장하지 않은 입력을 먼저 저장한 뒤 남긴다.
+  await page.getByRole("textbox", { name: "버전 이름" }).fill("초고");
+  await page.getByRole("button", { name: "지금 버전 남기기" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "초고" })).toBeVisible();
+
+  await editorOf(page).click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("나중에 쓴 문단입니다.");
+  await page.getByRole("button", { name: "비교: 초고" }).click();
+  await expect(page.locator("ins")).toContainText("나중에 쓴 문단입니다.");
+
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "복원: 초고" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "선택한 버전으로 되돌렸습니다." })).toBeAttached();
+  await expect(editorOf(page)).toHaveText("첫 문단입니다.");
+
+  // 새로고침해도 복원한 내용이고, 복원 전 내용도 버전으로 남아 있다.
+  await page.reload();
+  await expect(editorOf(page)).toHaveText("첫 문단입니다.");
+  await page.getByText("버전 기록", { exact: true }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "복원 전" })).toBeVisible();
+});
+
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {
   const title = `테스트 작품 ${Date.now()}`;
   await login(page, AUTHOR, "작가");

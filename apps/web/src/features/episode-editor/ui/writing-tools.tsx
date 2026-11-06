@@ -274,7 +274,7 @@ function Phrases({ editor }: { editor: Editor }) {
 }
 
 /** 접힌 도구는 그리지 않아서 입력할 때마다 분석하는 비용이 들지 않는다. */
-function Tool({ title, children }: { title: string; children: React.ReactNode }) {
+export function Tool({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <details className={styles.tool} onToggle={(event) => setOpen(event.currentTarget.open)}>
@@ -288,10 +288,12 @@ export function WritingTools({
   editor,
   chars,
   onFind,
+  children,
 }: {
   editor: Editor;
   chars: number;
   onFind: (text: string) => void;
+  children?: React.ReactNode;
 }) {
   return (
     <section className={styles.tools} aria-label="집필 도구">
@@ -308,6 +310,7 @@ export function WritingTools({
       <Tool title="상용구와 특수문자">
         <Phrases editor={editor} />
       </Tool>
+      {children}
     </section>
   );
 }
