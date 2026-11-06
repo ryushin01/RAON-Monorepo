@@ -254,6 +254,46 @@ test.describe("KWCAG 운용", () => {
   });
 });
 
+test.describe("글자 크기 조정", () => {
+  // 브라우저를 z배 확대하면 CSS 너비가 1/z이 된다. 화면에 보이는 크기는 계산된 크기의 z배다.
+  const ZOOMS = [1, 1.25, 1.5, 1.75, 2];
+
+  for (const [name, path, heading] of [
+    ["홈 제목", "/", { level: 1 }],
+    ["배너 제목", "/", { level: 2 }],
+  ] as const) {
+    test(`${name}은 확대할수록 작아지지 않는다`, async ({ page }) => {
+      await page.goto(path);
+      let previous = 0;
+      for (const zoom of ZOOMS) {
+        await page.setViewportSize({ width: Math.round(1280 / zoom), height: 800 });
+        const size = await page
+          .getByRole("heading", heading)
+          .first()
+          .evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+        const shown = size * zoom;
+        expect(shown, `${zoom}배`).toBeGreaterThanOrEqual(previous);
+        previous = shown;
+      }
+    });
+  }
+
+  test("작품 상세 제목은 확대할수록 작아지지 않는다", async ({ page }) => {
+    await page.goto("/works?q=검은 먹");
+    await page.getByRole("link", { name: "검은 먹의 강호" }).first().click();
+    const title = page.getByRole("heading", { level: 1, name: "검은 먹의 강호" });
+    await title.waitFor();
+    let previous = 0;
+    for (const zoom of ZOOMS) {
+      await page.setViewportSize({ width: Math.round(1280 / zoom), height: 800 });
+      const size = await title.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+      const shown = size * zoom;
+      expect(shown, `${zoom}배`).toBeGreaterThanOrEqual(previous);
+      previous = shown;
+    }
+  });
+});
+
 test.describe("KWCAG 이해", () => {
   test("7.3.1 7.3.2 오류의 위치와 이유를 알리고 그 칸으로 초점을 옮긴다", async ({ page }) => {
     await login(page, AUTHOR, "작가");

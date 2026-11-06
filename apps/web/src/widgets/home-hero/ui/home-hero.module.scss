@@ -42,17 +42,10 @@
 }
 
 .title {
-  font-size: 1.75rem;
+  // rem을 섞어야 확대율에 비례해 커진다. vw만 쓰거나 크기를 단계로 끊으면 확대할 때 오히려 작아진다.
+  font-size: clamp(1.75rem, 1rem + 3.125vw, 3.5rem);
   font-weight: 500;
   line-height: 1.15;
-
-  @media (width >= 48rem) {
-    font-size: 2.75rem;
-  }
-
-  @media (width >= 72rem) {
-    font-size: 3.5rem;
-  }
 }
 
 .lead {

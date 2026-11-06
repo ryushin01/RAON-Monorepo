@@ -21,13 +21,9 @@
 
 .title {
   font-family: var(--font-sans);
-  font-size: 1.5rem;
+  font-size: clamp(1.5rem, 1rem + 2vw, 2.25rem);
   font-weight: 500;
   line-height: 1.25;
-
-  @media (width >= 48rem) {
-    font-size: 2.25rem;
-  }
 }
 
 .meta {
