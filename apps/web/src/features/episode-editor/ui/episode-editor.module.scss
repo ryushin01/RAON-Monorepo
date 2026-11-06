@@ -122,6 +122,10 @@
     :global(.search-current) {
       background: var(--fg);
       color: var(--bg);
+
+      /* 색만으로 구분하지 않도록 윤곽선을 함께 쓴다. 강제 색상 모드에서도 남는다(KWCAG 5.4.1). */
+      outline: 2px solid var(--fg);
+      outline-offset: 1px;
     }
 
     blockquote {
