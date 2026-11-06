@@ -7,7 +7,7 @@ export type ParagraphStats = Record<ParagraphKind, { paragraphs: number; chars: 
 const DIALOGUE_START = /^["“「『]/;
 const MONOLOGUE_START = /^['‘]/;
 
-function paragraphTexts(doc: EpisodeDoc): string[] {
+export function paragraphTexts(doc: EpisodeDoc): string[] {
   const texts: string[] = [];
   const visit = (block: EpisodeBlock) => {
     if (block.type === "horizontalRule") return;

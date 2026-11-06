@@ -17,6 +17,7 @@ const open = (name: string) => {
 };
 
 beforeEach(() => window.localStorage.clear());
+afterEach(() => jest.restoreAllMocks());
 
 describe("WritingTools", () => {
   it("단락 종류별 분량을 표로 보여 준다", () => {
@@ -58,7 +59,7 @@ describe("WritingTools", () => {
     await userEvent.type(input, "첫째");
     await userEvent.click(screen.getByRole("button", { name: "상용구 등록" }));
 
-    const setItem = jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("가득 참");
     });
     await userEvent.type(input, "둘째");
@@ -71,7 +72,6 @@ describe("WritingTools", () => {
     await userEvent.click(screen.getByRole("button", { name: "삭제: 첫째" }));
     expect(input).toHaveAccessibleDescription(/저장하지 못했습니다/);
     expect(screen.getByRole("button", { name: "넣기: 첫째" })).toBeInTheDocument();
-    setItem.mockRestore();
   });
 
   it("특수문자를 커서에 넣는다", async () => {

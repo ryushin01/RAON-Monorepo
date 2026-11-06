@@ -1,0 +1,94 @@
+.form {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+
+  > div {
+    width: 100%;
+  }
+}
+
+.note {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
+  font-size: 0.8125rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.list {
+  display: grid;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    padding-block: 0.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.meta {
+  display: grid;
+  min-width: 0;
+  font-size: 0.875rem;
+
+  strong {
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+
+  span {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    word-spacing: var(--mono-word-spacing);
+    font-size: 0.75rem;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.compare {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.compareTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.diff {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 24rem;
+  padding: 0.75rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-serif);
+  list-style: none;
+  overflow-wrap: anywhere;
+
+  /* 색만으로 구분하지 않도록 밑줄과 취소선을 쓴다(KWCAG 5.4.1). */
+  ins {
+    background: var(--surface);
+    text-decoration: underline;
+  }
+
+  del {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+}

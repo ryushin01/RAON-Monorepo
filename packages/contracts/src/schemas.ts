@@ -75,6 +75,11 @@ export const episodeInputSchema = z.object({
 });
 export type EpisodeInput = z.infer<typeof episodeInputSchema>;
 
+export const episodeVersionInputSchema = z.object({
+  label: z.string().trim().max(40, "버전 이름은 40자 이하로 입력해 주세요.").nullable(),
+});
+export type EpisodeVersionInput = z.infer<typeof episodeVersionInputSchema>;
+
 export const addCartItemSchema = z.union([
   z.strictObject({ kind: z.literal("EPISODES"), workId: z.uuid(), episodeIds: z.array(z.uuid()).min(1).max(200) }),
   z.strictObject({ kind: z.literal("WORK"), workId: z.uuid() }),

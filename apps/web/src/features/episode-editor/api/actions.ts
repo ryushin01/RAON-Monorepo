@@ -1,6 +1,12 @@
 "use server";
 
-import { EMPTY_DOC, type EpisodeInput, type StudioEpisode } from "@raon/contracts";
+import {
+  EMPTY_DOC,
+  type EpisodeInput,
+  type EpisodeVersion,
+  type EpisodeVersionSummary,
+  type StudioEpisode,
+} from "@raon/contracts";
 import { revalidatePath, updateTag } from "next/cache";
 import { getSessionToken } from "@/entities/session/index.server";
 import { WORKS_TAG } from "@/entities/work/index.server";
@@ -33,6 +39,57 @@ export async function saveEpisode(episodeId: string, input: EpisodeInput): Promi
   if (!token) return NEED_LOGIN;
   const result = await toActionResult(() =>
     apiFetch<StudioEpisode>(`/studio/episodes/${episodeId}`, { method: "PUT", body: input, token }),
+  );
+  if (result.ok) {
+    if (result.data.status === "PUBLISHED") updateTag(WORKS_TAG);
+    revalidatePath(`/studio/works/${result.data.workId}`);
+  }
+  return result;
+}
+
+export async function listVersions(episodeId: string): Promise<ActionResult<EpisodeVersionSummary[]>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  return toActionResult(() => apiFetch<EpisodeVersionSummary[]>(`/studio/episodes/${episodeId}/versions`, { token }));
+}
+
+export async function getVersion(episodeId: string, versionId: string): Promise<ActionResult<EpisodeVersion>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  return toActionResult(() =>
+    apiFetch<EpisodeVersion>(`/studio/episodes/${episodeId}/versions/${versionId}`, { token }),
+  );
+}
+
+export async function createVersion(
+  episodeId: string,
+  label: string | null,
+): Promise<ActionResult<EpisodeVersionSummary>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  return toActionResult(() =>
+    apiFetch<EpisodeVersionSummary>(`/studio/episodes/${episodeId}/versions`, {
+      method: "POST",
+      body: { label },
+      token,
+    }),
+  );
+}
+
+export async function deleteVersion(episodeId: string, versionId: string): Promise<ActionResult<null>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  return toActionResult(() =>
+    apiFetch<null>(`/studio/episodes/${episodeId}/versions/${versionId}`, { method: "DELETE", token }),
+  );
+}
+
+/** 공개한 회차를 되돌리면 독자가 보는 정보도 갱신한다. */
+export async function restoreVersion(episodeId: string, versionId: string): Promise<ActionResult<StudioEpisode>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  const result = await toActionResult(() =>
+    apiFetch<StudioEpisode>(`/studio/episodes/${episodeId}/versions/${versionId}/restore`, { method: "POST", token }),
   );
   if (result.ok) {
     if (result.data.status === "PUBLISHED") updateTag(WORKS_TAG);
