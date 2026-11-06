@@ -171,9 +171,11 @@ export class StudioService {
   }
 
   async saveEpisode(authorId: string, episodeId: string, input: EpisodeInput): Promise<StudioEpisode> {
-    const current = await this.ownedEpisode(authorId, episodeId);
-    if (current.status === "PUBLISHED") this.assertPublishable(input);
+    await this.ownedEpisode(authorId, episodeId);
     return this.db.transaction(async (tx) => {
+      // 동시에 저장해도 앞선 저장의 원고를 버전으로 남기도록 잠근 뒤 다시 읽는다.
+      const current = await this.lockEpisode(tx, episodeId);
+      if (current.status === "PUBLISHED") this.assertPublishable(input);
       await this.snapshotBeforeSave(tx, current, input);
       const [row] = await tx
         .update(episodes)
@@ -205,11 +207,22 @@ export class StudioService {
       .limit(1);
     if (latest && Date.now() - latest.createdAt.getTime() < AUTO_VERSION_INTERVAL_MS) return;
     await this.insertVersion(tx, current, "AUTO", null);
+    await this.pruneAutoVersions(tx, current.id);
+  }
+
+  private async lockEpisode(tx: Pick<Database, "select">, episodeId: string) {
+    const [row] = await tx.select().from(episodes).where(eq(episodes.id, episodeId)).for("update");
+    if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
+    return row;
+  }
+
+  /** 오래된 자동 버전부터 지운다. 작가가 직접 남긴 버전은 건드리지 않는다. */
+  private async pruneAutoVersions(tx: Pick<Database, "select" | "delete">, episodeId: string) {
     const stale = await tx
       .select({ id: episodeVersions.id })
       .from(episodeVersions)
-      .where(and(eq(episodeVersions.episodeId, current.id), eq(episodeVersions.kind, "AUTO")))
-      .orderBy(desc(episodeVersions.createdAt))
+      .where(and(eq(episodeVersions.episodeId, episodeId), eq(episodeVersions.kind, "AUTO")))
+      .orderBy(desc(episodeVersions.createdAt), desc(episodeVersions.id))
       .offset(MAX_AUTO_VERSIONS);
     if (stale.length) {
       await tx.delete(episodeVersions).where(
@@ -279,11 +292,13 @@ export class StudioService {
 
   /** 지금 원고를 버전으로 남긴 뒤 되돌린다. 복원도 복원할 수 있고, 가격과 공개 상태는 그대로다. */
   async restoreVersion(authorId: string, episodeId: string, versionId: string): Promise<StudioEpisode> {
-    const current = await this.ownedEpisode(authorId, episodeId);
+    await this.ownedEpisode(authorId, episodeId);
     const version = await this.versionOf(episodeId, versionId);
-    if (current.status === "PUBLISHED") this.assertPublishable({ content: version.content });
     return this.db.transaction(async (tx) => {
+      const current = await this.lockEpisode(tx, episodeId);
+      if (current.status === "PUBLISHED") this.assertPublishable({ content: version.content });
       await this.insertVersion(tx, current, "AUTO", "복원 전");
+      await this.pruneAutoVersions(tx, episodeId);
       const [row] = await tx
         .update(episodes)
         .set({

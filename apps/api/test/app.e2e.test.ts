@@ -1000,6 +1000,40 @@ describe("RAON API", () => {
       expect(await versions(token, id)).toHaveLength(2);
     });
 
+    it("동시에 저장해도 먼저 저장한 원고를 버전으로 남긴다", async () => {
+      const { accessToken: token } = await signup("AUTHOR");
+      const id = await draft(token);
+      await Promise.all([save(token, id, "먼저 도착한 원고"), save(token, id, "나중에 도착한 원고")]);
+      const list = await versions(token, id);
+      expect(list).toHaveLength(1);
+      const detail = await http().get(`/studio/episodes/${id}/versions/${list[0]?.id}`).set(bearer(token)).expect(200);
+      const episode = await http().get(`/studio/episodes/${id}`).set(bearer(token)).expect(200);
+      // 어느 쪽이 먼저든 지금 본문과 버전이 서로 다른 원고여야 잃어버린 글이 없다.
+      expect(detail.body.content).not.toEqual(episode.body.content);
+    });
+
+    it("복원을 거듭해도 자동 버전은 제한을 넘지 않고, 복원 전 내용은 남는다", async () => {
+      const { accessToken: token } = await signup("AUTHOR");
+      const id = await draft(token);
+      await save(token, id, "지금 원고입니다.");
+      const old = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      await db.insert(episodeVersionsTable).values(
+        Array.from({ length: 30 }, () => ({
+          episodeId: id,
+          kind: "AUTO" as const,
+          title: "옛 제목",
+          content: docFromText("옛 원고"),
+          charCount: 2,
+          createdAt: old,
+        })),
+      );
+      const [target] = await versions(token, id);
+      await http().post(`/studio/episodes/${id}/versions/${target?.id}/restore`).set(bearer(token)).expect(200);
+      const list = await versions(token, id);
+      expect(list.filter((version) => version.kind === "AUTO")).toHaveLength(30);
+      expect(list[0]?.label).toBe("복원 전");
+    });
+
     it("자동 버전은 개수를 제한하지만 직접 남긴 버전은 지우지 않는다", async () => {
       const { accessToken: token } = await signup("AUTHOR");
       const id = await draft(token);
