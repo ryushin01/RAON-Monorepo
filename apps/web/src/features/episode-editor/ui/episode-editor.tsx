@@ -21,6 +21,7 @@ import { isScheduled, toPublishAt } from "../model/schedule";
 import { useAutosave } from "../model/use-autosave";
 import { CharGoal } from "./char-goal";
 import styles from "./episode-editor.module.scss";
+import { EpisodeExport } from "./episode-export";
 import { editorExtensions } from "./extensions";
 import { FindReplace } from "./find-replace";
 import { VersionHistory } from "./version-history";
@@ -625,6 +626,16 @@ function EpisodeEditorBody({
                 if (!backupPending.current) clearBackup(initial.id);
                 onRestored(restored);
               }}
+            />
+          </Tool>
+          <Tool title="이 회차 내보내기">
+            <EpisodeExport
+              getEpisode={() => ({
+                number: episode.number,
+                title: title.trim() || UNTITLED,
+                content: editor.getJSON() as EpisodeDoc,
+                authorNote: authorNote.trim() || null,
+              })}
             />
           </Tool>
           {tools}

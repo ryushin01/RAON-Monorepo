@@ -1,0 +1,65 @@
+.transfer {
+  display: grid;
+  gap: 2rem;
+
+  @media (width >= 48rem) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.form {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+
+  > div {
+    width: 100%;
+  }
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+
+  input {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--fg);
+  }
+}
+
+.field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.file {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-sm);
+}
+
+.error {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.875rem;
+
+  &:empty {
+    display: none;
+  }
+}
