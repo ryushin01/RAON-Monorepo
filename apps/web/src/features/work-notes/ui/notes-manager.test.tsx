@@ -194,6 +194,15 @@ describe("EpisodeMemo", () => {
     );
   });
 
+  it("목록을 읽지 못하면 쓰거나 저장할 수 없다", async () => {
+    (listNotes as jest.Mock).mockResolvedValue({ ok: false, message: "읽지 못했습니다." });
+    wrap(<EpisodeMemo workId="w1" episodeId="e1" />);
+    expect(await screen.findByText("읽지 못했습니다.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "이 회차의 메모" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "메모 저장" }));
+    expect(saveNote).not.toHaveBeenCalled();
+  });
+
   it("저장하지 못하면 입력을 남기고 이유를 보여 준다", async () => {
     (saveNote as jest.Mock).mockResolvedValue({ ok: false, message: "저장하지 못했습니다." });
     wrap(<EpisodeMemo workId="w1" episodeId="e1" />);

@@ -9,8 +9,10 @@ import { useNotes } from "./use-notes";
 
 /** 이 회차에 딸린 메모. 독자에게 보이지 않는다. */
 export function EpisodeMemo({ workId, episodeId }: { workId: string; episodeId: string }) {
-  const { data, error, isPending, invalidate } = useNotes(workId);
+  const { data, error, invalidate } = useNotes(workId);
   const memo = data?.find((note) => note.episodeId === episodeId);
+  // 목록을 읽기 전에는 이미 있는 메모를 모르므로 쓰지 못하게 한다.
+  const ready = data !== undefined;
   // 고치기 전에는 저장된 메모를 그대로 보여 준다.
   const [draft, setDraft] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -40,7 +42,7 @@ export function EpisodeMemo({ workId, episodeId }: { workId: string; episodeId: 
         label="이 회차의 메모"
         value={draft ?? memo?.body ?? ""}
         maxLength={20_000}
-        disabled={isPending}
+        disabled={!ready}
         hint="독자에게 보이지 않습니다."
         onChange={(event) => {
           setDraft(event.target.value);
@@ -52,9 +54,9 @@ export function EpisodeMemo({ workId, episodeId }: { workId: string; episodeId: 
           variant="secondary"
           small
           type="button"
-          aria-disabled={save.isPending || isPending}
+          aria-disabled={save.isPending || !ready}
           onClick={() => {
-            if (!save.isPending && !isPending) save.mutate(draft ?? memo?.body ?? "");
+            if (!save.isPending && ready) save.mutate(draft ?? memo?.body ?? "");
           }}
         >
           메모 저장
