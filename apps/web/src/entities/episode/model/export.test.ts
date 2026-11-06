@@ -120,6 +120,20 @@ describe("Markdown 이스케이프", () => {
     expect(output).toContain("\\- 목록");
   });
 
+  it("인용 문단의 줄바꿈과 문단 구분을 보존한다", () => {
+    const output = paragraph({
+      type: "blockquote",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "첫 줄" }, { type: "hardBreak" }, { type: "text", text: "둘째 줄" }],
+        },
+        { type: "paragraph", content: [{ type: "text", text: "다음 문단" }] },
+      ],
+    });
+    expect(output).toContain("> 첫 줄  \n> 둘째 줄\n>\n> 다음 문단");
+  });
+
   it("제목 끝의 #과 작가의 말의 줄바꿈을 보존한다", () => {
     const output = renderEpisodeExport("md", {
       number: 1,

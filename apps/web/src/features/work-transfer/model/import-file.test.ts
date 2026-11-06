@@ -49,6 +49,13 @@ describe("parseImportFile", () => {
     expect(docToText(parseImportFile("a.txt", be).content)).toBe("가");
   });
 
+  it.each([
+    ["LE", [0xff, 0xfe, 0x00, 0xac, 0x41]],
+    ["BE", [0xfe, 0xff, 0xac, 0x00, 0x41]],
+  ])("잘린 UTF-16 %s 파일은 거부한다", (_, bytes) => {
+    expect(() => parseImportFile("a.txt", new Uint8Array(bytes))).toThrow(/손상되어/);
+  });
+
   it("NUL이 있으면 텍스트가 아니라고 알린다", () => {
     expect(() => parseImportFile("a.txt", utf8("가\0나"))).toThrow(/읽을 수 없습니다/);
   });

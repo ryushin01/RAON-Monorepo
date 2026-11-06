@@ -86,7 +86,7 @@ function blockMarkdown(block: EpisodeBlock): string {
         .map(blockMarkdown)
         .join("\n\n")
         .split("\n")
-        .map((line) => `> ${line}`.trimEnd())
+        .map((line) => (line ? `> ${line}` : ">"))
         .join("\n");
     case "paragraph":
       return escapeMarkdownLines((block.content ?? []).map(inlineMarkdown).join(""));

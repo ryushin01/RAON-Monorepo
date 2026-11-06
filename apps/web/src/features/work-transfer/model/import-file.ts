@@ -7,11 +7,20 @@ const MAX_TITLE = 60;
 
 export class ImportError extends Error {}
 
+/** 잘린 파일이 깨진 글자로 저장되지 않게 오류로 처리한다. */
+function decodeUtf16(encoding: "utf-16le" | "utf-16be", bytes: Uint8Array): string {
+  try {
+    return new TextDecoder(encoding, { fatal: true }).decode(bytes);
+  } catch {
+    throw new ImportError("파일이 손상되어 읽을 수 없습니다.");
+  }
+}
+
 /** 한국어 문서 도구가 내보낸 파일은 EUC-KR인 경우가 많다. UTF-8로 읽히지 않으면 EUC-KR로 읽는다. */
 export function decodeText(bytes: Uint8Array): string {
   // 메모장 등이 만드는 UTF-16 파일은 맨 앞의 표시로 구분한다.
-  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder("utf-16le").decode(bytes);
-  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder("utf-16be").decode(bytes);
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return decodeUtf16("utf-16le", bytes);
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return decodeUtf16("utf-16be", bytes);
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
