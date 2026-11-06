@@ -44,6 +44,24 @@ describe("episodeDocSchema", () => {
   });
 });
 
+describe("docFromText", () => {
+  it("빈 줄은 단락을 나누고 한 줄 바꿈은 줄바꿈 노드가 되며, 다시 글자로 돌아온다", () => {
+    const text = "첫 줄\n둘째 줄\n\n다음 단락";
+    const doc = docFromText(text);
+    expect(doc.content[0]).toEqual({
+      type: "paragraph",
+      content: [{ type: "text", text: "첫 줄" }, { type: "hardBreak" }, { type: "text", text: "둘째 줄" }],
+    });
+    expect(episodeDocSchema.safeParse(doc).success).toBe(true);
+    expect(docToText(doc)).toBe(text);
+    expect(countCharsWithSpaces(doc)).toBe(12);
+  });
+
+  it("윈도 줄바꿈도 같게 다룬다", () => {
+    expect(docToText(docFromText("가\r\n나\r\n\r\n다"))).toBe("가\n나\n\n다");
+  });
+});
+
 describe("docToText", () => {
   it("단락과 줄바꿈, 인용문의 글자를 뽑고 구분선과 빈 단락은 뺀다", () => {
     expect(
