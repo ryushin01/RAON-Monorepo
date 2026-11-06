@@ -140,6 +140,38 @@ test("별점을 주면 평균에 반영되고, 다시 누르면 지운다", asyn
   await expect(page.getByText(/별점 4\(1명\)/)).toHaveCount(0);
 });
 
+test("별점 저장 뒤 화면을 새로 받는 동안에도 점수를 유지하고 다시 누를 수 없다", async ({ page }) => {
+  await login(page, READER, "일반 회원");
+  await page.goto("/works?q=궤도");
+  await page.getByRole("link", { name: "궤도 위의 우체부" }).click();
+  const score = page.getByRole("button", { name: "2점" });
+  await expect(score).toHaveAttribute("aria-pressed", "false");
+
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    if (request.method() === "GET" && request.headers().rsc) await held;
+    await route.continue();
+  });
+
+  const saved = page.waitForResponse((response) => response.request().method() === "POST");
+  await score.click();
+  await saved;
+  await expect(score).toHaveAttribute("aria-pressed", "true");
+  await expect(score).toHaveAttribute("aria-disabled", "true");
+  // click()은 aria-disabled가 풀리기를 기다리므로 키보드로 누른다. 이 입력은 무시되어야 한다.
+  await score.press("Enter");
+
+  release();
+  await expect(score).toHaveAttribute("aria-disabled", "false");
+  await expect(score).toHaveAttribute("aria-pressed", "true");
+  await score.click();
+  await expect(score).toHaveAttribute("aria-pressed", "false");
+});
+
 test("태그와 별점순으로 찾고, 뱃지를 글자로 보여 준다", async ({ page }) => {
   await page.goto("/works?q=유리");
   await page.getByRole("link", { name: "유리 정원의 살인" }).click();
