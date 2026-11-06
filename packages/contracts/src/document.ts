@@ -68,6 +68,22 @@ export function countCharsWithSpaces(doc: EpisodeDoc): number {
   return sumText(doc, (text) => text.length);
 }
 
+/** 문서의 글자만 뽑는다. 단락 사이는 빈 줄, 줄바꿈은 줄바꿈 한 번이다. 구분선은 뺀다. */
+export function docToText(doc: EpisodeDoc): string {
+  const paragraphs: string[] = [];
+  const visit = (block: EpisodeBlock) => {
+    if (block.type === "horizontalRule") return;
+    if (block.type === "blockquote") {
+      block.content.forEach(visit);
+      return;
+    }
+    const text = (block.content ?? []).map((inline) => (inline.type === "text" ? inline.text : "\n")).join("");
+    if (text.trim()) paragraphs.push(text);
+  };
+  doc.content.forEach(visit);
+  return paragraphs.join("\n\n");
+}
+
 /** 일반 텍스트를 문단 문서로 바꾼다. 빈 줄이 문단 구분이다. 시드 데이터와 테스트에서 쓴다. */
 export function docFromText(text: string): EpisodeDoc {
   const paragraphs = text
