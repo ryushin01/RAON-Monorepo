@@ -8,6 +8,7 @@ import {
   type StudioEpisode,
   type StudioWork,
   type StudioWorkDetail,
+  type WorkExport,
   type WorkInput,
 } from "@raon/contracts";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
@@ -115,6 +116,26 @@ export class StudioService {
         publishedAt: publishedAt?.toISOString() ?? null,
       })),
     };
+  }
+
+  async exportWork(authorId: string, workId: string): Promise<WorkExport> {
+    const [work] = await this.db
+      .select({ title: works.title })
+      .from(works)
+      .where(and(eq(works.id, workId), eq(works.authorId, authorId)));
+    if (!work) throw new NotFoundException("작품을 찾을 수 없습니다.");
+    const rows = await this.db
+      .select({
+        number: episodes.number,
+        title: episodes.title,
+        status: episodes.status,
+        content: episodes.content,
+        authorNote: episodes.authorNote,
+      })
+      .from(episodes)
+      .where(eq(episodes.workId, workId))
+      .orderBy(asc(episodes.number));
+    return { title: work.title, episodes: rows };
   }
 
   async createWork(authorId: string, input: WorkInput): Promise<StudioWorkDetail> {

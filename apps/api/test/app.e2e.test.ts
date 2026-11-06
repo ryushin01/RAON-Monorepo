@@ -1162,6 +1162,29 @@ describe("RAON API", () => {
     });
   });
 
+  describe("작품 내보내기", () => {
+    it("초안까지 회차 순서대로 돌려주고, 작가 본인만 받는다", async () => {
+      const author = await signup("AUTHOR");
+      const other = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const work = await publishWork(author.accessToken);
+      await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(bearer(author.accessToken))
+        .send({ title: "초안 회차", content: doc, authorNote: "말", isFree: false })
+        .expect(201);
+
+      const res = await http().get(`/studio/works/${work.id}/export`).set(bearer(author.accessToken)).expect(200);
+      expect(res.body.title).toBe("테스트 작품");
+      expect(res.body.episodes.map((episode: { number: number }) => episode.number)).toEqual([1, 2, 3, 4]);
+      expect(res.body.episodes[3]).toMatchObject({ status: "DRAFT", authorNote: "말", content: doc });
+
+      await http().get(`/studio/works/${work.id}/export`).set(bearer(other.accessToken)).expect(404);
+      await http().get(`/studio/works/${work.id}/export`).set(bearer(reader.accessToken)).expect(403);
+      await http().get(`/studio/works/${work.id}/export`).expect(401);
+    });
+  });
+
   describe("설정집과 메모", () => {
     const note = (overrides = {}) => ({
       kind: "SETTING",
