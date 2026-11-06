@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
 import {
   type AuthResult,
@@ -14,6 +15,7 @@ import {
 import { eq, sql } from "drizzle-orm";
 import request from "supertest";
 import { AppModule } from "../src/app.module.js";
+import { configureApp } from "../src/configure-app.js";
 import { type Database, type DatabaseHandle, openDatabase } from "../src/db/database.js";
 import { DATABASE_HANDLE } from "../src/db/database.module.js";
 import {
@@ -89,7 +91,8 @@ describe("RAON API", () => {
       .overrideProvider(DATABASE_HANDLE)
       .useValue(handle)
       .compile();
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication<NestExpressApplication>();
+    configureApp(app as NestExpressApplication);
     await app.init();
   });
 
@@ -1159,6 +1162,26 @@ describe("RAON API", () => {
         .set(bearer(owner.accessToken))
         .send({ label: "가".repeat(41) })
         .expect(400);
+    });
+  });
+
+  describe("긴 회차", () => {
+    it("기본 한도(100KB)를 넘는 본문도 저장하고, 지나치게 큰 요청은 거부한다", async () => {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      const long = docFromText("가".repeat(100_000));
+      const created = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(bearer(author.accessToken))
+        .send({ title: "긴 회차", content: long, authorNote: null, isFree: false })
+        .expect(201);
+      expect(created.body.charCount).toBe(100_000);
+
+      await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(bearer(author.accessToken))
+        .send({ title: "너무 긴 회차", content: docFromText("가".repeat(1_500_000)), authorNote: null, isFree: false })
+        .expect(413);
     });
   });
 
