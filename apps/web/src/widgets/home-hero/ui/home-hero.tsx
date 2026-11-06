@@ -1,13 +1,15 @@
+import { useId } from "react";
 import { ButtonLink } from "@/shared/ui";
 import styles from "./home-hero.module.scss";
 import { TypeSpiral } from "./type-spiral";
 
 export function HomeHero() {
+  const titleId = useId();
   return (
-    <section className={styles.hero} aria-labelledby="home-hero-title">
+    <section className={styles.hero} aria-labelledby={titleId}>
       <div className={styles.copy}>
         <p className={styles.kicker}>웹소설 연재·감상 플랫폼</p>
-        <h1 id="home-hero-title" className={styles.title}>
+        <h1 id={titleId} className={styles.title}>
           오늘 밤 읽을 이야기,
           <br />
           라온에서.

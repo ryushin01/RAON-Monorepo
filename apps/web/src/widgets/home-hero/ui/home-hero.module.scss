@@ -47,16 +47,10 @@
   line-height: 1.15;
 }
 
-/* 좁은 화면에서는 작품이 첫 화면에 보이도록 소개 문장과 장식을 뺀다. */
 .lead {
-  display: none;
   max-width: 32rem;
   color: var(--muted);
   font-size: 1.0625rem;
-
-  @media (width >= 48rem) {
-    display: block;
-  }
 }
 
 .actions {
@@ -65,6 +59,7 @@
   gap: 0.25rem;
 }
 
+/* 좁은 화면에서는 작품이 첫 화면에 보이도록 장식 나선만 뺀다. 확대해도 내용은 사라지지 않는다. */
 .art {
   display: none;
   position: relative;

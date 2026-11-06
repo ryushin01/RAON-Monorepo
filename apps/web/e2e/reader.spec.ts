@@ -187,9 +187,10 @@ test("태그와 별점순으로 찾고, 뱃지를 글자로 보여 준다", asyn
   await expect(page.getByText("인기", { exact: true }).first()).toBeVisible();
 });
 
-test("모바일 첫 화면에서 추천 작품이 보인다", async ({ page }) => {
+test("모바일 첫 화면에서 소개 문장과 추천 작품이 함께 보인다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 780 });
   await page.goto("/");
+  await expect(page.getByText("작가는 회차를 연재하고")).toBeVisible();
   await expect(page.getByRole("region", { name: "추천 작품" }).getByRole("heading", { level: 2 })).toBeInViewport();
 });
 
