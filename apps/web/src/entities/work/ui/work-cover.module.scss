@@ -6,20 +6,21 @@
   aspect-ratio: 3 / 4;
   padding: 0.75rem;
   overflow: hidden;
-  border: 1px solid var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--cover-bg);
   color: var(--cover-fg);
   container-type: inline-size;
 }
 
 .dark {
-  --cover-bg: #0a0a0a;
-  --cover-fg: #fafafa;
+  --cover-bg: #232323;
+  --cover-fg: #f1eee7;
 }
 
 .light {
-  --cover-bg: #fafafa;
-  --cover-fg: #0a0a0a;
+  --cover-bg: #f1eee7;
+  --cover-fg: #232323;
 }
 
 .pattern {
@@ -48,7 +49,7 @@
 
 .title {
   position: relative;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: clamp(0.8125rem, 11cqi, 1.75rem);
   font-weight: 700;
   line-height: 1.25;

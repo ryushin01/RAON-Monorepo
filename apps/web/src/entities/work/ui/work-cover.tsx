@@ -9,7 +9,7 @@ function hash(value: string): number {
 }
 
 /**
- * 작품 제목으로 만드는 흑백 표지. 같은 제목은 항상 같은 표지가 된다.
+ * 작품 제목으로 만드는 무채색 표지. 같은 제목은 항상 같은 표지가 된다.
  * 카드에 제목과 작가를 글자로 함께 보여 주므로 보조기술에는 숨긴다.
  */
 export function WorkCover({ title, authorName, imageUrl }: { title: string; authorName: string; imageUrl?: string }) {

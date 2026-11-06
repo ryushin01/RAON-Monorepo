@@ -13,8 +13,8 @@
   width: 100%;
   min-height: 2.75rem;
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--fg);
-  border-radius: 0;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--fg);
   font: inherit;

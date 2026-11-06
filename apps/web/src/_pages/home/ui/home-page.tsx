@@ -7,6 +7,7 @@ import { WorkCard } from "@/entities/work";
 import { getWorks } from "@/entities/work/index.server";
 import { formatCompact, formatDate } from "@/shared/lib";
 import { Main } from "@/shared/ui";
+import { HomeHero } from "@/widgets/home-hero";
 import { type BannerSlide, WorkBanner } from "@/widgets/work-banner";
 import styles from "./home.module.scss";
 
@@ -101,11 +102,13 @@ async function HomeContent() {
 
 export function HomePage() {
   return (
-    <Main className={`page ${styles.main}`}>
-      <h1 className="visually-hidden">라온 웹소설</h1>
-      <Suspense fallback={<div className={styles.skeleton} aria-busy="true" />}>
-        <HomeContent />
-      </Suspense>
+    <Main>
+      <HomeHero />
+      <div className={`page ${styles.main}`}>
+        <Suspense fallback={<div className={styles.skeleton} aria-busy="true" />}>
+          <HomeContent />
+        </Suspense>
+      </div>
     </Main>
   );
 }

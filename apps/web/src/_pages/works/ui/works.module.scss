@@ -5,16 +5,17 @@
 }
 
 .title {
-  font-family: var(--font-serif);
-  font-size: 1.75rem;
-  font-weight: 900;
+  font-family: var(--font-sans);
+  font-size: 2.25rem;
+  line-height: 1.2;
+  font-weight: 500;
 }
 
 .filters {
   display: grid;
   gap: 0.75rem;
   padding-block: 0.75rem;
-  border-block: 1px solid var(--fg);
+  border-block: 1px solid var(--line);
 }
 
 .filterRow {
@@ -25,8 +26,10 @@
 
   > span {
     min-width: 3rem;
-    font-size: 0.875rem;
-    font-weight: 700;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    word-spacing: var(--mono-word-spacing);
+    font-size: 0.8125rem;
   }
 
   a {
@@ -35,7 +38,10 @@
     min-height: 2.5rem;
     padding-inline: 0.75rem;
     border: 1px solid transparent;
-    font-size: 0.9375rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    word-spacing: var(--mono-word-spacing);
+    font-size: 0.875rem;
     text-decoration: none;
 
     &:hover {
@@ -45,13 +51,15 @@
     &[aria-current="true"] {
       background: var(--fg);
       color: var(--bg);
-      font-weight: 700;
+      font-weight: 600;
     }
   }
 }
 
 .count {
   color: var(--muted);
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
   font-size: 0.875rem;
 }
 
