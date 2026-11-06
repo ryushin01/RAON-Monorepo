@@ -11,8 +11,8 @@ import { useNotes } from "./use-notes";
 export function EpisodeMemo({ workId, episodeId }: { workId: string; episodeId: string }) {
   const { data, error, invalidate } = useNotes(workId);
   const memo = data?.find((note) => note.episodeId === episodeId);
-  // 목록을 읽기 전에는 이미 있는 메모를 모르므로 쓰지 못하게 한다.
-  const ready = data !== undefined;
+  // 최신 목록을 모르면 다른 창에서 쓴 메모를 덮어쓸 수 있으므로 저장을 막는다. 입력한 내용은 그대로 둔다.
+  const ready = data !== undefined && !error;
   // 고치기 전에는 저장된 메모를 그대로 보여 준다.
   const [draft, setDraft] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -42,7 +42,7 @@ export function EpisodeMemo({ workId, episodeId }: { workId: string; episodeId: 
         label="이 회차의 메모"
         value={draft ?? memo?.body ?? ""}
         maxLength={20_000}
-        disabled={!ready}
+        disabled={data === undefined}
         hint="독자에게 보이지 않습니다."
         onChange={(event) => {
           setDraft(event.target.value);

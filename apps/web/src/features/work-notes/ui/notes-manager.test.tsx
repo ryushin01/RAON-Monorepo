@@ -1,6 +1,6 @@
 import type { WorkNote } from "@raon/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { deleteNote, listNotes, saveNote, searchWork } from "../api/actions";
 import { EpisodeMemo } from "./episode-memo";
@@ -201,6 +201,32 @@ describe("EpisodeMemo", () => {
     expect(screen.getByRole("textbox", { name: "이 회차의 메모" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "메모 저장" }));
     expect(saveNote).not.toHaveBeenCalled();
+  });
+
+  it("다시 읽기에 실패하면 입력을 남기고 저장을 막으며, 읽으면 다시 저장할 수 있다", async () => {
+    (listNotes as jest.Mock).mockResolvedValue(ok([]));
+    (saveNote as jest.Mock).mockResolvedValue(ok(episodeMemo));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <EpisodeMemo workId="w1" episodeId="e1" />
+      </QueryClientProvider>,
+    );
+    const input = screen.getByRole("textbox", { name: "이 회차의 메모" });
+    await waitFor(() => expect(input).toBeEnabled());
+    await userEvent.type(input, "쓰던 메모");
+
+    (listNotes as jest.Mock).mockResolvedValue({ ok: false, message: "읽지 못했습니다." });
+    await act(() => client.refetchQueries());
+    expect(await screen.findByText("읽지 못했습니다.")).toBeInTheDocument();
+    expect(input).toHaveValue("쓰던 메모");
+    await userEvent.click(screen.getByRole("button", { name: "메모 저장" }));
+    expect(saveNote).not.toHaveBeenCalled();
+
+    (listNotes as jest.Mock).mockResolvedValue(ok([]));
+    await act(() => client.refetchQueries());
+    await userEvent.click(screen.getByRole("button", { name: "메모 저장" }));
+    await waitFor(() => expect(saveNote).toHaveBeenCalled());
   });
 
   it("저장하지 못하면 입력을 남기고 이유를 보여 준다", async () => {
