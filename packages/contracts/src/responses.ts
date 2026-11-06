@@ -247,6 +247,18 @@ export interface WorkSearchResult {
   notes: (WorkSearchHit & { kind: "SETTING" | "MEMO" })[];
 }
 
+/** 내보내기용. 지금 있는 모든 회차의 본문을 담는다. */
+export interface WorkExport {
+  title: string;
+  episodes: {
+    number: number;
+    title: string;
+    status: EpisodeStatus;
+    content: EpisodeDoc;
+    authorNote: string | null;
+  }[];
+}
+
 export interface ApiErrorBody {
   statusCode: number;
   message: string;

@@ -7,6 +7,7 @@ import { requireUser } from "@/entities/session/index.server";
 import { getStudioWork } from "@/entities/studio/index.server";
 import { DeleteDraftButton, isScheduled, MoveEpisodeButtons, NewEpisodeButton } from "@/features/episode-editor";
 import { CoverUpload, DeleteWorkButton, WorkForm, WorkStatusControl } from "@/features/work-form";
+import { WorkTransfer } from "@/features/work-transfer";
 import { formatCoins, formatDate, formatDateTime, formatNumber } from "@/shared/lib";
 import { Badge, Main } from "@/shared/ui";
 import styles from "./studio-work.module.scss";
@@ -80,6 +81,11 @@ async function StudioWorkContent({ params }: { params: Params }) {
             ))}
           </ol>
         )}
+      </section>
+
+      <section aria-label="내보내기와 가져오기">
+        <h2 className={styles.h2}>내보내기와 가져오기</h2>
+        <WorkTransfer workId={work.id} />
       </section>
 
       <section aria-label="작품 정보">

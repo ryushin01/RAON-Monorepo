@@ -72,6 +72,11 @@ export class StudioController {
     return this.studio.setWorkStatus(user.id, workId, body.status);
   }
 
+  @Get("works/:workId/export")
+  exportWork(@CurrentUser() user: AuthUser, @Param("workId", ParseUUIDPipe) workId: string) {
+    return this.studio.exportWork(user.id, workId);
+  }
+
   @Post("works/:workId/episodes")
   createEpisode(
     @CurrentUser() user: AuthUser,

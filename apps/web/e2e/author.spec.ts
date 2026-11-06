@@ -279,6 +279,71 @@ test("설정집과 메모를 쓰고, 에디터에서 참조하며, 작품 전체
   await guest.close();
 });
 
+test("파일을 새 회차로 가져오고, 회차와 작품을 내보낸다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.waitForURL("/studio");
+  const workTitle = `내보내기 ${Date.now()}`;
+  await createWork(page, workTitle);
+  const workUrl = page.url();
+  const importFile = page.getByLabel("가져올 파일");
+
+  // 지원하지 않는 형식은 이유를 알린다.
+  await importFile.setInputFiles({ name: "원고.pdf", mimeType: "application/pdf", buffer: Buffer.from("가") });
+  await page.getByRole("button", { name: "새 회차로 가져오기" }).click();
+  await expect(importFile).toHaveAccessibleDescription(/TXT와 MD 파일만/);
+
+  await importFile.setInputFiles({
+    name: "첫 이야기.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("첫 줄입니다.\n이어지는 줄입니다.\n\n둘째 단락 <b>굵게</b>"),
+  });
+  await page.getByRole("button", { name: "새 회차로 가져오기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await expect(page.getByLabel("회차 제목")).toHaveValue("첫 이야기");
+  const firstEpisodeUrl = page.url();
+  await expect(editorOf(page)).toContainText("둘째 단락 <b>굵게</b>");
+
+  // 저장 한도를 넘지 않는지 큰 파일로도 확인한다(API 기본 한도 100KB의 몇 배).
+  await page.goto(workUrl);
+  await page.getByLabel("가져올 파일").setInputFiles({
+    name: "긴 이야기.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("가".repeat(300_000)),
+  });
+  await page.getByRole("button", { name: "새 회차로 가져오기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await expect(page.getByLabel("회차 제목")).toHaveValue("긴 이야기");
+  await expect(page.getByText("공백 포함 300,000자 · 공백 제외 300,000자")).toBeVisible();
+  await page.goto(firstEpisodeUrl);
+
+  // 저장하지 않은 입력도 이 회차 내보내기에 들어간다.
+  await editorOf(page).click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type(" 덧붙임");
+  await page.getByText("이 회차 내보내기", { exact: true }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "TXT로 내보내기" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("1화 첫 이야기.txt");
+  const { readFile } = await import("node:fs/promises");
+  const text = await readFile(await file.path(), "utf8");
+  expect(text).toContain("첫 줄입니다.\n이어지는 줄입니다.");
+  expect(text).toContain("덧붙임");
+
+  // 자동 저장을 기다린 뒤 작품 전체를 HTML로 내보낸다. 글자는 이스케이프되어야 한다.
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+  await page.goto(workUrl);
+  await page.getByRole("combobox", { name: "형식" }).selectOption("html");
+  const whole = page.waitForEvent("download");
+  await page.getByRole("button", { name: "작품 내보내기" }).click();
+  const wholeFile = await whole;
+  expect(wholeFile.suggestedFilename()).toBe(`${workTitle}.html`);
+  const html = await readFile(await wholeFile.path(), "utf8");
+  expect(html).toContain("&lt;b&gt;굵게&lt;/b&gt;");
+  expect(html).not.toContain("<b>굵게");
+  await expect(page.getByRole("status").filter({ hasText: "2개 회차를 내보냈습니다." })).toBeVisible();
+});
+
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {
   const title = `테스트 작품 ${Date.now()}`;
   await login(page, AUTHOR, "작가");

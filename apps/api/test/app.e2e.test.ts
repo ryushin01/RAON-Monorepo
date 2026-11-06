@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
 import {
   type AuthResult,
@@ -14,6 +15,7 @@ import {
 import { eq, sql } from "drizzle-orm";
 import request from "supertest";
 import { AppModule } from "../src/app.module.js";
+import { configureApp } from "../src/configure-app.js";
 import { type Database, type DatabaseHandle, openDatabase } from "../src/db/database.js";
 import { DATABASE_HANDLE } from "../src/db/database.module.js";
 import {
@@ -89,7 +91,8 @@ describe("RAON API", () => {
       .overrideProvider(DATABASE_HANDLE)
       .useValue(handle)
       .compile();
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication<NestExpressApplication>();
+    configureApp(app as NestExpressApplication);
     await app.init();
   });
 
@@ -1159,6 +1162,49 @@ describe("RAON API", () => {
         .set(bearer(owner.accessToken))
         .send({ label: "가".repeat(41) })
         .expect(400);
+    });
+  });
+
+  describe("긴 회차", () => {
+    it("기본 한도(100KB)를 넘는 본문도 저장하고, 지나치게 큰 요청은 거부한다", async () => {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      const long = docFromText("가".repeat(100_000));
+      const created = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(bearer(author.accessToken))
+        .send({ title: "긴 회차", content: long, authorNote: null, isFree: false })
+        .expect(201);
+      expect(created.body.charCount).toBe(100_000);
+
+      await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(bearer(author.accessToken))
+        .send({ title: "너무 긴 회차", content: docFromText("가".repeat(1_500_000)), authorNote: null, isFree: false })
+        .expect(413);
+    });
+  });
+
+  describe("작품 내보내기", () => {
+    it("초안까지 회차 순서대로 돌려주고, 작가 본인만 받는다", async () => {
+      const author = await signup("AUTHOR");
+      const other = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const work = await publishWork(author.accessToken);
+      await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(bearer(author.accessToken))
+        .send({ title: "초안 회차", content: doc, authorNote: "말", isFree: false })
+        .expect(201);
+
+      const res = await http().get(`/studio/works/${work.id}/export`).set(bearer(author.accessToken)).expect(200);
+      expect(res.body.title).toBe("테스트 작품");
+      expect(res.body.episodes.map((episode: { number: number }) => episode.number)).toEqual([1, 2, 3, 4]);
+      expect(res.body.episodes[3]).toMatchObject({ status: "DRAFT", authorNote: "말", content: doc });
+
+      await http().get(`/studio/works/${work.id}/export`).set(bearer(other.accessToken)).expect(404);
+      await http().get(`/studio/works/${work.id}/export`).set(bearer(reader.accessToken)).expect(403);
+      await http().get(`/studio/works/${work.id}/export`).expect(401);
     });
   });
 

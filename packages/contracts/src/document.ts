@@ -84,6 +84,16 @@ export function docToText(doc: EpisodeDoc): string {
   return paragraphs.join("\n\n");
 }
 
+/** 줄바꿈은 글자가 아니라 줄바꿈 노드로 넣는다. 그래야 뷰어와 글자 수가 에디터와 같아진다. */
+function inlineFromLines(paragraph: string): EpisodeInline[] {
+  const inline: EpisodeInline[] = [];
+  paragraph.split(/\r?\n/).forEach((line, index) => {
+    if (index > 0) inline.push({ type: "hardBreak" });
+    if (line) inline.push({ type: "text", text: line });
+  });
+  return inline;
+}
+
 /** 일반 텍스트를 문단 문서로 바꾼다. 빈 줄이 문단 구분이다. 시드 데이터와 테스트에서 쓴다. */
 export function docFromText(text: string): EpisodeDoc {
   const paragraphs = text
@@ -92,6 +102,6 @@ export function docFromText(text: string): EpisodeDoc {
     .filter(Boolean);
   return {
     type: "doc",
-    content: paragraphs.map((p) => ({ type: "paragraph", content: [{ type: "text", text: p }] })),
+    content: paragraphs.map((p) => ({ type: "paragraph", content: inlineFromLines(p) })),
   };
 }
