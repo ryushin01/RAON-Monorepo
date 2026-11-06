@@ -14,4 +14,5 @@ CREATE TABLE "work_notes" (
 --> statement-breakpoint
 ALTER TABLE "work_notes" ADD CONSTRAINT "work_notes_work_id_works_id_fk" FOREIGN KEY ("work_id") REFERENCES "public"."works"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "work_notes" ADD CONSTRAINT "work_notes_episode_id_episodes_id_fk" FOREIGN KEY ("episode_id") REFERENCES "public"."episodes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "work_notes_work_idx" ON "work_notes" USING btree ("work_id","kind");
+CREATE INDEX "work_notes_work_idx" ON "work_notes" USING btree ("work_id","kind");--> statement-breakpoint
+CREATE UNIQUE INDEX "work_notes_episode_uq" ON "work_notes" USING btree ("episode_id") WHERE "work_notes"."episode_id" is not null;

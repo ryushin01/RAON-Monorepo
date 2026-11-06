@@ -120,7 +120,11 @@ export const workNotes = pgTable(
     body: text("body").notNull().default(""),
     ...timestamps,
   },
-  (t) => [index("work_notes_work_idx").on(t.workId, t.kind)],
+  (t) => [
+    index("work_notes_work_idx").on(t.workId, t.kind),
+    // 회차 메모는 회차마다 하나다.
+    uniqueIndex("work_notes_episode_uq").on(t.episodeId).where(sql`${t.episodeId} is not null`),
+  ],
 );
 
 /** episodeId가 없으면 작품 전체를 담은 항목이다. */

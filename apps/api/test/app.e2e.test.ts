@@ -1253,6 +1253,26 @@ describe("RAON API", () => {
       expect(list.body.map((item: { title: string }) => item.title)).toEqual(["이안"]);
     });
 
+    it("회차 메모는 회차마다 하나이고, 다시 만들면 고치며, 연결은 바꿀 수 없다", async () => {
+      const { token, work } = await setup();
+      const detail = (await http().get(`/studio/works/${work.id}`).set(bearer(token)).expect(200))
+        .body as StudioWorkDetail;
+      const [first, second] = detail.episodes.map((episode) => episode.id);
+      const memo = (episodeId: string | undefined, body: string) =>
+        note({ kind: "MEMO", title: "회차 메모", body, episodeId, aliases: [] });
+      const post = (body: object) => http().post(`/studio/works/${work.id}/notes`).set(bearer(token)).send(body);
+
+      const created = await post(memo(first, "처음")).expect(201);
+      const again = await post(memo(first, "다시")).expect(201);
+      expect(again.body.id).toBe(created.body.id);
+      expect(again.body.body).toBe("다시");
+      await Promise.all([post(memo(second, "동시 1")).expect(201), post(memo(second, "동시 2")).expect(201)]);
+      const list = await http().get(`/studio/works/${work.id}/notes`).set(bearer(token)).expect(200);
+      expect(list.body).toHaveLength(2);
+
+      await http().put(`/studio/notes/${created.body.id}`).set(bearer(token)).send(memo(second, "옮기기")).expect(400);
+    });
+
     it("다른 작가의 문서는 다룰 수 없고, 독자는 쓸 수 없다", async () => {
       const { token, work } = await setup();
       const other = await signup("AUTHOR");

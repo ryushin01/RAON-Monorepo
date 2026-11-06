@@ -1,5 +1,5 @@
 {
-  "id": "33f97508-2c2e-4726-b9dc-66380bec7f3b",
+  "id": "3b4f44e6-a1a8-413e-9029-9b00fcf44b43",
   "prevId": "d1717bda-d049-4eda-b203-1ea207847b58",
   "version": "7",
   "dialect": "postgresql",
@@ -1236,6 +1236,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "work_notes_episode_uq": {
+          "name": "work_notes_episode_uq",
+          "columns": [
+            {
+              "expression": "episode_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"work_notes\".\"episode_id\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}

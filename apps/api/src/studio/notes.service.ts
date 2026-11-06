@@ -63,20 +63,38 @@ export class NotesService {
   async create(authorId: string, workId: string, input: ParsedNote): Promise<WorkNote> {
     await this.assertOwner(authorId, workId);
     await this.assertEpisodeLink(workId, input);
-    const [{ count } = { count: 0 }] = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(workNotes)
-      .where(eq(workNotes.workId, workId));
-    if (count >= MAX_NOTES) throw new ConflictException(`문서는 작품마다 ${MAX_NOTES}개까지 만들 수 있습니다.`);
-    const [row] = await this.db
-      .insert(workNotes)
-      .values({ ...input, workId })
-      .returning();
-    return toNote(row!);
+    return this.db.transaction(async (tx) => {
+      // 동시에 만들어도 개수 제한을 넘지 않도록 작품 행을 잠근 뒤 센다.
+      await tx.select({ id: works.id }).from(works).where(eq(works.id, workId)).for("update");
+      const [{ count } = { count: 0 }] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(workNotes)
+        .where(eq(workNotes.workId, workId));
+      if (input.episodeId) {
+        // 회차 메모는 회차마다 하나이므로 이미 있으면 고친다. 개수도 늘지 않는다.
+        const [row] = await tx
+          .insert(workNotes)
+          .values({ ...input, workId })
+          .onConflictDoUpdate({
+            target: workNotes.episodeId,
+            targetWhere: sql`${workNotes.episodeId} is not null`,
+            set: { ...input, updatedAt: new Date() },
+          })
+          .returning();
+        return toNote(row!);
+      }
+      if (count >= MAX_NOTES) throw new ConflictException(`문서는 작품마다 ${MAX_NOTES}개까지 만들 수 있습니다.`);
+      const [row] = await tx
+        .insert(workNotes)
+        .values({ ...input, workId })
+        .returning();
+      return toNote(row!);
+    });
   }
 
   async update(authorId: string, noteId: string, input: ParsedNote): Promise<WorkNote> {
     const note = await this.ownedNote(authorId, noteId);
+    if (input.episodeId !== note.episodeId) throw new BadRequestException("문서의 회차 연결은 바꿀 수 없습니다.");
     await this.assertEpisodeLink(note.workId, input);
     const [row] = await this.db
       .update(workNotes)
