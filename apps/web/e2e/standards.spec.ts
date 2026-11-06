@@ -157,6 +157,36 @@ test.describe("KWCAG 운용", () => {
     });
   }
 
+  for (const theme of ["light", "dark"] as const) {
+    test(`5.4.3 ${theme} 현재 단락만 보기에서 흐린 단락도 4.5:1 이상 대비된다`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: theme });
+      await login(page, AUTHOR, "작가");
+      await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
+      await page.getByRole("link", { name: /^1화/ }).click();
+      await page.getByRole("button", { name: "현재 단락만" }).click();
+      const editor = page.getByRole("textbox", { name: "본문" });
+      await editor.locator("p").nth(1).click();
+      const ratio = await editor
+        .locator("p")
+        .nth(0)
+        .evaluate((element) => {
+          const luminance = (color: string) => {
+            const [r, g, b] = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map((value) => {
+              const channel = Number(value) / 255;
+              return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
+          };
+          const text = luminance(getComputedStyle(element).color);
+          const page = luminance(getComputedStyle(document.body).backgroundColor);
+          return (Math.max(text, page) + 0.05) / (Math.min(text, page) + 0.05);
+        });
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+      // 투명도를 쓰면 위 계산이 실제 대비를 반영하지 못한다.
+      await expect(editor.locator("p").nth(0)).toHaveCSS("opacity", "1");
+    });
+  }
+
   test("6.1.2 가로로 스크롤하는 머리글 메뉴가 초점 표시를 자르지 않는다", async ({ page }) => {
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "주요 메뉴" });
@@ -249,6 +279,11 @@ test.describe("KWCAG 운용", () => {
     await page.keyboard.press("Tab");
     await expect(editor).not.toBeFocused();
     await expect(page.getByRole("textbox", { name: /회차 목표/ })).toBeFocused();
+    // 접힌 집필 도구 4개를 지나 다음 입력으로 간다.
+    for (const name of ["단락 분석", "반복 표현", "집필 타이머", "상용구와 특수문자"]) {
+      await page.keyboard.press("Tab");
+      await expect(page.getByText(name, { exact: true })).toBeFocused();
+    }
     await page.keyboard.press("Tab");
     await expect(page.getByRole("checkbox", { name: "무료 회차로 공개" })).toBeFocused();
   });

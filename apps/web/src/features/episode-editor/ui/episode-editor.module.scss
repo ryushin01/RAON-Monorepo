@@ -40,9 +40,19 @@
   font-weight: 600;
 }
 
-.toolbar {
+.group {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.25rem;
+
+  & + & {
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--panel-line);
+  }
+}
+
+.toolbar {
+  display: grid;
   gap: 0.25rem;
   padding: 0.25rem;
   border-radius: var(--radius) var(--radius) 0 0;
@@ -103,6 +113,16 @@
       box-shadow: none;
     }
 
+    .search-match {
+      background: var(--surface);
+      text-decoration: underline;
+    }
+
+    .search-current {
+      background: var(--fg);
+      color: var(--bg);
+    }
+
     blockquote {
       display: grid;
       gap: 1.2em;
@@ -125,6 +145,11 @@
       pointer-events: none;
     }
   }
+}
+
+/* 다른 단락도 읽을 수 있어야 하므로 투명도 대신 대비 기준을 넘는 흐린 색을 쓴다(KWCAG 5.4.3). */
+.content[data-dim] :global(.tiptap) > :not(:global(.is-current)) {
+  color: var(--muted);
 }
 
 .check {

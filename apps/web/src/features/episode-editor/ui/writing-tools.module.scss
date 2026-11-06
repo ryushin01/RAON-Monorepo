@@ -1,0 +1,141 @@
+.tools {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.heading {
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.subheading {
+  margin-bottom: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.tool {
+  border-top: 1px solid var(--line);
+
+  summary {
+    min-height: 2.75rem;
+    padding-block: 0.625rem;
+    font-family: var(--font-mono);
+    word-spacing: var(--mono-word-spacing);
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+}
+
+.toolBody {
+  display: grid;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+}
+
+.note {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
+  font-size: 0.8125rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.actions,
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.chips {
+  padding: 0;
+  list-style: none;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: 0.375rem 0.5rem;
+    border-bottom: 1px solid var(--line);
+    text-align: right;
+  }
+
+  th:first-child {
+    text-align: left;
+  }
+
+  th {
+    font-weight: 500;
+  }
+}
+
+.timer {
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.phraseForm {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+
+  > div {
+    width: 100%;
+  }
+}
+
+.phraseList {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+}
+
+.phraseText {
+  flex: 1 1 8rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+
+.find {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--muted);
+  border-top: 0;
+}
+
+.findForm {
+  display: grid;
+  gap: 0.75rem;
+
+  @media (width >= 48rem) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .actions {
+    @media (width >= 48rem) {
+      grid-column: 1 / -1;
+    }
+  }
+}

@@ -4,6 +4,9 @@ export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 export const THEME_COOKIE = "raon_theme";
 export const VIEWER_COOKIE = "raon_viewer";
 export const EPISODE_GOAL_COOKIE = "raon_episode_goal";
+export const EDITOR_PREFS_COOKIE = "raon_editor_prefs";
+/** 에디터 상용구. 원고가 아니라 작가가 등록한 짧은 글이므로 로그아웃해도 남긴다. */
+export const PHRASES_KEY = "raon:phrases";
 /** 저장하지 못한 회차 원고의 로컬 백업. 공개 전 글이므로 로그아웃할 때 지운다. */
 export const EPISODE_BACKUP_PREFIX = "raon:episode-backup:";
 /** 마지막 로그아웃 시각. 열려 있는 다른 탭의 에디터가 백업을 쓰기 전에 확인한다. */

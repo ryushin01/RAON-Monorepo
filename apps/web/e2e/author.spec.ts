@@ -38,6 +38,121 @@ test("공백 포함 글자 수와 회차 목표를 보여 주고, 목표는 다�
   await expect(page.getByText("공백 포함 5자 · 공백 제외 4자")).toBeVisible();
 });
 
+test("찾기·바꾸기, 자동 따옴표, 저장 단축키, 분석 도구를 쓴다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.waitForURL("/studio");
+  await createWork(page, `집필 도구 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+
+  await editorOf(page).click();
+  await page.keyboard.type('"등대를 켜라..." 그는 등대를 등대를 보았다.');
+  await expect(editorOf(page)).toContainText("“등대를 켜라…” 그는");
+
+  // 반복 표현에서 눌러 본문에서 찾고, 모두 바꾼다.
+  await page.getByText("반복 표현", { exact: true }).click();
+  await page.getByRole("button", { name: "등대를 3회" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "1 / 3건" })).toBeVisible();
+  await page.getByRole("textbox", { name: "바꿀 글자" }).fill("횃불을");
+  await page.getByRole("button", { name: "모두 바꾸기" }).click();
+  await expect(editorOf(page)).toContainText("“횃불을 켜라…” 그는 횃불을 횃불을 보았다.");
+  await page.getByRole("button", { name: "찾기 닫기" }).click();
+
+  await page.getByText("단락 분석", { exact: true }).click();
+  await expect(page.getByRole("row", { name: /대사/ })).toContainText("100%");
+
+  // 입력 칸에서도 Ctrl+S로 저장하고, 새로고침해도 바꾼 내용이 남는다.
+  await editorOf(page).click();
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect(page.getByRole("status").filter({ hasText: /에 저장했습니다/ })).toBeAttached();
+  await page.reload();
+  await expect(editorOf(page)).toContainText("횃불을 켜라");
+
+  // 자동 따옴표를 끄면 곧은 따옴표를 그대로 둔다.
+  await page.getByRole("button", { name: "자동 따옴표" }).click();
+  await editorOf(page).click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type(' "곧은"');
+  await expect(editorOf(page)).toContainText('"곧은"');
+});
+
+test("집중 모드는 본문만 남기고 다시 열어도 유지한다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
+  await page.getByRole("link", { name: /^1화/ }).click();
+  const focus = page.getByRole("button", { name: "집중 모드" });
+  await expect(page.getByLabel("회차 제목")).toBeVisible();
+
+  await focus.click();
+  await expect(focus).toHaveAttribute("aria-pressed", "true");
+  await expect(focus).toBeFocused();
+  await expect(page.getByLabel("회차 제목")).toBeHidden();
+  await expect(page.getByLabel("작가의 말")).toBeHidden();
+  await expect(page.getByRole("region", { name: "집필 도구" })).toBeHidden();
+  await expect(editorOf(page)).toBeVisible();
+  await expect(page.getByText(/공백 포함 \d/)).toBeVisible();
+
+  // 숨긴 칸으로 Tab이 들어가지 않는다.
+  await editorOf(page).focus();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("회차 제목")).not.toBeFocused();
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "집중 모드" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("회차 제목")).toBeHidden();
+  await page.getByRole("button", { name: "집중 모드" }).click();
+  await expect(page.getByLabel("회차 제목")).toBeVisible();
+});
+
+test("현재 단락만 보기는 커서가 있는 단락 말고 흐리게 한다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await page.getByRole("button", { name: "현재 단락만" }).click();
+  await editorOf(page).locator("p").nth(1).click();
+  const colorOf = (index: number) =>
+    editorOf(page)
+      .locator("p")
+      .nth(index)
+      .evaluate((element) => getComputedStyle(element).color);
+  const clear = await page.evaluate(() => getComputedStyle(document.body).color);
+  await expect.poll(() => colorOf(1)).toBe(clear);
+  await expect.poll(() => colorOf(0)).not.toBe(clear);
+  await editorOf(page).locator("p").nth(0).click();
+  await expect.poll(() => colorOf(0)).toBe(clear);
+  await expect.poll(() => colorOf(1)).not.toBe(clear);
+});
+
+test("저장 단축키를 누르고 있어도 한 번만 저장하고, 처리 중에는 저장하지 않는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.waitForURL("/studio");
+  await createWork(page, `단축키 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("가");
+
+  let posts = 0;
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/*", async (route) => {
+    if (route.request().method() === "POST") {
+      posts += 1;
+      await held;
+    }
+    await route.continue();
+  });
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect(page.getByText(/저장 중/)).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+s");
+  await page.keyboard.press("ControlOrMeta+s");
+  expect(posts).toBe(1);
+  release();
+  await expect(page.getByRole("status").filter({ hasText: /에 저장했습니다/ })).toBeAttached();
+});
+
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {
   const title = `테스트 작품 ${Date.now()}`;
   await login(page, AUTHOR, "작가");
