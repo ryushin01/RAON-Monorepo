@@ -20,7 +20,8 @@ export function FindReplace({
   const [query, setQuery] = useState(initialQuery);
   const [replacement, setReplacement] = useState("");
   const [index, setIndex] = useState(0);
-  const [message, setMessage] = useState("");
+  // 작업 결과는 그 작업 직후의 문서에서만 보여 준다. 이동하거나 본문을 고치면 위치와 개수를 다시 알린다.
+  const [result, setResult] = useState<{ text: string; doc: unknown } | null>(null);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -31,6 +32,13 @@ export function FindReplace({
     editor,
     selector: ({ editor: current }) => findRanges(current.state.doc, query),
   });
+  const doc = useEditorState({
+    editor,
+    selector: ({ editor: current }) => current.state.doc,
+    equalityFn: Object.is,
+  });
+  const message = result?.doc === doc ? result.text : "";
+  const report = (text: string) => setResult({ text, doc: editor.state.doc });
   const position = ranges.length ? Math.min(index, ranges.length - 1) : -1;
   const current = ranges[position] ?? null;
 
@@ -56,13 +64,14 @@ export function FindReplace({
     editor.view.dispatch(tr.setSelection(TextSelection.create(doc, range.from, range.to)).scrollIntoView());
   };
   const move = (delta: number) => {
+    setResult(null);
     if (ranges.length) reveal((position + delta + ranges.length) % ranges.length);
   };
 
   const replaceCurrent = () => {
     if (!current) return;
     editor.view.dispatch(applyEdits(editor.state.tr, [{ ...current, text: replacement }]));
-    setMessage("1건 바꿨습니다.");
+    report("1건 바꿨습니다.");
   };
   const replaceAll = () => {
     if (!ranges.length) return;
@@ -73,12 +82,12 @@ export function FindReplace({
       ),
     );
     setIndex(0);
-    setMessage(`${ranges.length}건 바꿨습니다.`);
+    report(`${ranges.length}건 바꿨습니다.`);
   };
   const normalize = () => {
     const edits = findSymbolEdits(editor.state.doc);
     if (edits.length) editor.view.dispatch(applyEdits(editor.state.tr, edits));
-    setMessage(edits.length ? `기호 ${edits.length}곳을 바꿨습니다.` : "바꿀 기호가 없습니다.");
+    report(edits.length ? `기호 ${edits.length}곳을 바꿨습니다.` : "바꿀 기호가 없습니다.");
   };
 
   return (
@@ -96,7 +105,7 @@ export function FindReplace({
           onChange={(event) => {
             setQuery(event.target.value);
             setIndex(0);
-            setMessage("");
+            setResult(null);
           }}
         />
         <TextField

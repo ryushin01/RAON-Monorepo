@@ -51,6 +51,29 @@ describe("WritingTools", () => {
     expect(screen.queryByRole("button", { name: "넣기: <b>굵게</b>" })).not.toBeInTheDocument();
   });
 
+  it("저장하지 못하면 입력을 남기고 알리며, 삭제 실패도 알린다", async () => {
+    render(<WritingTools editor={make("앞")} chars={1} onFind={() => {}} />);
+    open("상용구와 특수문자");
+    const input = screen.getByRole("textbox", { name: "새 상용구" });
+    await userEvent.type(input, "첫째");
+    await userEvent.click(screen.getByRole("button", { name: "상용구 등록" }));
+
+    const setItem = jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("가득 참");
+    });
+    await userEvent.type(input, "둘째");
+    await userEvent.click(screen.getByRole("button", { name: "상용구 등록" }));
+    expect(input).toHaveValue("둘째");
+    expect(input).toHaveAccessibleDescription(/저장하지 못했습니다/);
+    expect(screen.queryByRole("button", { name: "넣기: 둘째" })).not.toBeInTheDocument();
+
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByRole("button", { name: "삭제: 첫째" }));
+    expect(input).toHaveAccessibleDescription(/저장하지 못했습니다/);
+    expect(screen.getByRole("button", { name: "넣기: 첫째" })).toBeInTheDocument();
+    setItem.mockRestore();
+  });
+
   it("특수문자를 커서에 넣는다", async () => {
     const editor = make("앞");
     render(<WritingTools editor={editor} chars={1} onFind={() => {}} />);
@@ -115,6 +138,22 @@ describe("FindReplace", () => {
       editor.commands.undo();
     });
     expect(editor.getText()).toContain("등대");
+  });
+
+  it("작업 결과는 이동하거나 본문을 고치면 위치와 개수로 돌아간다", async () => {
+    const editor = setup("등대 등대 등대", "등대");
+    await userEvent.type(screen.getByRole("textbox", { name: "바꿀 글자" }), "횃불");
+    await userEvent.click(screen.getByRole("button", { name: "바꾸기" }));
+    expect(screen.getByRole("status")).toHaveTextContent("1건 바꿨습니다.");
+    await userEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(screen.getByRole("status")).toHaveTextContent("2 / 2건");
+
+    await userEvent.click(screen.getByRole("button", { name: "기호 정리" }));
+    expect(screen.getByRole("status")).toHaveTextContent("바꿀 기호가 없습니다.");
+    act(() => {
+      editor.commands.insertContentAt(1, "등대 ");
+    });
+    expect(screen.getByRole("status")).toHaveTextContent(/ \/ 3건/);
   });
 
   it("바꿀 글자를 비우면 찾은 글자를 지운다", async () => {

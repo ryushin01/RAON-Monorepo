@@ -170,14 +170,18 @@ function readPhrases(): string[] {
   return cachedPhrases;
 }
 
-function writePhrases(phrases: string[]) {
+/** 저장 공간이 가득 차거나 저장소가 막혀 있으면 false를 돌려준다. */
+function writePhrases(phrases: string[]): boolean {
   try {
     window.localStorage.setItem(PHRASES_KEY, JSON.stringify(phrases));
   } catch {
-    // 저장 공간이 가득 차도 글쓰기를 막지 않는다.
+    return false;
   }
   for (const listener of phraseListeners) listener();
+  return true;
 }
+
+const SAVE_FAILED = "이 브라우저에 저장하지 못했습니다. 저장 공간을 확인해 주세요.";
 
 function subscribePhrases(listener: () => void) {
   phraseListeners.add(listener);
@@ -218,7 +222,8 @@ function Phrases({ editor }: { editor: Editor }) {
           if (!text) return setError("등록할 상용구를 입력해 주세요.");
           if (phrases.includes(text)) return setError("이미 등록한 상용구입니다.");
           if (phrases.length >= MAX_PHRASES) return setError(`상용구는 ${MAX_PHRASES}개까지 등록할 수 있습니다.`);
-          writePhrases([...phrases, text]);
+          // 저장하지 못하면 입력을 남겨 다시 시도할 수 있게 한다.
+          if (!writePhrases([...phrases, text])) return setError(SAVE_FAILED);
           setDraft("");
           setError(undefined);
         }}
@@ -254,7 +259,9 @@ function Phrases({ editor }: { editor: Editor }) {
                 small
                 type="button"
                 aria-label={`삭제: ${phrase}`}
-                onClick={() => writePhrases(phrases.filter((item) => item !== phrase))}
+                onClick={() =>
+                  setError(writePhrases(phrases.filter((item) => item !== phrase)) ? undefined : SAVE_FAILED)
+                }
               >
                 삭제
               </Button>

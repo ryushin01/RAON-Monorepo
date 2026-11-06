@@ -397,22 +397,26 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
   };
 
   // 브라우저의 페이지 저장 대신 원고를 저장한다. 조합 키라 글자 입력과 겹치지 않는다(KWCAG 6.1.4).
+  const busy = save.isPending || publish.isPending;
   const saveShortcut = useRef(onSave);
   useEffect(() => {
-    saveShortcut.current = onSave;
+    // 저장 버튼이 막힌 동안에는 단축키도 막아 중복 저장을 만들지 않는다.
+    saveShortcut.current = () => {
+      if (!busy && editor) onSave();
+    };
   });
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        saveShortcut.current();
+        // 누르고 있어도 한 번만 저장한다.
+        if (!event.repeat) saveShortcut.current();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const busy = save.isPending || publish.isPending;
   const stateText = save.isPending
     ? "저장 중…"
     : failedRevision === revision

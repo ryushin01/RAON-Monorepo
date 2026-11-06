@@ -110,8 +110,47 @@ test("현재 단락만 보기는 커서가 있는 단락 말고 흐리게 한다
   await page.getByRole("link", { name: /^1화/ }).click();
   await page.getByRole("button", { name: "현재 단락만" }).click();
   await editorOf(page).locator("p").nth(1).click();
-  await expect(editorOf(page).locator("p").nth(1)).toHaveCSS("opacity", "1");
-  await expect(editorOf(page).locator("p").nth(0)).toHaveCSS("opacity", "0.3");
+  const colorOf = (index: number) =>
+    editorOf(page)
+      .locator("p")
+      .nth(index)
+      .evaluate((element) => getComputedStyle(element).color);
+  const clear = await page.evaluate(() => getComputedStyle(document.body).color);
+  await expect.poll(() => colorOf(1)).toBe(clear);
+  await expect.poll(() => colorOf(0)).not.toBe(clear);
+  await editorOf(page).locator("p").nth(0).click();
+  await expect.poll(() => colorOf(0)).toBe(clear);
+  await expect.poll(() => colorOf(1)).not.toBe(clear);
+});
+
+test("저장 단축키를 누르고 있어도 한 번만 저장하고, 처리 중에는 저장하지 않는다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.waitForURL("/studio");
+  await createWork(page, `단축키 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.keyboard.type("가");
+
+  let posts = 0;
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/*", async (route) => {
+    if (route.request().method() === "POST") {
+      posts += 1;
+      await held;
+    }
+    await route.continue();
+  });
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect(page.getByText(/저장 중/)).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+s");
+  await page.keyboard.press("ControlOrMeta+s");
+  expect(posts).toBe(1);
+  release();
+  await expect(page.getByRole("status").filter({ hasText: /에 저장했습니다/ })).toBeAttached();
 });
 
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {
