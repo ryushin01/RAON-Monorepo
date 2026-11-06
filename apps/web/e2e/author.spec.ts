@@ -53,6 +53,17 @@ test("찾기·바꾸기, 자동 따옴표, 저장 단축키, 분석 도구를 �
   await page.getByText("반복 표현", { exact: true }).click();
   await page.getByRole("button", { name: "등대를 3회" }).click();
   await expect(page.getByRole("status").filter({ hasText: "1 / 3건" })).toBeVisible();
+  // 찾은 글자를 본문에 실제로 표시하고, 지금 위치는 다르게 보여 준다.
+  const backgroundOf = (selector: string) =>
+    editorOf(page)
+      .locator(selector)
+      .first()
+      .evaluate((element) => getComputedStyle(element).backgroundColor);
+  await expect(editorOf(page).locator(".search-match")).toHaveCount(3);
+  const none = "rgba(0, 0, 0, 0)";
+  await expect.poll(() => backgroundOf(".search-current")).not.toBe(none);
+  await expect.poll(() => backgroundOf(".search-match:not(.search-current)")).not.toBe(none);
+  expect(await backgroundOf(".search-current")).not.toBe(await backgroundOf(".search-match:not(.search-current)"));
   await page.getByRole("textbox", { name: "바꿀 글자" }).fill("횃불을");
   await page.getByRole("button", { name: "모두 바꾸기" }).click();
   await expect(editorOf(page)).toContainText("“횃불을 켜라…” 그는 횃불을 횃불을 보았다.");

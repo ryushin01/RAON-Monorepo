@@ -472,7 +472,13 @@ function EpisodeEditorBody({
           <ButtonLink variant="ghost" small href={`/studio/works/${episode.workId}`} onNavigate={onLeave}>
             작품 관리로
           </ButtonLink>
-          <Button variant="secondary" small onClick={onSave} disabled={busy || !editor}>
+          <Button
+            variant="secondary"
+            small
+            onClick={onSave}
+            disabled={busy || !editor}
+            aria-keyshortcuts="Control+S Meta+S"
+          >
             저장
           </Button>
           {isDraft ? (
