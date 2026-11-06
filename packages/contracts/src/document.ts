@@ -42,8 +42,7 @@ export type EpisodeInline = z.infer<typeof inlineSchema>;
 
 export const EMPTY_DOC: EpisodeDoc = { type: "doc", content: [{ type: "paragraph" }] };
 
-/** 공백을 뺀 글자 수. 공개 조건과 작가 화면의 글자 수 표시에 함께 쓴다. */
-export function countChars(doc: EpisodeDoc): number {
+function sumText(doc: EpisodeDoc, measure: (text: string) => number): number {
   let count = 0;
   const visit = (block: EpisodeBlock) => {
     if (block.type === "horizontalRule") return;
@@ -52,11 +51,21 @@ export function countChars(doc: EpisodeDoc): number {
       return;
     }
     for (const inline of block.content ?? []) {
-      if (inline.type === "text") count += inline.text.replace(/\s/g, "").length;
+      if (inline.type === "text") count += measure(inline.text);
     }
   };
   doc.content.forEach(visit);
   return count;
+}
+
+/** 공백을 뺀 글자 수. 공개 조건과 작가 화면의 글자 수 표시에 함께 쓴다. */
+export function countChars(doc: EpisodeDoc): number {
+  return sumText(doc, (text) => text.replace(/\s/g, "").length);
+}
+
+/** 공백을 포함한 글자 수. 웹소설 분량의 기준이다. 문단 구분과 줄바꿈은 세지 않는다. */
+export function countCharsWithSpaces(doc: EpisodeDoc): number {
+  return sumText(doc, (text) => text.length);
 }
 
 /** 일반 텍스트를 문단 문서로 바꾼다. 빈 줄이 문단 구분이다. 시드 데이터와 테스트에서 쓴다. */

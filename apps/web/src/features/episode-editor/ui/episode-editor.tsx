@@ -1,6 +1,12 @@
 "use client";
 
-import { countChars, type EpisodeDoc, type EpisodeInput, type StudioEpisode } from "@raon/contracts";
+import {
+  countChars,
+  countCharsWithSpaces,
+  type EpisodeDoc,
+  type EpisodeInput,
+  type StudioEpisode,
+} from "@raon/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
@@ -12,6 +18,7 @@ import { UNTITLED } from "../model/constants";
 import { clearBackup, type DraftBackup, loggedOutSince, readBackup, writeBackup } from "../model/draft-backup";
 import { isScheduled, toPublishAt } from "../model/schedule";
 import { useAutosave } from "../model/use-autosave";
+import { CharGoal } from "./char-goal";
 import styles from "./episode-editor.module.scss";
 import { editorExtensions } from "./extensions";
 
@@ -168,6 +175,9 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
     editorProps: {
       attributes: { "aria-labelledby": contentLabelId, "aria-multiline": "true", role: "textbox" },
     },
+    // 도구 모음과 글자 수는 트랜잭션 때 다시 계산하는데, 문서가 준비된 뒤에는 트랜잭션이 없어 0자로 남는다.
+    // 내용이 바뀌지 않는 빈 트랜잭션이라 변경 사항이나 실행 취소 기록에는 남지 않는다.
+    onCreate: ({ editor: created }) => created.view.dispatch(created.state.tr.setMeta("addToHistory", false)),
     onUpdate: touch,
   });
 
@@ -182,6 +192,7 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
             canUndo: current.can().undo(),
             canRedo: current.can().redo(),
             chars: countChars(current.getJSON() as EpisodeDoc),
+            charsWithSpaces: countCharsWithSpaces(current.getJSON() as EpisodeDoc),
           }
         : null,
   });
@@ -486,7 +497,7 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
           </button>
         </div>
         <EditorContent editor={editor} className={styles.content} />
-        <p className={styles.count}>공백 제외 {(toolbar?.chars ?? 0).toLocaleString("ko-KR")}자</p>
+        <CharGoal withSpaces={toolbar?.charsWithSpaces ?? 0} withoutSpaces={toolbar?.chars ?? 0} />
       </div>
 
       {isDraft && (

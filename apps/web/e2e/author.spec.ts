@@ -12,6 +12,32 @@ async function createWork(page: Page, title: string) {
 
 const editorOf = (page: Page) => page.getByRole("textbox", { name: "본문" });
 
+test("공백 포함 글자 수와 회차 목표를 보여 주고, 목표는 다시 열어도 유지한다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.waitForURL("/studio");
+  await createWork(page, `글자 수 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+
+  await editorOf(page).click();
+  await page.keyboard.type("가나 다라");
+  await expect(page.getByText("공백 포함 5자 · 공백 제외 4자")).toBeVisible();
+  await expect(page.getByText("목표 5,000자까지 4,995자 남음")).toBeVisible();
+
+  // 입력을 다시 받아도 초점과 본문을 잃지 않는다.
+  const goal = page.getByRole("textbox", { name: /회차 목표/ });
+  await goal.fill("5");
+  await expect(goal).toBeFocused();
+  await expect(page.getByRole("status").filter({ hasText: "목표 5자를 달성했습니다." })).toBeVisible();
+  await expect(editorOf(page)).toContainText("가나 다라");
+
+  // 다시 열면 입력하기 전에도 저장된 본문의 글자 수를 보여 준다.
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: /회차 목표/ })).toHaveValue("5");
+  await expect(page.getByText("공백 포함 5자 · 공백 제외 4자")).toBeVisible();
+});
+
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {
   const title = `테스트 작품 ${Date.now()}`;
   await login(page, AUTHOR, "작가");
