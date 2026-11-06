@@ -172,6 +172,34 @@ test("별점 저장 뒤 화면을 새로 받는 동안에도 점수를 유지하
   await expect(score).toHaveAttribute("aria-pressed", "false");
 });
 
+test("선호작 저장 뒤 화면을 새로 받는 동안 눌러도 상태가 어긋나지 않는다", async ({ page }) => {
+  await login(page, READER, "일반 회원");
+  await page.goto("/works?q=궤도");
+  await page.getByRole("link", { name: "궤도 위의 우체부" }).click();
+  const button = page.getByRole("button", { name: /선호작/ });
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    if (request.method() === "GET" && request.headers().rsc) await held;
+    await route.continue();
+  });
+
+  const saved = page.waitForResponse((response) => response.request().method() === "POST");
+  await button.click();
+  await saved;
+  await expect(button).toHaveAttribute("aria-disabled", "false");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+
+  release();
+  await button.press("Enter");
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+});
+
 test("태그와 별점순으로 찾고, 뱃지를 글자로 보여 준다", async ({ page }) => {
   await page.goto("/works?q=유리");
   await page.getByRole("link", { name: "유리 정원의 살인" }).click();

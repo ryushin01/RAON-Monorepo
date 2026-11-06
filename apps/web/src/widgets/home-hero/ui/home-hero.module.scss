@@ -42,9 +42,17 @@
 }
 
 .title {
-  font-size: clamp(1.75rem, 5vw, 3.5rem);
+  font-size: 1.75rem;
   font-weight: 500;
   line-height: 1.15;
+
+  @media (width >= 48rem) {
+    font-size: 2.75rem;
+  }
+
+  @media (width >= 72rem) {
+    font-size: 3.5rem;
+  }
 }
 
 .lead {

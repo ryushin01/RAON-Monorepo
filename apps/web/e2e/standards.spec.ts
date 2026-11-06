@@ -127,6 +127,36 @@ test.describe("KWCAG 운용", () => {
     }
   });
 
+  // 머리글 배경에 그라디언트를 써서 axe가 대비를 판정하지 못하므로 직접 계산한다(KWCAG 5.4.3).
+  for (const theme of ["light", "dark"] as const) {
+    test(`5.4.3 ${theme} 머리글의 글자가 판 색과 4.5:1 이상 대비된다`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.goto("/");
+      const nav = page.getByRole("navigation", { name: "주요 메뉴" });
+      const ratios = await nav.evaluate((element) => {
+        const luminance = (color: string) => {
+          const [r, g, b] = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map((value) => {
+            const channel = Number(value) / 255;
+            return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
+        };
+        const panel = element.parentElement as HTMLElement;
+        const background = luminance(getComputedStyle(panel).backgroundColor);
+        const contrast = (color: string) => {
+          const value = luminance(color);
+          return (Math.max(value, background) + 0.05) / (Math.min(value, background) + 0.05);
+        };
+        return [...panel.querySelectorAll<HTMLElement>("a, input")].map((item) => ({
+          text: item.textContent || item.getAttribute("placeholder"),
+          ratio: contrast(getComputedStyle(item).color),
+        }));
+      });
+      expect(ratios.length).toBeGreaterThan(0);
+      for (const { text, ratio } of ratios) expect(ratio, text ?? "").toBeGreaterThanOrEqual(4.5);
+    });
+  }
+
   test("6.1.2 가로로 스크롤하는 머리글 메뉴가 초점 표시를 자르지 않는다", async ({ page }) => {
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "주요 메뉴" });

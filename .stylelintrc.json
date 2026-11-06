@@ -11,6 +11,9 @@
         "ignorePseudoClasses": ["global"]
       }
     ],
-    "property-no-vendor-prefix": null
+    "property-no-vendor-prefix": null,
+    "declaration-property-value-disallowed-list": {
+      "font-size": ["/\\d(vw|vh|vmin|vmax)/"]
+    }
   }
 }
