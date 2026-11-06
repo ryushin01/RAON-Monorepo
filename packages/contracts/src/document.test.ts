@@ -1,4 +1,4 @@
-import { countChars, docFromText, EMPTY_DOC, episodeDocSchema } from "./document.js";
+import { countChars, countCharsWithSpaces, docFromText, EMPTY_DOC, episodeDocSchema } from "./document.js";
 
 describe("episodeDocSchema", () => {
   it("에디터 문서를 받아들인다", () => {
@@ -41,6 +41,27 @@ describe("episodeDocSchema", () => {
     ["알 수 없는 속성", { type: "doc", content: [{ type: "paragraph", attrs: { onclick: "x" } }] }],
   ])("%s는 거부한다", (_, doc) => {
     expect(episodeDocSchema.safeParse(doc).success).toBe(false);
+  });
+});
+
+describe("countCharsWithSpaces", () => {
+  it("공백은 세고 문단 구분과 구분선은 세지 않는다", () => {
+    const doc = docFromText("가 나\n\n다");
+    expect(countCharsWithSpaces(doc)).toBe(4);
+    expect(countChars(doc)).toBe(3);
+    expect(countCharsWithSpaces({ type: "doc", content: [{ type: "horizontalRule" }] })).toBe(0);
+  });
+
+  it("인용문 안의 글자도 세고 줄바꿈은 세지 않는다", () => {
+    const paragraph = {
+      type: "paragraph" as const,
+      content: [{ type: "text" as const, text: "가 나" }, { type: "hardBreak" as const }],
+    };
+    expect(countCharsWithSpaces({ type: "doc", content: [{ type: "blockquote", content: [paragraph] }] })).toBe(3);
+  });
+
+  it("빈 문서는 0이다", () => {
+    expect(countCharsWithSpaces(EMPTY_DOC)).toBe(0);
   });
 });
 

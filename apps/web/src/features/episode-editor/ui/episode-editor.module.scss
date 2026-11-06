@@ -91,7 +91,7 @@
     align-content: start;
     min-height: 60dvh;
     padding: 1.5rem;
-    border: 1px solid var(--panel-bg);
+    border: 1px solid var(--muted);
     border-radius: 0 0 var(--radius) var(--radius);
     font-family: var(--font-serif);
     font-size: 1.0625rem;
@@ -125,14 +125,6 @@
       pointer-events: none;
     }
   }
-}
-
-.count {
-  color: var(--muted);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
-  font-size: 0.8125rem;
-  text-align: right;
 }
 
 .check {

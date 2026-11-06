@@ -218,6 +218,8 @@ test.describe("KWCAG 운용", () => {
     await editor.focus();
     await page.keyboard.press("Tab");
     await expect(editor).not.toBeFocused();
+    await expect(page.getByRole("textbox", { name: /회차 목표/ })).toBeFocused();
+    await page.keyboard.press("Tab");
     await expect(page.getByRole("checkbox", { name: "무료 회차로 공개" })).toBeFocused();
   });
 });
