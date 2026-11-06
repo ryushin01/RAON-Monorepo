@@ -17,6 +17,12 @@ it("공백 포함과 제외 글자 수, 기본 목표까지 남은 분량을 보
   expect(screen.getByRole("status")).toBeEmptyDOMElement();
 });
 
+it("간단히 보기에서는 입력 칸을 숨기고 분량과 진행은 남긴다", () => {
+  render(<CharGoal withSpaces={1200} withoutSpaces={1000} compact />);
+  expect(screen.queryByRole("textbox", { name: /회차 목표/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("progressbar")).toBeInTheDocument();
+});
+
 it("목표를 넘으면 상태 영역에 알리고 진행 막대는 목표에서 멈춘다", () => {
   render(<CharGoal withSpaces={6000} withoutSpaces={5000} />);
   expect(screen.getByRole("status")).toHaveTextContent("목표 5,000자를 달성했습니다.");

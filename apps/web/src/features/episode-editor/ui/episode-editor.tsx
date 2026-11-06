@@ -10,17 +10,20 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { formatDateTime } from "@/shared/lib";
 import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
 import { fetchEpisode, saveEpisode, setEpisodePublished } from "../api/actions";
 import { UNTITLED } from "../model/constants";
 import { clearBackup, type DraftBackup, loggedOutSince, readBackup, writeBackup } from "../model/draft-backup";
+import { DEFAULT_EDITOR_PREFS, readEditorPrefs, subscribeEditorPrefs, toggleEditorPref } from "../model/editor-prefs";
 import { isScheduled, toPublishAt } from "../model/schedule";
 import { useAutosave } from "../model/use-autosave";
 import { CharGoal } from "./char-goal";
 import styles from "./episode-editor.module.scss";
 import { editorExtensions } from "./extensions";
+import { FindReplace } from "./find-replace";
+import { WritingTools } from "./writing-tools";
 
 const AUTOSAVE_MS = 2000;
 const RETRY_MS = 15_000;
@@ -135,6 +138,9 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
   const [scheduleAt, setScheduleAt] = useState("");
   const [scheduleError, setScheduleError] = useState<string>();
   const scheduleInputRef = useRef<HTMLInputElement>(null);
+  const prefs = useSyncExternalStore(subscribeEditorPrefs, readEditorPrefs, () => DEFAULT_EDITOR_PREFS);
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
 
   // localStorage는 브라우저에만 있으므로 화면을 그린 뒤에 읽는다.
   useEffect(() => {
@@ -196,6 +202,24 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
           }
         : null,
   });
+
+  useEffect(() => {
+    if (editor) editor.storage.smartInput.enabled = prefs.smartInput;
+  }, [editor, prefs.smartInput]);
+
+  // 쓰고 있는 줄을 화면 가운데에 둔다. 다른 입력 칸에 있을 때는 화면을 옮기지 않는다.
+  useEffect(() => {
+    if (!editor || !prefs.typewriter) return;
+    const center = () => {
+      if (!editor.view.hasFocus()) return;
+      const { top } = editor.view.coordsAtPos(editor.state.selection.head);
+      window.scrollBy({ top: top - window.innerHeight / 2 });
+    };
+    editor.on("selectionUpdate", center);
+    return () => {
+      editor.off("selectionUpdate", center);
+    };
+  }, [editor, prefs.typewriter]);
 
   const save = useMutation({
     // 같은 scope의 저장은 앞의 요청이 끝난 뒤에 나간다. 늦게 끝난 옛 요청이 최신 원고를 덮어쓰지 않게 한다.
@@ -372,6 +396,22 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
     else scheduleInputRef.current?.focus();
   };
 
+  // 브라우저의 페이지 저장 대신 원고를 저장한다. 조합 키라 글자 입력과 겹치지 않는다(KWCAG 6.1.4).
+  const saveShortcut = useRef(onSave);
+  useEffect(() => {
+    saveShortcut.current = onSave;
+  });
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveShortcut.current();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const busy = save.isPending || publish.isPending;
   const stateText = save.isPending
     ? "저장 중…"
@@ -448,59 +488,99 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
         </div>
       )}
 
-      <TextField
-        label="회차 제목"
-        value={title}
-        maxLength={60}
-        hint="비워 두면 ‘제목 없음’으로 저장합니다."
-        onChange={(event) => {
-          setTitle(event.target.value);
-          touch();
-        }}
-      />
+      <div hidden={prefs.focus}>
+        <TextField
+          label="회차 제목"
+          value={title}
+          maxLength={60}
+          hint="비워 두면 ‘제목 없음’으로 저장합니다."
+          onChange={(event) => {
+            setTitle(event.target.value);
+            touch();
+          }}
+        />
+      </div>
 
       <div className={styles.surface}>
         <span id={contentLabelId} className={styles.label}>
           본문
         </span>
-        {/* biome-ignore lint/a11y/useSemanticElements: 입력 요소가 아닌 서식 버튼 묶음이라 fieldset이 맞지 않는다. */}
-        <div className={styles.toolbar} role="group" aria-label="본문 서식">
-          <button
-            type="button"
-            aria-pressed={toolbar?.bold ?? false}
-            onClick={() => editor?.chain().focus().toggleBold().run()}
-          >
-            굵게
-          </button>
-          <button
-            type="button"
-            aria-pressed={toolbar?.italic ?? false}
-            onClick={() => editor?.chain().focus().toggleItalic().run()}
-          >
-            기울임
-          </button>
-          <button
-            type="button"
-            aria-pressed={toolbar?.blockquote ?? false}
-            onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-          >
-            인용
-          </button>
-          <button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>
-            구분선
-          </button>
-          <button type="button" disabled={!toolbar?.canUndo} onClick={() => editor?.chain().focus().undo().run()}>
-            실행 취소
-          </button>
-          <button type="button" disabled={!toolbar?.canRedo} onClick={() => editor?.chain().focus().redo().run()}>
-            다시 실행
-          </button>
+        <div className={styles.toolbar}>
+          {/* biome-ignore lint/a11y/useSemanticElements: 입력 요소가 아닌 서식 버튼 묶음이라 fieldset이 맞지 않는다. */}
+          <div className={styles.group} role="group" aria-label="본문 서식">
+            <button
+              type="button"
+              aria-pressed={toolbar?.bold ?? false}
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+            >
+              굵게
+            </button>
+            <button
+              type="button"
+              aria-pressed={toolbar?.italic ?? false}
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+            >
+              기울임
+            </button>
+            <button
+              type="button"
+              aria-pressed={toolbar?.blockquote ?? false}
+              onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+            >
+              인용
+            </button>
+            <button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>
+              구분선
+            </button>
+            <button type="button" disabled={!toolbar?.canUndo} onClick={() => editor?.chain().focus().undo().run()}>
+              실행 취소
+            </button>
+            <button type="button" disabled={!toolbar?.canRedo} onClick={() => editor?.chain().focus().redo().run()}>
+              다시 실행
+            </button>
+          </div>
+          {/* biome-ignore lint/a11y/useSemanticElements: 입력 요소가 아닌 보기 버튼 묶음이라 fieldset이 맞지 않는다. */}
+          <div className={styles.group} role="group" aria-label="집필 보기">
+            <button type="button" aria-pressed={prefs.focus} onClick={() => toggleEditorPref("focus")}>
+              집중 모드
+            </button>
+            <button type="button" aria-pressed={prefs.typewriter} onClick={() => toggleEditorPref("typewriter")}>
+              타이프라이터
+            </button>
+            <button type="button" aria-pressed={prefs.dim} onClick={() => toggleEditorPref("dim")}>
+              현재 단락만
+            </button>
+            <button type="button" aria-pressed={prefs.smartInput} onClick={() => toggleEditorPref("smartInput")}>
+              자동 따옴표
+            </button>
+            <button type="button" aria-pressed={findOpen} onClick={() => setFindOpen((value) => !value)}>
+              찾기·바꾸기
+            </button>
+          </div>
         </div>
-        <EditorContent editor={editor} className={styles.content} />
-        <CharGoal withSpaces={toolbar?.charsWithSpaces ?? 0} withoutSpaces={toolbar?.chars ?? 0} />
+        {findOpen && editor && (
+          <FindReplace editor={editor} initialQuery={findQuery} onClose={() => setFindOpen(false)} />
+        )}
+        <EditorContent editor={editor} className={styles.content} data-dim={prefs.dim || undefined} />
+        <CharGoal
+          withSpaces={toolbar?.charsWithSpaces ?? 0}
+          withoutSpaces={toolbar?.chars ?? 0}
+          compact={prefs.focus}
+        />
       </div>
 
-      {isDraft && (
+      {editor && !prefs.focus && (
+        <WritingTools
+          editor={editor}
+          chars={toolbar?.charsWithSpaces ?? 0}
+          onFind={(text) => {
+            setFindQuery(text);
+            setFindOpen(true);
+          }}
+        />
+      )}
+
+      {isDraft && !prefs.focus && (
         <div className={styles.schedule}>
           <TextField
             ref={scheduleInputRef}
@@ -517,7 +597,7 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
         </div>
       )}
 
-      <label className={styles.check}>
+      <label className={styles.check} hidden={prefs.focus}>
         <input
           type="checkbox"
           checked={isFree}
@@ -529,16 +609,18 @@ function EpisodeEditorBody({ episode: initial }: { episode: StudioEpisode }) {
         무료 회차로 공개
       </label>
 
-      <TextAreaField
-        label="작가의 말"
-        value={authorNote}
-        maxLength={500}
-        hint="본문 아래에 보입니다. 비워 두어도 됩니다."
-        onChange={(event) => {
-          setAuthorNote(event.target.value);
-          touch();
-        }}
-      />
+      <div hidden={prefs.focus}>
+        <TextAreaField
+          label="작가의 말"
+          value={authorNote}
+          maxLength={500}
+          hint="본문 아래에 보입니다. 비워 두어도 됩니다."
+          onChange={(event) => {
+            setAuthorNote(event.target.value);
+            touch();
+          }}
+        />
+      </div>
     </div>
   );
 }

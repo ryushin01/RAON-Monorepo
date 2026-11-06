@@ -40,9 +40,19 @@
   font-weight: 600;
 }
 
-.toolbar {
+.group {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.25rem;
+
+  & + & {
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--panel-line);
+  }
+}
+
+.toolbar {
+  display: grid;
   gap: 0.25rem;
   padding: 0.25rem;
   border-radius: var(--radius) var(--radius) 0 0;
@@ -103,6 +113,16 @@
       box-shadow: none;
     }
 
+    .search-match {
+      background: var(--surface);
+      text-decoration: underline;
+    }
+
+    .search-current {
+      background: var(--fg);
+      color: var(--bg);
+    }
+
     blockquote {
       display: grid;
       gap: 1.2em;
@@ -125,6 +145,11 @@
       pointer-events: none;
     }
   }
+}
+
+/* 사용자가 켠 집필 보기다. 흐린 글자도 커서를 옮기면 바로 또렷해진다. */
+.content[data-dim] :global(.tiptap) > :not(:global(.is-current)) {
+  opacity: 0.3;
 }
 
 .check {
