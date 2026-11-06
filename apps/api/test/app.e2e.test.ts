@@ -23,6 +23,7 @@ import {
   orderItems as orderItemsTable,
   users,
   users as usersTable,
+  workNotes as workNotesTable,
   works as worksTable,
 } from "../src/db/schema.js";
 import { seedDemoData } from "../src/db/seed.js";
@@ -1158,6 +1159,159 @@ describe("RAON API", () => {
         .set(bearer(owner.accessToken))
         .send({ label: "가".repeat(41) })
         .expect(400);
+    });
+  });
+
+  describe("설정집과 메모", () => {
+    const note = (overrides = {}) => ({
+      kind: "SETTING",
+      category: " 인물 ",
+      title: "이안",
+      aliases: ["등대지기", "등대지기", "막내"],
+      body: "소금 사막의 등대를 지키는 사람.",
+      episodeId: null,
+      ...overrides,
+    });
+
+    async function setup() {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      return { token: author.accessToken, work };
+    }
+
+    it("문서를 만들고 고치고 지우며, 값을 정리해 저장한다", async () => {
+      const { token, work } = await setup();
+      const created = await http().post(`/studio/works/${work.id}/notes`).set(bearer(token)).send(note()).expect(201);
+      expect(created.body).toMatchObject({ category: "인물", aliases: ["등대지기", "막내"], episodeId: null });
+
+      const updated = await http()
+        .put(`/studio/notes/${created.body.id}`)
+        .set(bearer(token))
+        .send(note({ title: "고친 이름" }))
+        .expect(200);
+      expect(updated.body.title).toBe("고친 이름");
+
+      const list = await http().get(`/studio/works/${work.id}/notes`).set(bearer(token)).expect(200);
+      expect(list.body.map((item: { id: string }) => item.id)).toEqual([created.body.id]);
+
+      await http().delete(`/studio/notes/${created.body.id}`).set(bearer(token)).expect(204);
+      await http().put(`/studio/notes/${created.body.id}`).set(bearer(token)).send(note()).expect(404);
+    });
+
+    it("입력을 검사한다", async () => {
+      const { token, work } = await setup();
+      const res = await http()
+        .post(`/studio/works/${work.id}/notes`)
+        .set(bearer(token))
+        .send(note({ title: "  " }))
+        .expect(400);
+      expect(res.body.fieldErrors.title).toBeDefined();
+      await http()
+        .post(`/studio/works/${work.id}/notes`)
+        .set(bearer(token))
+        .send(note({ aliases: Array.from({ length: 11 }, (_, index) => `이름${index}`) }))
+        .expect(400);
+    });
+
+    it("회차 메모는 메모 종류이고 그 작품의 회차에만 달 수 있으며, 회차를 지우면 함께 사라진다", async () => {
+      const { token, work } = await setup();
+      const other = await setup();
+      const detail = (await http().get(`/studio/works/${work.id}`).set(bearer(token)).expect(200))
+        .body as StudioWorkDetail;
+      const episode = detail.episodes[0]?.id as string;
+      const foreign = (await http().get(`/studio/works/${other.work.id}`).set(bearer(other.token)).expect(200))
+        .body as StudioWorkDetail;
+
+      await http()
+        .post(`/studio/works/${work.id}/notes`)
+        .set(bearer(token))
+        .send(note({ episodeId: episode }))
+        .expect(400);
+      await http()
+        .post(`/studio/works/${work.id}/notes`)
+        .set(bearer(token))
+        .send(note({ kind: "MEMO", episodeId: foreign.episodes[0]?.id }))
+        .expect(400);
+      await http()
+        .post(`/studio/works/${work.id}/notes`)
+        .set(bearer(token))
+        .send(note({ kind: "MEMO", episodeId: episode }))
+        .expect(201);
+
+      const draft = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(bearer(token))
+        .send({ title: "초안", content: doc, authorNote: null, isFree: false })
+        .expect(201);
+      await http()
+        .post(`/studio/works/${work.id}/notes`)
+        .set(bearer(token))
+        .send(note({ kind: "MEMO", title: "초안 메모", episodeId: draft.body.id }))
+        .expect(201);
+      await http().delete(`/studio/episodes/${draft.body.id}`).set(bearer(token)).expect(204);
+      const list = await http().get(`/studio/works/${work.id}/notes`).set(bearer(token)).expect(200);
+      expect(list.body.map((item: { title: string }) => item.title)).toEqual(["이안"]);
+    });
+
+    it("다른 작가의 문서는 다룰 수 없고, 독자는 쓸 수 없다", async () => {
+      const { token, work } = await setup();
+      const other = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const created = await http().post(`/studio/works/${work.id}/notes`).set(bearer(token)).send(note()).expect(201);
+      const id = created.body.id as string;
+      await http().get(`/studio/works/${work.id}/notes`).set(bearer(other.accessToken)).expect(404);
+      await http().post(`/studio/works/${work.id}/notes`).set(bearer(other.accessToken)).send(note()).expect(404);
+      await http().put(`/studio/notes/${id}`).set(bearer(other.accessToken)).send(note()).expect(404);
+      await http().delete(`/studio/notes/${id}`).set(bearer(other.accessToken)).expect(404);
+      await http()
+        .get(`/studio/works/${work.id}/search`)
+        .query({ q: "이안" })
+        .set(bearer(other.accessToken))
+        .expect(404);
+      await http().get(`/studio/works/${work.id}/notes`).set(bearer(reader.accessToken)).expect(403);
+    });
+
+    it("문서 수를 제한한다", async () => {
+      const { token, work } = await setup();
+      await db.insert(workNotesTable).values(
+        Array.from({ length: 500 }, (_, index) => ({
+          workId: work.id,
+          kind: "SETTING" as const,
+          title: `문서${index}`,
+        })),
+      );
+      await http().post(`/studio/works/${work.id}/notes`).set(bearer(token)).send(note()).expect(409);
+    });
+
+    it("회차와 문서를 함께 검색하고, 대소문자와 다른 이름도 찾으며, 앞뒤 글자를 보여 준다", async () => {
+      const { token, work } = await setup();
+      await http()
+        .post(`/studio/works/${work.id}/notes`)
+        .set(bearer(token))
+        .send(note({ title: "Raon 기록", aliases: ["둘째 문단"], body: "" }))
+        .expect(201);
+
+      const found = await http()
+        .get(`/studio/works/${work.id}/search`)
+        .query({ q: "둘째 문단" })
+        .set(bearer(token))
+        .expect(200);
+      expect(found.body.episodes).toHaveLength(3);
+      expect(found.body.episodes[0]).toMatchObject({ number: 1, matches: 1 });
+      expect(found.body.episodes[0].snippet).toContain("둘째 문단");
+      expect(found.body.notes[0]).toMatchObject({ title: "Raon 기록", kind: "SETTING" });
+
+      const upper = await http()
+        .get(`/studio/works/${work.id}/search`)
+        .query({ q: "RAON" })
+        .set(bearer(token))
+        .expect(200);
+      expect(upper.body.notes).toHaveLength(1);
+
+      // 특수문자는 일반 글자로 찾는다.
+      const none = await http().get(`/studio/works/${work.id}/search`).query({ q: "%" }).set(bearer(token)).expect(200);
+      expect(none.body).toEqual({ episodes: [], notes: [] });
+      await http().get(`/studio/works/${work.id}/search`).query({ q: " " }).set(bearer(token)).expect(400);
     });
   });
 

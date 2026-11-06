@@ -5,6 +5,8 @@ import { CatalogService } from "./catalog/catalog.service.js";
 import { CommerceController } from "./commerce/commerce.controller.js";
 import { CommerceService } from "./commerce/commerce.service.js";
 import { DatabaseModule } from "./db/database.module.js";
+import { NotesController } from "./studio/notes.controller.js";
+import { NotesService } from "./studio/notes.service.js";
 import { StudioController } from "./studio/studio.controller.js";
 import { StudioService } from "./studio/studio.service.js";
 
@@ -18,7 +20,7 @@ class HealthController {
 
 @Module({
   imports: [DatabaseModule, AuthModule],
-  controllers: [HealthController, CatalogController, CommerceController, StudioController],
-  providers: [CatalogService, CommerceService, StudioService],
+  controllers: [HealthController, CatalogController, CommerceController, StudioController, NotesController],
+  providers: [CatalogService, CommerceService, StudioService, NotesService],
 })
 export class AppModule {}
