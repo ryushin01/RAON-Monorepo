@@ -6,20 +6,21 @@
   aspect-ratio: 3 / 4;
   padding: 0.75rem;
   overflow: hidden;
-  border: 1px solid var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--cover-bg);
   color: var(--cover-fg);
   container-type: inline-size;
 }
 
 .dark {
-  --cover-bg: #0a0a0a;
-  --cover-fg: #fafafa;
+  --cover-bg: #232323;
+  --cover-fg: #f1eee7;
 }
 
 .light {
-  --cover-bg: #fafafa;
-  --cover-fg: #0a0a0a;
+  --cover-bg: #f1eee7;
+  --cover-fg: #232323;
 }
 
 .pattern {
@@ -46,9 +47,13 @@
     linear-gradient(90deg, var(--cover-fg) 1px, transparent 1px) 0 0 / 16% 100%;
 }
 
+/* 무늬가 글자를 가로지르지 않도록 제목과 작가 뒤를 표지 색으로 덮는다. */
 .title {
   position: relative;
-  font-family: var(--font-serif);
+  margin: -0.75rem -0.75rem 0;
+  padding: 0.75rem;
+  background: var(--cover-bg);
+  font-family: var(--font-sans);
   font-size: clamp(0.8125rem, 11cqi, 1.75rem);
   font-weight: 700;
   line-height: 1.25;
@@ -58,6 +63,9 @@
 
 .author {
   position: relative;
+  margin: 0 -0.75rem -0.75rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  background: var(--cover-bg);
   font-size: clamp(0.6875rem, 6.5cqi, 0.9375rem);
 }
 

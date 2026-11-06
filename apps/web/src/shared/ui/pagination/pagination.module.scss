@@ -14,6 +14,10 @@
   min-width: 2.75rem;
   min-height: 2.75rem;
   border: 1px solid transparent;
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
+  font-size: 0.875rem;
+  border-radius: var(--radius);
   text-decoration: none;
 
   &:hover {

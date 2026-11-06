@@ -1,13 +1,19 @@
 .footer {
+  --fg: var(--panel-fg);
+  --muted: var(--panel-muted);
   margin-top: 4rem;
-  padding-block: 2rem;
-  border-top: 2px solid var(--fg);
+  padding-block: 3rem;
+  background: var(--panel-bg);
   color: var(--muted);
-  font-size: 0.875rem;
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
+  font-size: 0.8125rem;
 
   strong {
     color: var(--fg);
-    font-family: var(--font-serif);
-    letter-spacing: 0.12em;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
   }
 }

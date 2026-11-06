@@ -2,6 +2,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { Button, Notice } from "@/shared/ui";
 import { setRating } from "../api/actions";
 import styles from "./work-rating.module.scss";
@@ -11,14 +12,17 @@ const SCORES = [1, 2, 3, 4, 5] as const;
 /** 같은 점수를 다시 누르면 지운다. 라디오는 선택만으로 저장하면 7.2.1에 어긋나므로 버튼으로 만든다. */
 export function WorkRating({ workId, myRating }: { workId: string; myRating: number | null }) {
   const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
   const rate = useMutation({
     mutationFn: async (score: number | null) => {
       const result = await setRating(workId, score);
       if (!result.ok) throw new Error(result.message);
     },
-    onSuccess: () => router.refresh(),
+    onSuccess: () => startRefresh(() => router.refresh()),
   });
-  const current = rate.isPending ? rate.variables : myRating;
+  // 저장이 끝나도 새 화면을 받기 전까지 myRating은 옛값이다. 이때 누르면 지우지 않고 같은 점수를 다시 저장하므로 함께 막는다.
+  const busy = rate.isPending || refreshing;
+  const current = busy ? rate.variables : myRating;
   // disabled는 키보드 초점을 빼앗으므로(KWCAG 6.1.2) 처리 중에는 aria-disabled로 표시하고 코드에서 막는다.
 
   return (
@@ -34,9 +38,9 @@ export function WorkRating({ workId, myRating }: { workId: string; myRating: num
             variant={current === score ? "primary" : "secondary"}
             small
             aria-pressed={current === score}
-            aria-disabled={rate.isPending}
+            aria-disabled={busy}
             onClick={() => {
-              if (!rate.isPending) rate.mutate(current === score ? null : score);
+              if (!busy) rate.mutate(current === score ? null : score);
             }}
           >
             {score}점

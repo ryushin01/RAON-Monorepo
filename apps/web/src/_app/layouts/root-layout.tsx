@@ -1,11 +1,13 @@
 import "../styles/global.scss";
 
 import type { Metadata } from "next";
-import { Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 import type { ReactNode } from "react";
 import { PREFERENCES_SCRIPT } from "@/shared/config";
 import { QueryProvider } from "../providers/query-provider";
 
+const geist = Geist({ variable: "--font-geist", subsets: ["latin"], display: "swap" });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
 const sans = Noto_Sans_KR({ variable: "--font-noto-sans", subsets: ["latin"], preload: false, display: "swap" });
 const serif = Noto_Serif_KR({
   variable: "--font-noto-serif",
@@ -23,7 +25,11 @@ export const rootMetadata: Metadata = {
 export function RootLayout({ children }: { children: ReactNode }) {
   return (
     // 저장된 테마를 스크립트가 html 속성으로 먼저 적용하므로 이 속성의 불일치는 의도한 것이다.
-    <html lang="ko" className={`${sans.variable} ${serif.variable}`} suppressHydrationWarning>
+    <html
+      lang="ko"
+      className={`${geist.variable} ${geistMono.variable} ${sans.variable} ${serif.variable}`}
+      suppressHydrationWarning
+    >
       <body>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: 코드에 고정한 문자열이며 사용자 입력이 들어가지 않는다. */}
         <script dangerouslySetInnerHTML={{ __html: PREFERENCES_SCRIPT }} />
