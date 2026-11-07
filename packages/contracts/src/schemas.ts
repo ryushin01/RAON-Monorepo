@@ -162,6 +162,16 @@ export type RatingInput = z.infer<typeof ratingInputSchema>;
 export const publishInputSchema = z.object({ publishAt: z.iso.datetime().optional() }).default({});
 export type PublishInput = z.infer<typeof publishInputSchema>;
 
+/** 끌어 놓아 정한 새 순서. 지금 있는 항목을 빠짐없이 한 번씩 담아야 한다. */
+export const reorderInputSchema = z.object({
+  ids: z
+    .array(z.uuid())
+    .min(1)
+    .max(500)
+    .refine((ids) => new Set(ids).size === ids.length, "같은 항목이 두 번 들어 있습니다."),
+});
+export type ReorderInput = z.infer<typeof reorderInputSchema>;
+
 export const moveEpisodeSchema = z.object({ direction: z.enum(["up", "down"]) });
 export type MoveEpisodeInput = z.infer<typeof moveEpisodeSchema>;
 
