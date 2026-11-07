@@ -218,8 +218,22 @@ export interface TrashedWork {
   deletedAt: string;
 }
 
+export interface ComicImage {
+  id: string;
+  position: number;
+  alt: string;
+  /** 화면이 밀리지 않게 자리를 잡는 데 쓴다. 읽지 못하면 null이다. */
+  width: number | null;
+  height: number | null;
+}
+
+export interface StudioEpisodeListItem extends StudioEpisodeSummary {
+  /** 웹툰 회차의 이미지 수. 웹소설은 0이다. */
+  imageCount: number;
+}
+
 export interface StudioWorkDetail extends StudioWork {
-  episodes: StudioEpisodeSummary[];
+  episodes: StudioEpisodeListItem[];
   trash: TrashedEpisode[];
 }
 

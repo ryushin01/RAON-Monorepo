@@ -86,6 +86,12 @@ export const episodeInputSchema = z.object({
 });
 export type EpisodeInput = z.infer<typeof episodeInputSchema>;
 
+/** 화면을 읽어 주는 대체 텍스트. 공개하려면 모든 이미지에 있어야 한다(KWCAG 5.1.1). */
+export const comicImageInputSchema = z.object({
+  alt: z.string().trim().max(1000, "이미지 설명은 1,000자 이하로 입력해 주세요."),
+});
+export type ComicImageInput = z.infer<typeof comicImageInputSchema>;
+
 export const writingStageInputSchema = z.object({ stage: writingStageSchema });
 export type WritingStageInput = z.infer<typeof writingStageInputSchema>;
 

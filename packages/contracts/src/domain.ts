@@ -62,3 +62,6 @@ export const WORK_BADGE_LABEL: Record<WorkBadge, string> = { HOT: "인기", NEW:
 export const COVER_MAX_BYTES = 2 * 1024 * 1024;
 export const COVER_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const MAX_TAGS = 5;
+/** 웹툰 회차 이미지 제한. 한 장씩 서버 액션(3MB)을 거치므로 그보다 작게 둔다. */
+export const COMIC_IMAGE_MAX_BYTES = Math.floor(2.5 * 1024 * 1024);
+export const COMIC_IMAGE_MAX_COUNT = 100;
