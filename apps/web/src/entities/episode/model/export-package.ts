@@ -17,8 +17,8 @@ interface ExportWork {
 }
 
 /** XML에 쓸 수 없는 제어 문자를 빼고 이스케이프한다. 붙여 넣은 원고에 섞여 있으면 파일이 열리지 않는다. */
-const xml = (text: string) =>
-  escapeHtml(text.replace(/[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, "")).replace(/'/g, "&apos;");
+const stripInvalidXml = (text: string) => text.replace(/[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, "");
+const xml = (text: string) => escapeHtml(stripInvalidXml(text)).replace(/'/g, "&apos;");
 
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 
@@ -79,7 +79,7 @@ function createDocx(body: string) {
 // --- EPUB ---
 
 /** HTML 내보내기의 출력을 XHTML로 맞춘다. 글자는 이스케이프되어 있어 태그만 바뀐다. */
-const toXhtml = (html: string) => html.replace(/<br>/g, "<br/>").replace(/<hr>/g, "<hr/>");
+const toXhtml = (html: string) => stripInvalidXml(html).replace(/<br>/g, "<br/>").replace(/<hr>/g, "<hr/>");
 
 const xhtmlPage = (title: string, body: string, extraNamespace = "") =>
   `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml"${extraNamespace} xml:lang="ko" lang="ko"><head><title>${xml(title)}</title></head><body>${body}</body></html>`;

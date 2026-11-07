@@ -103,6 +103,13 @@ describe("EPUB", () => {
     expect(files.get("OEBPS/nav.xhtml")).toContain('epub:type="toc"');
   });
 
+  it("XML에 쓸 수 없는 제어 문자를 본문에서도 뺀다", () => {
+    const broken = entries(renderEpisodeFile("epub", { ...episode, content: docFromText("앞\u0001뒤") }, now));
+    const chapter = broken.get("OEBPS/chapter1.xhtml") as string;
+    parsesAsXml(chapter);
+    expect(chapter).toContain("앞뒤");
+  });
+
   it("본문을 XHTML로 옮기고 글자를 이스케이프한다", () => {
     const chapter = files.get("OEBPS/chapter1.xhtml") as string;
     expect(chapter).toContain("<br/>");
