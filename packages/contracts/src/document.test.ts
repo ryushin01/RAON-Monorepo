@@ -1,4 +1,12 @@
-import { countChars, countCharsWithSpaces, docFromText, docToText, EMPTY_DOC, episodeDocSchema } from "./document.js";
+import {
+  countChars,
+  countCharsWithoutSymbols,
+  countCharsWithSpaces,
+  docFromText,
+  docToText,
+  EMPTY_DOC,
+  episodeDocSchema,
+} from "./document.js";
 
 describe("episodeDocSchema", () => {
   it("에디터 문서를 받아들인다", () => {
@@ -111,5 +119,12 @@ describe("countChars", () => {
 
   it("빈 문서는 0자다", () => {
     expect(countChars(EMPTY_DOC)).toBe(0);
+  });
+});
+
+describe("countCharsWithoutSymbols", () => {
+  it("공백과 문장 부호, 기호를 빼고 숫자와 글자만 센다", () => {
+    expect(countCharsWithoutSymbols(docFromText("“안녕, 이안!” 3번… ★"))).toBe(6);
+    expect(countCharsWithoutSymbols(docFromText("A+B=2"))).toBe(3);
   });
 });
