@@ -3,14 +3,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useId, useRef, useState } from "react";
-import {
-  EXPORT_FORMATS,
-  type ExportFormat,
-  exportFileName,
-  exportMimeType,
-  renderWorkExport,
-} from "@/entities/episode";
-import { downloadText } from "@/shared/lib";
+import { EXPORT_FORMATS, type ExportFormat, exportFileName, exportMimeType, renderWorkFile } from "@/entities/episode";
+import { downloadFile } from "@/shared/lib";
 import { Button, Notice, SelectField } from "@/shared/ui";
 import { fetchWorkExport, importEpisode } from "../api/actions";
 import { ImportError, parseImportFile } from "../model/import-file";
@@ -31,9 +25,9 @@ export function WorkTransfer({ workId }: { workId: string }) {
       if (!result.ok) throw new Error(result.message);
       const episodes = result.data.episodes.filter((episode) => includeDrafts || episode.status === "PUBLISHED");
       if (episodes.length === 0) throw new Error("내보낼 회차가 없습니다.");
-      downloadText(
+      downloadFile(
         exportFileName(result.data.title, format),
-        renderWorkExport(format, { title: result.data.title, episodes }),
+        renderWorkFile(format, { title: result.data.title, episodes }),
         exportMimeType(format),
       );
       return episodes.length;

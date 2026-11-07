@@ -4,10 +4,20 @@ export const EXPORT_FORMATS = [
   { value: "txt", label: "TXT" },
   { value: "md", label: "Markdown" },
   { value: "html", label: "HTML" },
+  { value: "docx", label: "DOCX" },
+  { value: "epub", label: "EPUB" },
 ] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number]["value"];
+/** 글자로 바로 만드는 형식. DOCX와 EPUB은 export-package.ts가 ZIP으로 묶는다. */
+type TextExportFormat = Extract<ExportFormat, "txt" | "md" | "html">;
 
-const MIME: Record<ExportFormat, string> = { txt: "text/plain", md: "text/markdown", html: "text/html" };
+const MIME: Record<ExportFormat, string> = {
+  txt: "text/plain;charset=utf-8",
+  md: "text/markdown;charset=utf-8",
+  html: "text/html;charset=utf-8",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  epub: "application/epub+zip",
+};
 export const exportMimeType = (format: ExportFormat) => MIME[format];
 
 export interface ExportEpisode {
@@ -27,7 +37,7 @@ export function exportFileName(name: string, format: ExportFormat): string {
   return `${safe || "원고"}.${format}`;
 }
 
-const escapeHtml = (text: string) =>
+export const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 function inlineHtml(node: EpisodeInline): string {
@@ -39,7 +49,7 @@ function inlineHtml(node: EpisodeInline): string {
   return html;
 }
 
-function blockHtml(block: EpisodeBlock): string {
+export function blockHtml(block: EpisodeBlock): string {
   switch (block.type) {
     case "horizontalRule":
       return "<hr>";
@@ -95,10 +105,10 @@ function blockMarkdown(block: EpisodeBlock): string {
 
 const docMarkdown = (doc: EpisodeDoc) => doc.content.map(blockMarkdown).filter(Boolean).join("\n\n");
 
-const heading = ({ number, title }: ExportEpisode) => `${number}화. ${title}`;
-const NOTE_LABEL = "작가의 말";
+export const heading = ({ number, title }: ExportEpisode) => `${number}화. ${title}`;
+export const NOTE_LABEL = "작가의 말";
 
-function episodeBody(format: ExportFormat, episode: ExportEpisode, level: 1 | 2): string {
+function episodeBody(format: TextExportFormat, episode: ExportEpisode, level: 1 | 2): string {
   const { content, authorNote } = episode;
   if (format === "txt") {
     const note = authorNote ? `\n\n[${NOTE_LABEL}]\n${authorNote}` : "";
@@ -117,12 +127,12 @@ function episodeBody(format: ExportFormat, episode: ExportEpisode, level: 1 | 2)
 const htmlDocument = (title: string, body: string) =>
   `<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n<title>${escapeHtml(title)}</title>\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
 
-export function renderEpisodeExport(format: ExportFormat, episode: ExportEpisode): string {
+export function renderEpisodeExport(format: TextExportFormat, episode: ExportEpisode): string {
   const body = episodeBody(format, episode, 1);
   return format === "html" ? htmlDocument(heading(episode), body) : `${body}\n`;
 }
 
-export function renderWorkExport(format: ExportFormat, work: { title: string; episodes: ExportEpisode[] }): string {
+export function renderWorkExport(format: TextExportFormat, work: { title: string; episodes: ExportEpisode[] }): string {
   const bodies = work.episodes.map((episode) => episodeBody(format, episode, 2));
   if (format === "txt") return `${work.title}\n\n\n${bodies.join("\n\n\n")}\n`;
   if (format === "md") return `# ${escapeMarkdownHeading(work.title)}\n\n${bodies.join("\n\n")}\n`;

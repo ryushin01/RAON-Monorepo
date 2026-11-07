@@ -6,9 +6,10 @@ import {
   type ExportFormat,
   exportFileName,
   exportMimeType,
-  renderEpisodeExport,
+  type renderEpisodeExport,
+  renderEpisodeFile,
 } from "@/entities/episode";
-import { downloadText } from "@/shared/lib";
+import { downloadFile } from "@/shared/lib";
 import { Button } from "@/shared/ui";
 import styles from "./writing-tools.module.scss";
 
@@ -20,7 +21,7 @@ export function EpisodeExport({ getEpisode }: { getEpisode: () => ExportInput })
   const run = (format: ExportFormat) => {
     const episode = getEpisode();
     const name = exportFileName(`${episode.number}화 ${episode.title}`, format);
-    downloadText(name, renderEpisodeExport(format, episode), exportMimeType(format));
+    downloadFile(name, renderEpisodeFile(format, episode), exportMimeType(format));
     // 같은 문구를 다시 넣으면 스크린 리더가 읽지 않으므로 비웠다가 다음 차례에 넣는다.
     setMessage("");
     setTimeout(() => setMessage(`${name} 파일을 내보냈습니다.`), 0);

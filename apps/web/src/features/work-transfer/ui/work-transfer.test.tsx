@@ -3,7 +3,7 @@ import { docFromText } from "@raon/contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { downloadText } from "@/shared/lib";
+import { downloadFile } from "@/shared/lib";
 import { fetchWorkExport, importEpisode } from "../api/actions";
 import { WorkTransfer } from "./work-transfer";
 
@@ -12,7 +12,7 @@ globalThis.TextDecoder = NodeDecoder as typeof TextDecoder;
 const push = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 jest.mock("../api/actions", () => ({ fetchWorkExport: jest.fn(), importEpisode: jest.fn() }));
-jest.mock("@/shared/lib", () => ({ ...jest.requireActual("@/shared/lib"), downloadText: jest.fn() }));
+jest.mock("@/shared/lib", () => ({ ...jest.requireActual("@/shared/lib"), downloadFile: jest.fn() }));
 
 const ok = <T,>(data: T) => ({ ok: true as const, data });
 const episode = (number: number, status: string) => ({
@@ -47,21 +47,21 @@ it("고른 형식으로 초안까지 내보내고 수를 알린다", async () =>
   await userEvent.selectOptions(screen.getByRole("combobox", { name: "형식" }), "md");
   await userEvent.click(screen.getByRole("button", { name: "작품 내보내기" }));
   expect(await screen.findByRole("status")).toHaveTextContent("2개 회차를 내보냈습니다.");
-  expect(downloadText).toHaveBeenCalledWith("작품.md", expect.stringContaining("제목2"), "text/markdown");
+  expect(downloadFile).toHaveBeenCalledWith("작품.md", expect.stringContaining("제목2"), "text/markdown;charset=utf-8");
 });
 
 it("초안을 빼면 공개 회차만 내보내고, 없으면 알린다", async () => {
   setup();
   await userEvent.click(screen.getByRole("checkbox", { name: "초안 포함" }));
   await userEvent.click(screen.getByRole("button", { name: "작품 내보내기" }));
-  await waitFor(() => expect(downloadText).toHaveBeenCalled());
-  expect((downloadText as jest.Mock).mock.calls[0]?.[1]).not.toContain("제목2");
+  await waitFor(() => expect(downloadFile).toHaveBeenCalled());
+  expect((downloadFile as jest.Mock).mock.calls[0]?.[1]).not.toContain("제목2");
 
-  (downloadText as jest.Mock).mockClear();
+  (downloadFile as jest.Mock).mockClear();
   (fetchWorkExport as jest.Mock).mockResolvedValue(ok({ title: "작품", episodes: [episode(1, "DRAFT")] }));
   await userEvent.click(screen.getByRole("button", { name: "작품 내보내기" }));
   expect(await screen.findByText("내보낼 회차가 없습니다.")).toBeInTheDocument();
-  expect(downloadText).not.toHaveBeenCalled();
+  expect(downloadFile).not.toHaveBeenCalled();
 });
 
 it("파일을 고르지 않으면 칸에 알리고 초점을 옮긴다", async () => {

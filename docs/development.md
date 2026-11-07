@@ -81,7 +81,8 @@ yarn workspace @raon/api db:reset   # 개발 DB를 지우고 다음 실행 때 �
 
 ## 내보내기와 가져오기
 
-- 회차와 작품을 TXT, Markdown, HTML로 내려받습니다. 파일은 브라우저에서 만듭니다(`entities/episode/model/export.ts`). HTML은 모든 글자를 이스케이프합니다.
+- 회차와 작품을 TXT, Markdown, HTML, DOCX, EPUB으로 내려받습니다. 파일은 브라우저에서 만듭니다(`entities/episode/model/export.ts`, `export-package.ts`). 모든 글자를 이스케이프합니다.
+- DOCX와 EPUB은 ZIP이므로 라이브러리 없이 압축하지 않는 ZIP으로 묶습니다(`shared/lib/zip.ts`). XML에 쓸 수 없는 제어 문자는 뺍니다. HWPX는 아직 지원하지 않습니다.
 - 가져오기는 TXT와 MD 파일을 새 초안으로 만듭니다(최대 1MB). UTF-8과 UTF-16, EUC-KR을 읽습니다. 문서로 바꾼 크기가 서버 액션 한도를 넘으면 거부합니다. 서식은 해석하지 않고 글자 그대로 넣습니다. 빈 줄은 단락, 한 줄 바꿈은 줄바꿈입니다.
 
 ## 집필 단계
