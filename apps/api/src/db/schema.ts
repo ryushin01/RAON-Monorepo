@@ -20,6 +20,7 @@ const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({ dataTyp
 
 export const roleEnum = pgEnum("role", ["READER", "AUTHOR"]);
 export const genreEnum = pgEnum("genre", ["FANTASY", "MARTIAL", "ROMANCE", "MODERN", "SF", "MYSTERY"]);
+export const workFormatEnum = pgEnum("work_format", ["COMIC", "NOVEL"]);
 export const workStatusEnum = pgEnum("work_status", ["DRAFT", "ONGOING", "COMPLETED"]);
 export const episodeStatusEnum = pgEnum("episode_status", ["DRAFT", "PUBLISHED"]);
 export const writingStageEnum = pgEnum("writing_stage", ["IDEA", "DRAFTING", "REVISING", "FINISHED"]);
@@ -53,6 +54,7 @@ export const works = pgTable(
     authorId: uuid("author_id")
       .notNull()
       .references(() => users.id),
+    format: workFormatEnum("format").notNull().default("NOVEL"),
     title: text("title").notNull(),
     synopsis: text("synopsis").notNull(),
     genre: genreEnum("genre").notNull(),
@@ -65,7 +67,11 @@ export const works = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [index("works_author_idx").on(t.authorId), index("works_status_genre_idx").on(t.status, t.genre)],
+  (t) => [
+    index("works_author_idx").on(t.authorId),
+    index("works_status_genre_idx").on(t.status, t.genre),
+    index("works_format_idx").on(t.format),
+  ],
 );
 
 export const episodes = pgTable(

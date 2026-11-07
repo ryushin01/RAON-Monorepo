@@ -1338,6 +1338,51 @@ describe("RAON API", () => {
     });
   });
 
+  describe("작품 형식", () => {
+    it("만들 때 정하고 고쳐도 바뀌지 않으며, 형식으로 목록을 거른다", async () => {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const body = {
+        title: "형식 시험 작품",
+        synopsis: "열 글자가 넘는 작품 소개입니다.",
+        genre: "SF",
+        episodePrice: 100,
+        wholePrice: null,
+        tags: [],
+      };
+      const novel = (await http().post("/studio/works").set(auth).send(body).expect(201)).body as StudioWorkDetail;
+      expect(novel.format).toBe("NOVEL");
+      const comic = (
+        await http()
+          .post("/studio/works")
+          .set(auth)
+          .send({ ...body, format: "COMIC" })
+          .expect(201)
+      ).body as StudioWorkDetail;
+      expect(comic.format).toBe("COMIC");
+      await http()
+        .post("/studio/works")
+        .set(auth)
+        .send({ ...body, format: "MOVIE" })
+        .expect(400);
+
+      const updated = await http()
+        .put(`/studio/works/${novel.id}`)
+        .set(auth)
+        .send({ ...body, title: "고친 작품", format: "COMIC" })
+        .expect(200);
+      expect(updated.body).toMatchObject({ title: "고친 작품", format: "NOVEL" });
+
+      const published = await publishWork(author.accessToken);
+      expect(published.format).toBe("NOVEL");
+      const novels = await http().get("/works").query({ format: "NOVEL", pageSize: 48 }).expect(200);
+      expect(novels.body.items.every((item: { format: string }) => item.format === "NOVEL")).toBe(true);
+      const comics = await http().get("/works").query({ format: "COMIC", pageSize: 48 }).expect(200);
+      expect(comics.body.items.map((item: { id: string }) => item.id)).not.toContain(published.id);
+      await http().get("/works").query({ format: "MOVIE" }).expect(400);
+    });
+  });
+
   describe("작품 휴지통", () => {
     afterEach(() => {
       jest.restoreAllMocks();

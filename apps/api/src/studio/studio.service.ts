@@ -42,6 +42,7 @@ const countOf = (status: "PUBLISHED" | "DRAFT") =>
 
 const workColumns = {
   id: works.id,
+  format: works.format,
   title: works.title,
   genre: works.genre,
   status: works.status,
@@ -188,9 +189,10 @@ export class StudioService {
 
   async updateWork(authorId: string, workId: string, input: WorkInput): Promise<StudioWorkDetail> {
     await this.assertOwner(authorId, workId);
+    const { format: _format, ...changes } = input;
     await this.db
       .update(works)
-      .set({ ...input, updatedAt: new Date() })
+      .set({ ...changes, updatedAt: new Date() })
       .where(eq(works.id, workId));
     return this.getWork(authorId, workId);
   }

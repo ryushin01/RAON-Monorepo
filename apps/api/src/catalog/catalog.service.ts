@@ -60,6 +60,7 @@ const coverUpdatedAt = sql<
 
 const summaryColumns = {
   id: works.id,
+  format: works.format,
   title: works.title,
   authorName: users.nickname,
   genre: works.genre,
@@ -122,6 +123,7 @@ export class CatalogService {
     const where = and(
       publicWork(),
       HAS_VISIBLE_EPISODE,
+      query.format ? eq(works.format, query.format) : undefined,
       query.tag ? sql`${query.tag} = any(${works.tags})` : undefined,
       query.genre ? eq(works.genre, query.genre) : undefined,
       query.status ? eq(works.status, query.status) : undefined,
