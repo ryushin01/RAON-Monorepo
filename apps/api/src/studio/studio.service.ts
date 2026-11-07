@@ -111,6 +111,7 @@ export class StudioService {
         number: episodes.number,
         title: episodes.title,
         status: episodes.status,
+        writingStage: episodes.writingStage,
         isFree: episodes.isFree,
         charCount: episodes.charCount,
         updatedAt: episodes.updatedAt,
