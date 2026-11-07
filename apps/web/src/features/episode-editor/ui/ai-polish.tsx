@@ -3,6 +3,7 @@
 import { useCompletion } from "@ai-sdk/react";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Editor } from "@tiptap/react";
+import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { Button, Notice, SelectField } from "@/shared/ui";
 import {
@@ -129,9 +130,18 @@ export function AiPolish({ editor }: { editor: Editor }) {
       {problem && <Notice tone="error">{problem}</Notice>}
       {error && <Notice tone="error">{error.message || "다듬지 못했습니다. 잠시 뒤 다시 시도해 주세요."}</Notice>}
       {(completion || isLoading) && (
-        <section ref={resultRef} className={styles.polished} tabIndex={-1} aria-label="다듬은 글" aria-busy={isLoading}>
+        <motion.section
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          ref={resultRef}
+          className={styles.polished}
+          tabIndex={-1}
+          aria-label="다듬은 글"
+          aria-busy={isLoading}
+        >
           <p>{completion || "…"}</p>
-        </section>
+        </motion.section>
       )}
       {completion && !isLoading && target && (
         <div className={styles.actions}>
