@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Notice } from "../notice/notice";
 import styles from "./sortable-list.module.scss";
 
@@ -51,10 +51,15 @@ export function SortableList({ items, onReorder, name, listClassName, itemClassN
   const [order, setOrder] = useState(() => items.map((item) => item.id));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  // 서버에서 새 목록을 받으면 그 순서를 따른다.
+  // 서버에서 새 목록을 받으면 그 순서를 따른다. 요청 중에 바뀌었는지 알 수 있게 판(version)을 센다.
   const signature = items.map((item) => item.id).join(",");
+  const latest = useRef({ ids: items.map((item) => item.id), version: 0 });
   // biome-ignore lint/correctness/useExhaustiveDependencies: 목록의 순서가 바뀔 때만 맞춘다.
-  useEffect(() => setOrder(items.map((item) => item.id)), [signature]);
+  useEffect(() => {
+    const ids = items.map((item) => item.id);
+    latest.current = { ids, version: latest.current.version + 1 };
+    setOrder(ids);
+  }, [signature]);
 
   const byId = new Map(items.map((item) => [item.id, item]));
   const labelOf = (id: string | number) => byId.get(String(id))?.label ?? "";
@@ -77,6 +82,7 @@ export function SortableList({ items, onReorder, name, listClassName, itemClassN
   const onDragEnd = async ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id || busy) return;
     const previous = order;
+    const startedAt = latest.current.version;
     const next = arrayMove(order, order.indexOf(String(active.id)), order.indexOf(String(over.id)));
     setOrder(next);
     setError("");
@@ -84,7 +90,8 @@ export function SortableList({ items, onReorder, name, listClassName, itemClassN
     try {
       await onReorder(next);
     } catch (reason) {
-      setOrder(previous);
+      // 요청하는 사이 새 목록(예: 막 올린 이미지)을 받았으면 그 목록을 지키고, 아니면 원래 순서로 되돌린다.
+      setOrder(latest.current.version === startedAt ? previous : latest.current.ids);
       setError(reason instanceof Error ? reason.message : "순서를 바꾸지 못했습니다.");
     } finally {
       setBusy(false);
