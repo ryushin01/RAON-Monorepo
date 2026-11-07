@@ -284,6 +284,9 @@ test("웹툰을 세로로 이어 보고, 유료 회차는 이미지 없이 잠�
   await expect
     .poll(() => panels.first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth))
     .toBeGreaterThan(0);
+  // 로그아웃한 뒤에도 남지 않도록 브라우저에 캐시하지 않는다.
+  const imageResponse = await page.request.get((await panels.first().getAttribute("src")) as string);
+  expect(imageResponse.headers()["cache-control"]).toContain("no-store");
   // 글자 본문용 보기 설정은 없다.
   await expect(page.getByRole("button", { name: /보기 설정/ })).toHaveCount(0);
   // 칸이 이어져 보이도록 사이에 간격이 없다.

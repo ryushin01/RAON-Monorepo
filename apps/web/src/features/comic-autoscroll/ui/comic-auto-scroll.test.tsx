@@ -41,6 +41,30 @@ it.each([
   expect(await screen.findByRole("button", { name: "자동 스크롤" })).toHaveAttribute("aria-pressed", "false");
 });
 
+it("조작 칸 안의 터치와 키 입력으로는 멈추지 않고, 버튼을 터치해 누르면 한 번에 꺼진다", async () => {
+  render(<ComicAutoScroll />);
+  await userEvent.click(toggle());
+  const speed = screen.getByRole("combobox", { name: "자동 스크롤 속도" });
+
+  fireEvent.keyDown(speed, { key: "ArrowDown" });
+  fireEvent.touchStart(speed);
+  fireEvent.keyDown(toggle(), { key: " " });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  expect(toggle()).toHaveAttribute("aria-pressed", "true");
+
+  // 터치 기기에서는 touchstart 뒤에 click이 이어진다.
+  fireEvent.touchStart(toggle());
+  fireEvent.click(toggle());
+  expect(await screen.findByRole("button", { name: "자동 스크롤" })).toHaveAttribute("aria-pressed", "false");
+});
+
+it("포인터가 버튼 위에 있어도 휠을 굴리면 멈춘다", async () => {
+  render(<ComicAutoScroll />);
+  await userEvent.click(toggle());
+  fireEvent.wheel(toggle());
+  expect(await screen.findByRole("button", { name: "자동 스크롤" })).toHaveAttribute("aria-pressed", "false");
+});
+
 it("페이지 끝에 닿으면 멈춘다", async () => {
   Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 0 });
   render(<ComicAutoScroll />);

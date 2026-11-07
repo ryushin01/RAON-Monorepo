@@ -16,8 +16,8 @@ export async function comicImageRouteGet(_: NextRequest, { params }: { params: P
   return new NextResponse(await response.arrayBuffer(), {
     headers: {
       "Content-Type": response.headers.get("content-type") ?? "application/octet-stream",
-      // 사용자별 권리가 걸려 있으므로 공유 캐시에 남기지 않고, 다시 읽을 때 잠깐만 재사용한다.
-      "Cache-Control": "private, max-age=300",
+      // 브라우저 캐시는 계정이 아니라 브라우저 단위라, 남기면 로그아웃한 뒤에도 유료 이미지가 보인다.
+      "Cache-Control": "private, no-store",
     },
   });
 }

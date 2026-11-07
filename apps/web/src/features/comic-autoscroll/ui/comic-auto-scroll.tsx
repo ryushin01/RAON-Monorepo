@@ -16,6 +16,7 @@ export function ComicAutoScroll() {
   const [running, setRunning] = useState(false);
   const [speedIndex, setSpeedIndex] = useState(1);
   const speedId = useId();
+  const controlRef = useRef<HTMLDivElement>(null);
   const speed = useRef<number>(SPEEDS[1].pixelsPerSecond);
   speed.current = SPEEDS[speedIndex]?.pixelsPerSecond ?? SPEEDS[1].pixelsPerSecond;
 
@@ -41,24 +42,29 @@ export function ComicAutoScroll() {
     };
     frame = requestAnimationFrame(step);
 
-    const stop = () => setRunning(false);
-    const onKey = (event: KeyboardEvent) => {
-      // 켜고 끄는 버튼의 스페이스 키까지 멈춤으로 보면 눌렀을 때 곧바로 다시 켜진다.
-      if (SCROLL_KEYS.has(event.key) && !(event.target instanceof HTMLButtonElement)) stop();
+    // 조작 칸 안의 입력은 직접 스크롤이 아니다. 버튼을 터치할 때 여기서 멈추면 이어지는 클릭이 다시 켠다.
+    const fromControl = (event: Event) => event.target instanceof Node && controlRef.current?.contains(event.target);
+    const stop = (event: Event) => {
+      if (!fromControl(event)) setRunning(false);
     };
-    window.addEventListener("wheel", stop, { passive: true });
+    const onKey = (event: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(event.key)) stop(event);
+    };
+    // 휠은 포인터가 버튼 위에 있어도 직접 스크롤이다.
+    const onWheel = () => setRunning(false);
+    window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("touchstart", stop, { passive: true });
     window.addEventListener("keydown", onKey);
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("wheel", stop);
+      window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchstart", stop);
       window.removeEventListener("keydown", onKey);
     };
   }, [running]);
 
   return (
-    <div className={styles.control}>
+    <div ref={controlRef} className={styles.control}>
       <button type="button" className={styles.toggle} aria-pressed={running} onClick={() => setRunning((on) => !on)}>
         {running ? "자동 스크롤 멈춤" : "자동 스크롤"}
       </button>
