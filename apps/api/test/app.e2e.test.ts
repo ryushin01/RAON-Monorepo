@@ -9,6 +9,7 @@ import {
   type Cart,
   countChars,
   docFromText,
+  type EpisodeCommentList,
   type EpisodeView,
   type StudioWorkDetail,
   type WorkDetail,
@@ -579,6 +580,130 @@ describe("RAON API", () => {
       expect(
         (await http().get(`/works/${work.id}/access`).set(bearer(reader.accessToken))).body.lastReadNumber,
       ).toBeNull();
+    });
+  });
+
+  describe("답글과 공감", () => {
+    async function setup() {
+      const author = await signup("AUTHOR");
+      const reader = await signup("READER");
+      const other = await signup("READER");
+      const work = await publishWork(author.accessToken);
+      const [free, paid] = work.episodes;
+      const auth = bearer(reader.accessToken);
+      const url = `/episodes/${free!.id}/comments`;
+      const write = async (body: string, parentId?: string, as = auth) => {
+        await http().post(url).set(as).send({ body, parentId }).expect(204);
+      };
+      const list = async (headers = {}, sort?: string) =>
+        (
+          await http()
+            .get(url)
+            .query(sort ? { sort } : {})
+            .set(headers)
+            .expect(200)
+        ).body as EpisodeCommentList;
+      return { author, reader, other, free: free!, paid: paid!, auth, url, write, list };
+    }
+
+    it("답글은 묶음 안에 쓴 순서대로 놓이고, 답글의 답글은 같은 묶음에 이어지며, 작가 글을 표시한다", async () => {
+      const { author, write, list } = await setup();
+      await write("첫 댓글");
+      const first = (await list()).items[0]!;
+      await write("답글 하나", first.id);
+      await write("작가의 답글", first.id, bearer(author.accessToken));
+      const replyId = (await list()).items[0]!.replies[0]!.id;
+      await write("답글의 답글", replyId);
+
+      const { items, total } = await list();
+      expect(total).toBe(4);
+      expect(items).toHaveLength(1);
+      expect(items[0]?.replies.map((reply) => reply.body)).toEqual(["답글 하나", "작가의 답글", "답글의 답글"]);
+      expect(items[0]?.replies.map((reply) => reply.isAuthor)).toEqual([false, true, false]);
+    });
+
+    it("다른 회차의 댓글이나 없는 댓글에는 답글을 달 수 없다", async () => {
+      const { author, write, list, auth, paid, url } = await setup();
+      await write("첫 댓글");
+      const first = (await list()).items[0]!;
+      await http()
+        .post(`/episodes/${paid.id}/comments`)
+        .set(bearer(author.accessToken))
+        .send({ body: "유료" })
+        .expect(204);
+      const paidComment = (
+        await http().get(`/episodes/${paid.id}/comments`).set(bearer(author.accessToken)).expect(200)
+      ).body.items[0];
+      await http().post(url).set(auth).send({ body: "답글", parentId: paidComment.id }).expect(404);
+      await http().post(url).set(auth).send({ body: "답글", parentId: randomUUID() }).expect(404);
+      await http().post(url).set(auth).send({ body: "답글", parentId: "x" }).expect(400);
+      expect((await list()).items[0]?.id).toBe(first.id);
+    });
+
+    it("답글이 있는 댓글을 지우면 자리만 남기고 내용을 숨기며, 마지막 답글을 지우면 함께 사라진다", async () => {
+      const { auth, write, list, url } = await setup();
+      await write("지울 비밀 댓글");
+      const first = (await list()).items[0]!;
+      await write("남는 답글", first.id);
+      await http().delete(`/comments/${first.id}`).set(auth).expect(204);
+
+      const after = await list(auth);
+      expect(after.total).toBe(1);
+      expect(after.items[0]).toMatchObject({ deleted: true, body: "", authorName: "", canDelete: false });
+      expect(after.items[0]?.replies).toHaveLength(1);
+      expect(JSON.stringify(after)).not.toContain("지울 비밀 댓글");
+      await http().delete(`/comments/${first.id}`).set(auth).expect(404);
+      await http().put(`/comments/${first.id}/like`).set(auth).expect(404);
+      await http().post(url).set(auth).send({ body: "답글", parentId: first.id }).expect(409);
+
+      const reply = after.items[0]?.replies[0]?.id;
+      await http().delete(`/comments/${reply}`).set(auth).expect(204);
+      expect(await list()).toEqual({ items: [], total: 0 });
+    });
+
+    it("답글이 없는 댓글은 지우면 바로 사라지고, 답글을 지워도 살아 있는 댓글은 남는다", async () => {
+      const { auth, write, list } = await setup();
+      await write("남는 댓글");
+      const first = (await list()).items[0]!;
+      await write("지울 답글", first.id);
+      await http()
+        .delete(`/comments/${(await list()).items[0]?.replies[0]?.id}`)
+        .set(auth)
+        .expect(204);
+      expect((await list()).items[0]).toMatchObject({ body: "남는 댓글", deleted: false, replies: [] });
+      await http().delete(`/comments/${first.id}`).set(auth).expect(204);
+      expect((await list()).total).toBe(0);
+    });
+
+    it("공감은 한 사람당 하나이고, 취소할 수 있으며, 공감순으로 정렬한다", async () => {
+      const { auth, other, write, list } = await setup();
+      await write("먼저 쓴 댓글");
+      await write("나중 쓴 댓글");
+      const [latest, older] = (await list()).items;
+      expect(latest?.body).toBe("나중 쓴 댓글");
+
+      await http().put(`/comments/${older?.id}/like`).expect(401);
+      await http().put(`/comments/${older?.id}/like`).set(auth).expect(204);
+      await http().put(`/comments/${older?.id}/like`).set(auth).expect(204);
+      await http().put(`/comments/${older?.id}/like`).set(bearer(other.accessToken)).expect(204);
+      const byLikes = await list(auth, "likes");
+      expect(byLikes.items.map((item) => item.body)).toEqual(["먼저 쓴 댓글", "나중 쓴 댓글"]);
+      expect(byLikes.items[0]).toMatchObject({ likeCount: 2, likedByMe: true });
+      expect((await list({}, "likes")).items[0]).toMatchObject({ likeCount: 2, likedByMe: false });
+      expect((await list(auth)).items[0]?.body).toBe("나중 쓴 댓글");
+
+      await http().delete(`/comments/${older?.id}/like`).set(auth).expect(204);
+      await http().delete(`/comments/${older?.id}/like`).set(auth).expect(204);
+      expect((await list(auth, "likes")).items[0]).toMatchObject({ likeCount: 1, likedByMe: false });
+      await http().get(`/episodes/${older?.id}/comments`).expect(404);
+    });
+
+    it("읽을 수 없는 유료 회차의 댓글에는 공감할 수 없다", async () => {
+      const { author, auth, paid } = await setup();
+      const authorAuth = bearer(author.accessToken);
+      await http().post(`/episodes/${paid.id}/comments`).set(authorAuth).send({ body: "유료 댓글" }).expect(204);
+      const id = (await http().get(`/episodes/${paid.id}/comments`).set(authorAuth).expect(200)).body.items[0].id;
+      await http().put(`/comments/${id}/like`).set(auth).expect(403);
     });
   });
 

@@ -15,7 +15,9 @@ import {
 } from "@nestjs/common";
 import {
   type CommentInput,
+  type CommentSort,
   commentInputSchema,
+  commentQuerySchema,
   type RatingInput,
   ratingInputSchema,
   workQuerySchema,
@@ -135,8 +137,12 @@ export class CatalogController {
   @Get("episodes/:episodeId/comments")
   @OptionalAuth()
   @UseGuards(AuthGuard)
-  comments(@Param("episodeId", ParseUUIDPipe) episodeId: string, @CurrentUser() user: AuthUser | undefined) {
-    return this.catalog.listComments(episodeId, user);
+  comments(
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @CurrentUser() user: AuthUser | undefined,
+    @Query(new ZodPipe(commentQuerySchema)) query: { sort: CommentSort },
+  ) {
+    return this.catalog.listComments(episodeId, user, query.sort);
   }
 
   @Post("episodes/:episodeId/comments")
@@ -147,7 +153,21 @@ export class CatalogController {
     @CurrentUser() user: AuthUser,
     @Body(new ZodPipe(commentInputSchema)) body: CommentInput,
   ) {
-    await this.catalog.addComment(episodeId, user, body.body);
+    await this.catalog.addComment(episodeId, user, body.body, body.parentId);
+  }
+
+  @Put("comments/:commentId/like")
+  @HttpCode(204)
+  @UseGuards(AuthGuard)
+  async like(@Param("commentId", ParseUUIDPipe) commentId: string, @CurrentUser() user: AuthUser) {
+    await this.catalog.setCommentLike(commentId, user, true);
+  }
+
+  @Delete("comments/:commentId/like")
+  @HttpCode(204)
+  @UseGuards(AuthGuard)
+  async unlike(@Param("commentId", ParseUUIDPipe) commentId: string, @CurrentUser() user: AuthUser) {
+    await this.catalog.setCommentLike(commentId, user, false);
   }
 
   @Delete("comments/:commentId")

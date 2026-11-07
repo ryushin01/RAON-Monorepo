@@ -1,6 +1,8 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
+  type CommentSort,
   type EpisodeCommentList,
+  type EpisodeCommentReply,
   EpisodeView,
   FavoriteWork,
   type Paginated,
@@ -13,13 +15,15 @@ import {
   type WorkSummary,
   type workQuerySchema,
 } from "@raon/contracts";
-import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { z } from "zod";
 import type { AuthUser } from "../auth/auth.guard.js";
+import { isForeignKeyViolation } from "../common/db-errors.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
 import {
   cartItems,
+  commentLikes,
   comments,
   episodeImages,
   episodes,
@@ -398,34 +402,80 @@ export class CatalogService {
     }));
   }
 
-  async listComments(episodeId: string, user: AuthUser | undefined): Promise<EpisodeCommentList> {
+  async listComments(
+    episodeId: string,
+    user: AuthUser | undefined,
+    sort: CommentSort = "latest",
+  ): Promise<EpisodeCommentList> {
     const target = await this.readableEpisode(episodeId, user);
+    const likeCount = sql<number>`(select count(*)::int from "comment_likes" l where l."comment_id" = "comments"."id")`;
+    const columns = {
+      id: comments.id,
+      userId: comments.userId,
+      authorName: users.nickname,
+      body: comments.body,
+      deletedAt: comments.deletedAt,
+      createdAt: comments.createdAt,
+      likeCount,
+      likedByMe: user
+        ? sql<boolean>`exists (select 1 from "comment_likes" l where l."comment_id" = "comments"."id" and l."user_id" = ${user.id})`
+        : sql<boolean>`false`,
+    };
     const rows = await this.db
-      .select({
-        id: comments.id,
-        userId: comments.userId,
-        authorName: users.nickname,
-        body: comments.body,
-        createdAt: comments.createdAt,
-      })
+      .select(columns)
       .from(comments)
       .innerJoin(users, eq(comments.userId, users.id))
-      .where(eq(comments.episodeId, episodeId))
-      .orderBy(desc(comments.createdAt))
+      .where(and(eq(comments.episodeId, episodeId), isNull(comments.parentId)))
+      .orderBy(...(sort === "likes" ? [desc(likeCount)] : []), desc(comments.createdAt), desc(comments.id))
       .limit(100);
+    const replies = rows.length
+      ? await this.db
+          .select({ ...columns, parentId: comments.parentId })
+          .from(comments)
+          .innerJoin(users, eq(comments.userId, users.id))
+          .where(
+            inArray(
+              comments.parentId,
+              rows.map((row) => row.id),
+            ),
+          )
+          .orderBy(asc(comments.createdAt), asc(comments.id))
+      : [];
     const [counted] = await this.db
       .select({ total: sql<number>`count(*)::int` })
       .from(comments)
-      .where(eq(comments.episodeId, episodeId));
+      .where(and(eq(comments.episodeId, episodeId), isNull(comments.deletedAt)));
+
+    const toReply = (row: Omit<(typeof rows)[number], "deletedAt">): EpisodeCommentReply => ({
+      id: row.id,
+      authorName: row.authorName,
+      body: row.body,
+      createdAt: row.createdAt.toISOString(),
+      canDelete: Boolean(user && (user.id === row.userId || user.id === target.authorId)),
+      isAuthor: row.userId === target.authorId,
+      likeCount: row.likeCount,
+      likedByMe: row.likedByMe,
+    });
     return {
       total: counted?.total ?? 0,
-      items: rows.map((row) => ({
-        id: row.id,
-        authorName: row.authorName,
-        body: row.body,
-        createdAt: row.createdAt.toISOString(),
-        canDelete: Boolean(user && (user.id === row.userId || user.id === target.authorId)),
-      })),
+      items: rows.map((row) => {
+        const own = replies.filter((reply) => reply.parentId === row.id).map(toReply);
+        // 지운 댓글은 답글의 자리만 지키고, 쓴 사람과 내용은 내보내지 않는다.
+        if (row.deletedAt) {
+          return {
+            ...toReply(row),
+            authorName: "",
+            body: "",
+            canDelete: false,
+            isAuthor: false,
+            likeCount: 0,
+            likedByMe: false,
+            deleted: true,
+            replies: own,
+          };
+        }
+        return { ...toReply(row), deleted: false, replies: own };
+      }),
     };
   }
 
@@ -441,23 +491,94 @@ export class CatalogService {
   }
 
   /** 본문을 읽을 수 있는 사람만 댓글을 보고 쓴다. 유료 회차의 내용이 댓글로 새지 않게 하기 위해서다. */
-  async addComment(episodeId: string, user: AuthUser, body: string): Promise<void> {
+  async addComment(episodeId: string, user: AuthUser, body: string, parentId?: string | null): Promise<void> {
     await this.readableEpisode(episodeId, user);
-    await this.db.insert(comments).values({ episodeId, userId: user.id, body });
+    let rootId: string | null = null;
+    if (parentId) {
+      const [parent] = await this.db
+        .select({ id: comments.id, parentId: comments.parentId, deletedAt: comments.deletedAt })
+        .from(comments)
+        .where(and(eq(comments.id, parentId), eq(comments.episodeId, episodeId)));
+      if (!parent) throw new NotFoundException("답글을 달 댓글을 찾을 수 없습니다.");
+      if (parent.deletedAt) throw new ConflictException("지운 댓글에는 답글을 달 수 없습니다.");
+      // 깊이는 한 단계이므로 답글의 답글은 같은 묶음에 이어 붙인다.
+      rootId = parent.parentId ?? parent.id;
+    }
+    try {
+      await this.db.insert(comments).values({ episodeId, userId: user.id, body, parentId: rootId });
+    } catch (error) {
+      // 확인과 저장 사이에 댓글이 완전히 지워지면 외래 키가 막는다.
+      if (isForeignKeyViolation(error)) throw new NotFoundException("답글을 달 댓글을 찾을 수 없습니다.");
+      throw error;
+    }
   }
 
+  /** 답글이 남아 있으면 자리를 지키고, 마지막 답글을 지우면 자리만 남은 댓글도 함께 지운다. */
   async deleteComment(commentId: string, user: AuthUser): Promise<void> {
     const [row] = await this.db
-      .select({ userId: comments.userId, authorId: works.authorId })
+      .select({
+        userId: comments.userId,
+        authorId: works.authorId,
+        parentId: comments.parentId,
+        deletedAt: comments.deletedAt,
+      })
       .from(comments)
       .innerJoin(episodes, eq(comments.episodeId, episodes.id))
       .innerJoin(works, eq(episodes.workId, works.id))
       .where(eq(comments.id, commentId));
-    if (!row) throw new NotFoundException("댓글을 찾을 수 없습니다.");
+    if (!row || row.deletedAt) throw new NotFoundException("댓글을 찾을 수 없습니다.");
     if (row.userId !== user.id && row.authorId !== user.id) {
       throw new ForbiddenException("쓴 사람과 작가만 지울 수 있습니다.");
     }
-    await this.db.delete(comments).where(eq(comments.id, commentId));
+    await this.db.transaction(async (tx) => {
+      // 답글이 동시에 달려도 자리가 사라지지 않게 묶음의 첫 댓글을 잠근다.
+      const rootId = row.parentId ?? commentId;
+      await tx.select({ id: comments.id }).from(comments).where(eq(comments.id, rootId)).for("update");
+      if (row.parentId) {
+        await tx.delete(comments).where(eq(comments.id, commentId));
+        const [left] = await tx
+          .select({ id: comments.id })
+          .from(comments)
+          .where(eq(comments.parentId, rootId))
+          .limit(1);
+        if (!left) await tx.delete(comments).where(and(eq(comments.id, rootId), isNotNull(comments.deletedAt)));
+        return;
+      }
+      const [reply] = await tx
+        .select({ id: comments.id })
+        .from(comments)
+        .where(eq(comments.parentId, commentId))
+        .limit(1);
+      if (reply) {
+        await tx.update(comments).set({ deletedAt: new Date() }).where(eq(comments.id, commentId));
+        // 지운 글의 공감은 더 쓰이지 않는다.
+        await tx.delete(commentLikes).where(eq(commentLikes.commentId, commentId));
+      } else {
+        await tx.delete(comments).where(eq(comments.id, commentId));
+      }
+    });
+  }
+
+  /** 읽을 수 있는 회차의 댓글에만 공감한다. 같은 값을 다시 보내도 결과가 같다. */
+  async setCommentLike(commentId: string, user: AuthUser, liked: boolean): Promise<void> {
+    const [row] = await this.db
+      .select({ episodeId: comments.episodeId, deletedAt: comments.deletedAt })
+      .from(comments)
+      .where(eq(comments.id, commentId));
+    if (!row || row.deletedAt) throw new NotFoundException("댓글을 찾을 수 없습니다.");
+    await this.readableEpisode(row.episodeId, user);
+    if (!liked) {
+      await this.db
+        .delete(commentLikes)
+        .where(and(eq(commentLikes.commentId, commentId), eq(commentLikes.userId, user.id)));
+      return;
+    }
+    try {
+      await this.db.insert(commentLikes).values({ commentId, userId: user.id }).onConflictDoNothing();
+    } catch (error) {
+      if (isForeignKeyViolation(error)) throw new NotFoundException("댓글을 찾을 수 없습니다.");
+      throw error;
+    }
   }
 
   private async readableEpisode(episodeId: string, user: AuthUser | undefined) {
