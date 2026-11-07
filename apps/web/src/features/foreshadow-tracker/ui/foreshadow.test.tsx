@@ -98,6 +98,20 @@ describe("ForeshadowManager", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "복선" })).toHaveFocus());
   });
 
+  it("고치던 복선을 지우면 양식을 닫고, 다른 복선을 지우면 그대로 둔다", async () => {
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    wrap(<ForeshadowManager workId="w1" episodes={episodes} />);
+    await userEvent.click(await screen.findByRole("button", { name: "고치기: 깨진 나침반" }));
+    await userEvent.click(screen.getByRole("button", { name: "삭제: 등대의 불빛" }));
+    await waitFor(() => expect(deleteForeshadow).toHaveBeenCalledWith("f2"));
+    await screen.findByText("‘등대의 불빛’ 복선을 지웠습니다.");
+    expect(screen.getByRole("button", { name: "복선 저장" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "삭제: 깨진 나침반" }));
+    await screen.findByText("‘깨진 나침반’ 복선을 지웠습니다.");
+    expect(screen.queryByRole("button", { name: "복선 저장" })).not.toBeInTheDocument();
+  });
+
   it("목록을 읽지 못하면 알린다", async () => {
     (listForeshadows as jest.Mock).mockResolvedValue({ ok: false, message: "읽지 못했습니다." });
     wrap(<ForeshadowManager workId="w1" episodes={episodes} />);
@@ -128,7 +142,13 @@ describe("ForeshadowReference", () => {
     await userEvent.click(screen.getByRole("button", { name: "이 회차에 심기" }));
     expect(saveForeshadow).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox", { name: "새 복선 이름" })).toHaveFocus();
-    expect(screen.getByText("복선 이름을 입력해 주세요.")).toBeInTheDocument();
+    const input = screen.getByRole("textbox", { name: "새 복선 이름" });
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription("복선 이름을 입력해 주세요.");
+
+    await userEvent.type(input, "낡");
+    expect(input).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByText("복선 이름을 입력해 주세요.")).not.toBeInTheDocument();
   });
 
   it("회수하지 않은 복선을 이 회차에서 회수하고, 이 회차의 회수는 취소한다", async () => {

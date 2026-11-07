@@ -144,6 +144,8 @@ export function ForeshadowManager({ workId, episodes }: { workId: string; episod
     },
     onSuccess: async (_, foreshadow) => {
       await invalidate();
+      // 고치던 복선을 지웠다면 저장할 곳이 없으므로 양식을 닫는다.
+      setEditing((current) => (current !== null && current !== "new" && current.id === foreshadow.id ? null : current));
       setMessage(`‘${foreshadow.title}’ 복선을 지웠습니다.`);
       // 누른 버튼이 사라지므로 초점을 제목으로 옮긴다.
       headingRef.current?.focus();

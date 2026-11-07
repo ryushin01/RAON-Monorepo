@@ -28,6 +28,7 @@ export function ForeshadowReference({
   const { data, error, isPending, invalidate } = useForeshadows(workId);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [titleError, setTitleError] = useState<string>();
   const inputRef = useRef<HTMLInputElement>(null);
   const save = useMutation({
     mutationFn: async ({ id, input }: SaveRequest) => {
@@ -49,8 +50,9 @@ export function ForeshadowReference({
     event.preventDefault();
     const name = title.trim();
     if (!name) {
+      setMessage("");
+      setTitleError("복선 이름을 입력해 주세요.");
       inputRef.current?.focus();
-      setMessage("복선 이름을 입력해 주세요.");
       return;
     }
     run({
@@ -80,7 +82,11 @@ export function ForeshadowReference({
           label="새 복선 이름"
           value={title}
           maxLength={60}
-          onChange={(event) => setTitle(event.target.value)}
+          error={titleError}
+          onChange={(event) => {
+            setTitle(event.target.value);
+            setTitleError(undefined);
+          }}
         />
         <div className={styles.actions}>
           <Button type="submit" variant="secondary" small aria-disabled={save.isPending}>
