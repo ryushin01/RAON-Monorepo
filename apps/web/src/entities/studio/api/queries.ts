@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { StudioEpisode, StudioWork, StudioWorkDetail } from "@raon/contracts";
+import type { StudioEpisode, StudioWork, StudioWorkDetail, TrashedWork } from "@raon/contracts";
 import { ApiError, apiFetch } from "@/shared/api/index.server";
 
 const orNull = async <T>(run: Promise<T>): Promise<T | null> => {
@@ -14,6 +14,7 @@ const orNull = async <T>(run: Promise<T>): Promise<T | null> => {
 
 /** 초안을 다루므로 캐시하지 않는다. */
 export const getStudioWorks = (token: string) => apiFetch<StudioWork[]>("/studio/works", { token });
+export const getTrashedWorks = (token: string) => apiFetch<TrashedWork[]>("/studio/trash/works", { token });
 export const getStudioWork = (workId: string, token: string) =>
   orNull(apiFetch<StudioWorkDetail>(`/studio/works/${workId}`, { token }));
 export const getStudioEpisode = (episodeId: string, token: string) =>

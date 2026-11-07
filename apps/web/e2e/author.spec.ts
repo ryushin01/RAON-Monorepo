@@ -1018,7 +1018,7 @@ test("초안의 집필 단계를 고르면 작품 관리에 보이고, 다시 �
   await expect(page.getByText("초안 진행: 퇴고 1개")).toBeVisible();
 });
 
-test("초안을 휴지통으로 옮겼다 되살리고, 완전히 지우며, 판매 전 작품을 지울 수 있다", async ({ page }) => {
+test("초안과 판매 전 작품을 휴지통으로 옮겼다 되살리고, 완전히 지운다", async ({ page }) => {
   const title = `삭제 ${Date.now()}`;
   await login(page, AUTHOR, "작가");
   await createWork(page, title);
@@ -1042,9 +1042,21 @@ test("초안을 휴지통으로 옮겼다 되살리고, 완전히 지우며, 판
   await expect(page.getByText("휴지통이 비어 있습니다.")).toBeVisible();
   await expect(page.getByText("아직 쓴 회차가 없습니다.")).toBeVisible();
 
-  await page.getByRole("button", { name: "작품 삭제" }).click();
+  // 작품도 휴지통으로 옮겼다 되살리고, 완전히 지운다.
+  await page.getByRole("button", { name: "휴지통으로 옮기기" }).click();
   await page.waitForURL("/studio");
   await expect(page.getByRole("link", { name: title })).toHaveCount(0);
+  await page.getByRole("button", { name: `복원: ${title}` }).click();
+  await expect(page.getByRole("link", { name: title })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "작품 휴지통" })).toBeFocused();
+
+  await page.getByRole("link", { name: title }).click();
+  await page.getByRole("button", { name: "휴지통으로 옮기기" }).click();
+  await page.waitForURL("/studio");
+  await page.getByRole("button", { name: `완전히 지우기: ${title}` }).click();
+  await expect(page.getByRole("button", { name: `복원: ${title}` })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: title })).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 2, name: "작품 휴지통" })).toBeFocused();
 });
 
 test("로그인 유형이 맞지 않으면 안내한다", async ({ page }) => {

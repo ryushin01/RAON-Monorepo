@@ -55,15 +55,28 @@ export async function setWorkStatus(
   return result;
 }
 
-export async function deleteWork(workId: string): Promise<ActionResult<null>> {
+/** 독자에게 바로 보이지 않게 되므로 공개 목록의 캐시도 비운다. */
+async function changeWork(path: string, method: "POST" | "DELETE"): Promise<ActionResult<null>> {
   const token = await getSessionToken();
   if (!token) return { ok: false, message: "로그인이 필요합니다." };
-  const result = await toActionResult(() => apiFetch<null>(`/studio/works/${workId}`, { method: "DELETE", token }));
+  const result = await toActionResult(() => apiFetch<null>(path, { method, token }));
   if (result.ok) {
     updateTag(WORKS_TAG);
     revalidatePath("/studio");
   }
   return result;
+}
+
+export async function trashWork(workId: string): Promise<ActionResult<null>> {
+  return changeWork(`/studio/works/${workId}`, "DELETE");
+}
+
+export async function restoreWork(workId: string): Promise<ActionResult<null>> {
+  return changeWork(`/studio/works/${workId}/restore`, "POST");
+}
+
+export async function purgeWork(workId: string): Promise<ActionResult<null>> {
+  return changeWork(`/studio/works/${workId}/permanent`, "DELETE");
 }
 
 export async function uploadCover(workId: string, data: FormData): Promise<ActionResult<StudioWorkDetail>> {

@@ -52,3 +52,32 @@
   gap: 1rem;
   padding-block: 3rem;
 }
+
+.trash {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.trashTitle {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.trashNote {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.trashName {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.trashActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
