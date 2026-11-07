@@ -1,5 +1,5 @@
 import type { EpisodeDoc } from "./document.js";
-import type { EpisodeStatus, Genre, Role, WorkBadge, WorkStatus } from "./domain.js";
+import type { EpisodeStatus, Genre, Role, WorkBadge, WorkStatus, WritingStage } from "./domain.js";
 
 export interface User {
   id: string;
@@ -192,6 +192,7 @@ export interface StudioEpisodeSummary {
   number: number;
   title: string;
   status: EpisodeStatus;
+  writingStage: WritingStage;
   isFree: boolean;
   charCount: number;
   updatedAt: string;
