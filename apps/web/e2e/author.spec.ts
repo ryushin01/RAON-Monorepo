@@ -442,6 +442,8 @@ test("저장 중에 더 쓰고 나가도 최신 원고가 남는다", async ({ p
   await page.getByRole("button", { name: "새 회차 쓰기" }).click();
   await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
   const url = page.url();
+  // 화면을 열 때 읽는 설정 목록이 아니라 저장을 늦추려고 먼저 끝나기를 기다린다.
+  await page.waitForLoadState("networkidle");
 
   // 첫 저장만 늦춘다. 순서가 뒤집히면 늦게 끝난 첫 저장이 최신 원고를 덮어쓴다.
   let first = true;
@@ -911,6 +913,53 @@ test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ 
   await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 20_000 });
   await page.reload();
   await expect(editorOf(page)).toContainText("끊긴 동안 쓴 글");
+});
+
+test("본문의 설정 이름에 표시하고, 커서가 놓이면 내용을 보여 주며, 저장되는 원고에는 남기지 않는다", async ({
+  page,
+}) => {
+  await login(page, AUTHOR, "작가");
+  const title = `설정 표시 ${Date.now()}`;
+  await createWork(page, title);
+  await page.getByRole("link", { name: "설정집과 메모" }).click();
+  await page.getByRole("button", { name: "새 문서" }).click();
+  await page.getByRole("textbox", { name: /^제목/ }).fill("이안");
+  await page.getByRole("textbox", { name: "다른 이름" }).fill("등대지기");
+  await page.getByRole("textbox", { name: "내용" }).fill("소금 사막의 마지막 등대지기");
+  await page.getByRole("button", { name: "문서 저장" }).click();
+  await expect(page.getByRole("heading", { name: "이안" })).toBeVisible();
+  await page.getByRole("link", { name: title }).click();
+
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("button", { name: "설정 표시" })).toHaveAttribute("aria-pressed", "true");
+  await editorOf(page).click();
+  await page.keyboard.type("그날 등대지기가 왔다");
+  const link = editorOf(page).locator(".note-link");
+  await expect(link).toHaveText("등대지기");
+  // 색만으로 구분하지 않는다(KWCAG 5.4.1).
+  await expect(link).toHaveCSS("text-decoration-style", "dotted");
+  await expect(page.getByRole("complementary", { name: "커서가 놓인 설정" })).toHaveCount(0);
+
+  // 키보드만으로 이름에 들어가면 내용을 읽을 수 있다(KWCAG 6.1.1).
+  for (let step = 0; step < 4; step += 1) await page.keyboard.press("ArrowLeft");
+  const card = page.getByRole("complementary", { name: "커서가 놓인 설정" });
+  await expect(card).toContainText("소금 사막의 마지막 등대지기");
+  await expect(page.getByRole("status").filter({ hasText: "설정 문서: 이안" })).toBeAttached();
+
+  await expect(page.getByText(/1화 · 초안 · .*저장됨/)).toBeVisible({ timeout: 10_000 });
+  await page.reload();
+  await expect(editorOf(page)).toHaveText("그날 등대지기가 왔다");
+  await expect(editorOf(page).locator(".note-link")).toHaveText("등대지기");
+  // 표시만 켜졌을 뿐 원고가 바뀌지 않았으므로 저장할 것이 없다.
+  await expect(page.getByText(/1화 · 초안 · 변경 사항 없음/)).toBeVisible();
+  // 본문에 들어오기 전에는 내용을 띄우지 않는다.
+  await expect(page.getByRole("complementary", { name: "커서가 놓인 설정" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "설정 표시" }).click();
+  await expect(editorOf(page).locator(".note-link")).toHaveCount(0);
+  await page.getByRole("button", { name: "설정 표시" }).click();
+  await expect(editorOf(page).locator(".note-link")).toHaveCount(1);
 });
 
 test("복선을 에디터에서 심고 회수하며, 설정집 화면에서 진행을 본다", async ({ page }) => {

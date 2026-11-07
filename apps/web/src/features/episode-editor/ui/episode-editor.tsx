@@ -10,13 +10,13 @@ import {
   WRITING_STAGES,
   type WritingStage,
 } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { formatDateTime } from "@/shared/lib";
 import { Button, ButtonLink, Notice, SelectField, TextAreaField, TextField } from "@/shared/ui";
-import { fetchEpisode, saveEpisode, setEpisodePublished, setWritingStage } from "../api/actions";
+import { fetchEpisode, listSettingNotes, saveEpisode, setEpisodePublished, setWritingStage } from "../api/actions";
 import { UNTITLED } from "../model/constants";
 import { clearBackup, type DraftBackup, loggedOutSince, readBackup, writeBackup } from "../model/draft-backup";
 import { DEFAULT_EDITOR_PREFS, readEditorPrefs, subscribeEditorPrefs, toggleEditorPref } from "../model/editor-prefs";
@@ -27,7 +27,9 @@ import styles from "./episode-editor.module.scss";
 import { EpisodeExport } from "./episode-export";
 import { editorExtensions } from "./extensions";
 import { FindReplace } from "./find-replace";
+import { NoteLinkCard } from "./note-link-card";
 import { VersionHistory } from "./version-history";
+import { createNoteMatcher, noteIdAtCursor, noteLinkKey } from "./writing-extensions";
 import { Tool, WritingTools } from "./writing-tools";
 
 const AUTOSAVE_MS = 2000;
@@ -208,6 +210,9 @@ function EpisodeEditorBody({
     immediatelyRender: false,
     editorProps: {
       attributes: { "aria-labelledby": contentLabelId, "aria-multiline": "true", role: "textbox" },
+      // 화면 아래에 붙는 설정 내용(최대 10rem)이 쓰는 줄을 가리지 않도록 위로 올려 둔다(KWCAG 6.1.2).
+      scrollThreshold: { top: 0, right: 0, bottom: 192, left: 0 },
+      scrollMargin: { top: 5, right: 0, bottom: 192, left: 0 },
     },
     // 도구 모음과 글자 수는 트랜잭션 때 다시 계산하는데, 문서가 준비된 뒤에는 트랜잭션이 없어 0자로 남는다.
     // 내용이 바뀌지 않는 빈 트랜잭션이라 변경 사항이나 실행 취소 기록에는 남지 않는다.
@@ -227,6 +232,7 @@ function EpisodeEditorBody({
             canRedo: current.can().redo(),
             chars: countChars(current.getJSON() as EpisodeDoc),
             charsWithSpaces: countCharsWithSpaces(current.getJSON() as EpisodeDoc),
+            noteId: noteIdAtCursor(current.state),
           }
         : null,
   });
@@ -234,6 +240,34 @@ function EpisodeEditorBody({
   useEffect(() => {
     if (editor) editor.storage.smartInput.enabled = prefs.smartInput;
   }, [editor, prefs.smartInput]);
+
+  // 보조 표시라 읽지 못해도 글쓰기를 막지 않는다. 설정집 참조 도구가 오류를 알린다.
+  const { data: settingNotes } = useQuery({
+    queryKey: ["episode-note-links", initial.workId],
+    enabled: prefs.noteLinks,
+    queryFn: async () => {
+      const result = await listSettingNotes(initial.workId);
+      if (!result.ok) throw new Error(result.message);
+      return result.data;
+    },
+  });
+  useEffect(() => {
+    if (!editor) return;
+    const matcher = prefs.noteLinks ? createNoteMatcher(settingNotes ?? []) : null;
+    // 문서를 바꾸지 않는 표시 갱신이라 변경 사항이나 실행 취소 기록에 남지 않는다.
+    editor.view.dispatch(editor.state.tr.setMeta(noteLinkKey, matcher).setMeta("addToHistory", false));
+  }, [editor, prefs.noteLinks, settingNotes]);
+  // 처음 커서는 문서 맨 앞에 있으므로, 작가가 본문에 들어오기 전에는 내용을 띄우지 않는다.
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    if (!editor) return;
+    const enter = () => setEntered(true);
+    editor.on("focus", enter);
+    return () => {
+      editor.off("focus", enter);
+    };
+  }, [editor]);
+  const activeNote = entered && toolbar?.noteId ? settingNotes?.find((note) => note.id === toolbar.noteId) : undefined;
 
   // 쓰고 있는 줄을 화면 가운데에 둔다. 다른 입력 칸에 있을 때는 화면을 옮기지 않는다.
   useEffect(() => {
@@ -606,6 +640,9 @@ function EpisodeEditorBody({
             <button type="button" aria-pressed={prefs.smartInput} onClick={() => toggleEditorPref("smartInput")}>
               자동 따옴표
             </button>
+            <button type="button" aria-pressed={prefs.noteLinks} onClick={() => toggleEditorPref("noteLinks")}>
+              설정 표시
+            </button>
             <button type="button" aria-pressed={findOpen} onClick={() => setFindOpen((value) => !value)}>
               찾기·바꾸기
             </button>
@@ -615,6 +652,11 @@ function EpisodeEditorBody({
           <FindReplace editor={editor} initialQuery={findQuery} onClose={() => setFindOpen(false)} />
         )}
         <EditorContent editor={editor} className={styles.content} data-dim={prefs.dim || undefined} />
+        {activeNote && <NoteLinkCard note={activeNote} />}
+        {/* 커서가 이름에 들어갈 때 제목만 알린다. 내용까지 읽어 주면 글을 쓰는 데 방해가 된다. */}
+        <p role="status" className="visually-hidden">
+          {activeNote ? `설정 문서: ${activeNote.title}` : ""}
+        </p>
         <CharGoal
           withSpaces={toolbar?.charsWithSpaces ?? 0}
           withoutSpaces={toolbar?.chars ?? 0}

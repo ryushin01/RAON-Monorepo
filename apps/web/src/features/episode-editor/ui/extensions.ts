@@ -1,7 +1,7 @@
 import { Blockquote } from "@tiptap/extension-blockquote";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import { StarterKit } from "@tiptap/starter-kit";
-import { CurrentBlock, SearchHighlight, SmartInput } from "./writing-extensions";
+import { CurrentBlock, NoteLinks, SearchHighlight, SmartInput } from "./writing-extensions";
 
 /**
  * 웹소설 본문에 쓰는 서식만 켠다. contracts의 episodeDocSchema와 맞아야 한다.
@@ -28,4 +28,5 @@ export const editorExtensions = [
   SearchHighlight,
   CurrentBlock,
   SmartInput,
+  NoteLinks,
 ];

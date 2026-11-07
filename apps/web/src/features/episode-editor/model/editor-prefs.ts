@@ -10,9 +10,17 @@ export interface EditorPrefs {
   dim: boolean;
   /** 곧은 따옴표와 점 세 개를 입력할 때 표준 기호로 바꾼다. */
   smartInput: boolean;
+  /** 본문의 설정 이름을 표시하고 커서가 놓이면 내용을 보여 준다. */
+  noteLinks: boolean;
 }
 
-export const DEFAULT_EDITOR_PREFS: EditorPrefs = { focus: false, typewriter: false, dim: false, smartInput: true };
+export const DEFAULT_EDITOR_PREFS: EditorPrefs = {
+  focus: false,
+  typewriter: false,
+  dim: false,
+  smartInput: true,
+  noteLinks: true,
+};
 
 const listeners = new Set<() => void>();
 let cachedRaw: string | undefined;

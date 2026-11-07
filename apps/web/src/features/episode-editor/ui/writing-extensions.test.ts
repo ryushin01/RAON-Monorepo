@@ -1,7 +1,17 @@
 import { docFromText } from "@raon/contracts";
 import { Editor } from "@tiptap/core";
 import { editorExtensions } from "./extensions";
-import { applyEdits, findRanges, findSymbolEdits, type SearchState, searchKey } from "./writing-extensions";
+import {
+  applyEdits,
+  createNoteMatcher,
+  findNoteMatches,
+  findRanges,
+  findSymbolEdits,
+  noteIdAtCursor,
+  noteLinkKey,
+  type SearchState,
+  searchKey,
+} from "./writing-extensions";
 
 const make = (text: string) => new Editor({ extensions: editorExtensions, content: docFromText(text) });
 
@@ -66,5 +76,74 @@ describe("searchKey", () => {
     editor.view.dispatch(editor.state.tr.setMeta(searchKey, meta));
     expect(searchKey.getState(editor.state)).toEqual(meta);
     expect(editor.getJSON()).toEqual(before);
+  });
+});
+
+describe("설정 이름 표시", () => {
+  const notes = [
+    { id: "n1", title: "이안", aliases: ["등대지기", "A"] },
+    { id: "n2", title: "이안 왕자", aliases: ["c++ (코드)", "별-바다"] },
+    { id: "n3", title: "소금 사막", aliases: ["이안"] },
+  ];
+  const matcher = createNoteMatcher(notes);
+  const textDoc = (...paragraphs: string[]) => {
+    const editor = new Editor({
+      extensions: [...editorExtensions],
+      content: {
+        type: "doc",
+        content: paragraphs.map((text) => ({ type: "paragraph", content: [{ type: "text", text }] })),
+      },
+    });
+    return editor;
+  };
+
+  it("이름과 다른 이름을 찾고, 조사가 붙어도 찾으며, 대소문자를 가리지 않는다", () => {
+    const editor = textDoc("이안은 등대지기였다.", "소금 사막에서");
+    expect(findNoteMatches(editor.state.doc, matcher).map(({ from, to, noteId }) => [from, to, noteId])).toEqual([
+      [1, 3, "n1"],
+      [5, 9, "n1"],
+      [14, 19, "n3"],
+    ]);
+    editor.destroy();
+  });
+
+  it("긴 이름을 먼저 찾고, 한 글자 이름은 찾지 않으며, 특수문자는 글자 그대로 찾는다", () => {
+    const editor = textDoc("이안 왕자와 A, 그리고 C++ (코드), 별-바다");
+    expect(findNoteMatches(editor.state.doc, matcher).map(({ noteId, from, to }) => [noteId, to - from])).toEqual([
+      ["n2", 5],
+      ["n2", 8],
+      ["n2", 4],
+    ]);
+    editor.destroy();
+  });
+
+  it("이름이 없으면 찾지 않는다", () => {
+    expect(createNoteMatcher([])).toBeNull();
+    expect(createNoteMatcher([{ id: "n", title: "A", aliases: [] }])).toBeNull();
+    const editor = textDoc("이안");
+    expect(findNoteMatches(editor.state.doc, null)).toEqual([]);
+    editor.destroy();
+  });
+
+  it("표시를 켜도 문서와 실행 취소 기록에 남지 않고, 입력하면 다시 찾으며, 커서의 문서를 알려 준다", () => {
+    const editor = textDoc("이안이 왔다.");
+    const before = editor.getJSON();
+    editor.view.dispatch(editor.state.tr.setMeta(noteLinkKey, matcher).setMeta("addToHistory", false));
+    expect(editor.getJSON()).toEqual(before);
+    expect(editor.can().undo()).toBe(false);
+    expect(editor.view.dom.querySelector(".note-link")?.textContent).toBe("이안");
+    expect(editor.getHTML()).not.toContain("note-link");
+
+    editor.commands.setTextSelection(2);
+    expect(noteIdAtCursor(editor.state)).toBe("n1");
+    editor.commands.setTextSelection(6);
+    expect(noteIdAtCursor(editor.state)).toBeNull();
+
+    editor.commands.insertContentAt(1, "등대지기 ");
+    expect(editor.view.dom.querySelectorAll(".note-link")).toHaveLength(2);
+
+    editor.view.dispatch(editor.state.tr.setMeta(noteLinkKey, null));
+    expect(editor.view.dom.querySelector(".note-link")).toBeNull();
+    editor.destroy();
   });
 });
