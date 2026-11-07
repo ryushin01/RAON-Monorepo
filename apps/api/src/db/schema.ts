@@ -1,6 +1,7 @@
 import type { EpisodeDoc, NoteProperty } from "@raon/contracts";
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   customType,
@@ -291,10 +292,28 @@ export const comments = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /** 답글이면 묶음의 첫 댓글. 깊이는 한 단계뿐이다. */
+    parentId: uuid("parent_id").references((): AnyPgColumn => comments.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
+    /** 값이 있으면 지운 댓글이다. 답글이 남아 있을 때만 자리를 지킨다. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("comments_episode_idx").on(t.episodeId, t.createdAt)],
+  (t) => [index("comments_episode_idx").on(t.episodeId, t.createdAt), index("comments_parent_idx").on(t.parentId)],
+);
+
+export const commentLikes = pgTable(
+  "comment_likes",
+  {
+    commentId: uuid("comment_id")
+      .notNull()
+      .references(() => comments.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.commentId, t.userId] }), index("comment_likes_user_idx").on(t.userId)],
 );
 
 export const ratings = pgTable(

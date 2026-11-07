@@ -246,6 +246,61 @@ test("테마와 뷰어 설정은 쿠키에 저장하고, 세션 토큰은 스크
   expect(await page.evaluate(() => document.cookie)).not.toContain("raon_session");
 });
 
+test("댓글에 답글을 달고 공감하며, 공감순으로 보고, 지운 댓글은 자리를 남긴다", async ({ page, browser }) => {
+  await login(page, READER, "일반 회원");
+  await page.goto("/works?q=등대지기");
+  await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await page.waitForURL(/episodes\/1$/);
+  const stamp = Date.now();
+  const comment = `부모 댓글 ${stamp}`;
+  const section = page.getByRole("region", { name: "댓글" });
+
+  await section.getByRole("textbox", { name: /댓글 쓰기/ }).fill(comment);
+  await section.getByRole("button", { name: "등록", exact: true }).click();
+  const item = section.getByRole("listitem").filter({ hasText: comment });
+  await expect(item).toBeVisible();
+
+  await item
+    .getByRole("button", { name: /^답글: / })
+    .first()
+    .click();
+  await expect(page.getByRole("textbox", { name: /답글 쓰기/ })).toBeFocused();
+  await page.keyboard.type(`답글 ${stamp}`);
+  await page.getByRole("button", { name: "답글 등록" }).click();
+  const replies = item.getByRole("list", { name: "답글 1개" });
+  await expect(replies).toContainText(`답글 ${stamp}`);
+
+  const like = item.getByRole("button", { name: /^공감 0: / }).first();
+  await like.click();
+  await expect(item.getByRole("button", { name: /^공감 1: / }).first()).toHaveAttribute("aria-pressed", "true");
+
+  await section.getByRole("link", { name: "공감순" }).click();
+  await expect(page).toHaveURL(/commentSort=likes/);
+  await expect(section.getByRole("link", { name: "✓ 공감순" })).toHaveAttribute("aria-current", "true");
+
+  await item.getByRole("button", { name: /의 댓글$/ }).click();
+  await expect(section.getByRole("heading", { level: 2, name: /^댓글/ })).toBeFocused();
+  const left = section
+    .getByRole("listitem")
+    .filter({ hasText: `답글 ${stamp}` })
+    .first();
+  await expect(left).toContainText("삭제된 댓글입니다.");
+  await expect(page.getByText(comment)).toHaveCount(0);
+
+  // 로그인하지 않으면 지운 내용도 공감 버튼도 없다.
+  const guest = await (await browser.newContext()).newPage();
+  const response = await guest.goto(page.url());
+  expect(await response?.text()).not.toContain(comment);
+  await expect(guest.getByRole("button", { name: /^공감 / })).toHaveCount(0);
+  await guest.context().close();
+
+  // 다음 실행을 위해 남은 답글을 지우면 자리도 사라진다.
+  await left.getByRole("button", { name: /의 답글$/ }).click();
+  await expect(page.getByText(`답글 ${stamp}`)).toHaveCount(0);
+  await expect(section.getByText("삭제된 댓글입니다.")).toHaveCount(0);
+});
+
 test("모드를 바꾸면 그 형식의 첫 화면과 메뉴로 가고, 첫 화면이 마지막 모드로 열린다", async ({ page }) => {
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "주요 메뉴" });

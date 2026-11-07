@@ -167,7 +167,13 @@ export type MoveEpisodeInput = z.infer<typeof moveEpisodeSchema>;
 
 export const commentInputSchema = z.object({
   body: z.string().trim().min(1, "댓글 내용을 입력해 주세요.").max(500, "댓글은 500자 이하로 입력해 주세요."),
+  /** 답글이면 이어 쓸 댓글. 답글의 답글은 같은 묶음에 이어 붙인다. */
+  parentId: z.uuid().nullish(),
 });
+
+export const COMMENT_SORTS = ["latest", "likes"] as const;
+export type CommentSort = (typeof COMMENT_SORTS)[number];
+export const commentQuerySchema = z.object({ sort: z.enum(COMMENT_SORTS).default("latest") });
 export type CommentInput = z.infer<typeof commentInputSchema>;
 
 export const checkoutSchema = z.object({ idempotencyKey: z.uuid() });
