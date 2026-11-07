@@ -21,6 +21,8 @@ import {
   comicImageInputSchema,
   type MoveEpisodeInput,
   moveEpisodeSchema,
+  type ReorderInput,
+  reorderInputSchema,
 } from "@raon/contracts";
 import { AuthGuard, type AuthUser, CurrentUser, Roles } from "../auth/auth.guard.js";
 import { ZodPipe } from "../common/zod.pipe.js";
@@ -47,6 +49,17 @@ export class ComicsController {
   ) {
     if (!file) throw new BadRequestException("이미지 파일을 골라 주세요.");
     return this.comics.add(user.id, episodeId, file.buffer, body.alt);
+  }
+
+  // ":imageId"보다 먼저 두어야 "order"가 이미지 id로 읽히지 않는다.
+  @Put("order")
+  @HttpCode(204)
+  async reorder(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Body(new ZodPipe(reorderInputSchema)) body: ReorderInput,
+  ) {
+    await this.comics.reorder(user.id, episodeId, body.ids);
   }
 
   @Get(":imageId")

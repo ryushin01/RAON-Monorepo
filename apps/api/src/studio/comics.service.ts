@@ -123,6 +123,34 @@ export class ComicsService {
     });
   }
 
+  /** 끌어 놓아 정한 순서로 이미지 순서를 다시 매긴다. */
+  async reorder(authorId: string, episodeId: string, ids: string[]): Promise<void> {
+    await this.ownedComicEpisode(authorId, episodeId);
+    await this.db.transaction(async (tx) => {
+      await this.lockEpisode(tx, episodeId);
+      const current = await tx
+        .select({ id: episodeImages.id })
+        .from(episodeImages)
+        .where(eq(episodeImages.episodeId, episodeId));
+      const known = new Set(current.map((row) => row.id));
+      if (ids.length !== current.length || ids.some((id) => !known.has(id))) {
+        throw new ConflictException("이미지 목록이 바뀌었습니다. 새로 고친 뒤 다시 옮겨 주세요.");
+      }
+      for (const [index, id] of ids.entries()) {
+        await tx
+          .update(episodeImages)
+          .set({ position: -(index + 1) })
+          .where(eq(episodeImages.id, id));
+      }
+      for (const [index, id] of ids.entries()) {
+        await tx
+          .update(episodeImages)
+          .set({ position: index + 1 })
+          .where(eq(episodeImages.id, id));
+      }
+    });
+  }
+
   async remove(authorId: string, episodeId: string, imageId: string): Promise<void> {
     await this.ownedComicEpisode(authorId, episodeId);
     await this.db.transaction(async (tx) => {
