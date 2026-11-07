@@ -353,6 +353,18 @@ test("파일을 새 회차로 가져오고, 회차와 작품을 내보낸다", a
   expect(html).toContain("&lt;b&gt;굵게&lt;/b&gt;");
   expect(html).not.toContain("<b>굵게");
   await expect(page.getByRole("status").filter({ hasText: "2개 회차를 내보냈습니다." })).toBeVisible();
+
+  // DOCX와 EPUB은 ZIP 묶음이다.
+  for (const format of ["docx", "epub"]) {
+    await page.getByRole("combobox", { name: "형식" }).selectOption(format);
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button", { name: "작품 내보내기" }).click();
+    const packaged = await pending;
+    expect(packaged.suggestedFilename()).toBe(`${workTitle}.${format}`);
+    const bytes = await readFile(await packaged.path());
+    expect(bytes.subarray(0, 2).toString("latin1")).toBe("PK");
+    expect(bytes.includes("&lt;b&gt;굵게&lt;/b&gt;")).toBe(true);
+  }
 });
 
 test("작가는 에디터로 집필해 공개하고, 독자가 바로 읽는다", async ({ page, browser }) => {

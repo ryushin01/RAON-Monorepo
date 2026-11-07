@@ -2,7 +2,12 @@ const REVOKE_DELAY_MS = 10_000;
 
 /** 글자를 파일로 내려받는다. 브라우저에서만 호출한다. */
 export function downloadText(fileName: string, text: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: `${type};charset=utf-8` }));
+  downloadFile(fileName, text, `${type};charset=utf-8`);
+}
+
+/** 글자나 바이너리를 파일로 내려받는다. 브라우저에서만 호출한다. */
+export function downloadFile(fileName: string, data: string | Uint8Array<ArrayBuffer>, type: string): void {
+  const url = URL.createObjectURL(new Blob([data], { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;

@@ -235,7 +235,7 @@ function ReplaceRules() {
           value={from}
           maxLength={MAX_RULE_LENGTH}
           error={error}
-          hint="예: -> . 한글 조합 중에는 바뀌지 않을 수 있어 기호나 영문 줄임말에 알맞습니다."
+          hint="예: -> . 한글 조합 중에는 바뀌지 않을 수 있어 기호나 영문 줄임말에 알맞습니다. 앞부분이 겹치는 규칙은 짧은 쪽이 먼저 완성되면 먼저 바뀝니다."
           onChange={(event) => setFrom(event.target.value)}
         />
         <TextField
