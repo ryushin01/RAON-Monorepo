@@ -1,1 +1,8 @@
-export { HomePage, homeMetadata } from "./ui/home-page";
+export {
+  HomePage,
+  homeMetadata,
+  NovelHomePage,
+  novelHomeMetadata,
+  WebtoonHomePage,
+  webtoonHomeMetadata,
+} from "./ui/home-page";

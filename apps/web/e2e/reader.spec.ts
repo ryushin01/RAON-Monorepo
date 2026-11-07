@@ -245,3 +245,27 @@ test("테마와 뷰어 설정은 쿠키에 저장하고, 세션 토큰은 스크
   expect(cookies.find((c) => c.name === "raon_session")).toMatchObject({ httpOnly: true, sameSite: "Lax" });
   expect(await page.evaluate(() => document.cookie)).not.toContain("raon_session");
 });
+
+test("모드를 바꾸면 그 형식의 첫 화면과 메뉴로 가고, 첫 화면이 마지막 모드로 열린다", async ({ page }) => {
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "주요 메뉴" });
+  await expect(nav.getByRole("link", { name: "웹소설" })).toHaveAttribute("aria-current", "true");
+  await expect(page.getByRole("heading", { name: "인기 작품" })).toBeVisible();
+
+  await nav.getByRole("link", { name: "웹툰" }).click();
+  await page.waitForURL("/webtoon");
+  await expect(nav.getByRole("link", { name: "웹툰" })).toHaveAttribute("aria-current", "true");
+  await expect(nav.getByRole("link", { name: "무협" })).toHaveAttribute("href", "/works?format=COMIC&genre=MARTIAL");
+
+  // 쿠키에 기억하므로 첫 화면을 새로 열어도 웹툰 모드다.
+  await page.goto("/");
+  await expect(nav.getByRole("link", { name: "웹툰" })).toHaveAttribute("aria-current", "true");
+
+  await page.goto("/works?format=NOVEL");
+  await expect(page.getByRole("heading", { level: 1, name: "전체 웹소설" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "형식" }).getByRole("link", { name: "웹소설" })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await expect(nav.getByRole("link", { name: "웹소설" })).toHaveAttribute("aria-current", "true");
+});

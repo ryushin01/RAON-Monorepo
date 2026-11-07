@@ -44,6 +44,7 @@ export function WorkForm({ work }: { work?: StudioWork }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     save.mutate({
+      format: work?.format ?? "NOVEL",
       title: String(form.get("title")),
       synopsis: String(form.get("synopsis")),
       genre: String(form.get("genre")) as Genre,

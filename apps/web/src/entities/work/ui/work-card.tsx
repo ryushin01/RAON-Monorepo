@@ -1,4 +1,4 @@
-import { GENRE_LABEL, WORK_BADGE_LABEL, WORK_STATUS_LABEL, type WorkSummary } from "@raon/contracts";
+import { GENRE_LABEL, WORK_BADGE_LABEL, WORK_FORMAT_LABEL, WORK_STATUS_LABEL, type WorkSummary } from "@raon/contracts";
 import Link from "next/link";
 import { formatCompact } from "@/shared/lib";
 import { Badge } from "@/shared/ui";
@@ -24,7 +24,8 @@ export function WorkCard({ work, headingLevel = 3 }: { work: WorkSummary; headin
         </p>
       )}
       <p className={styles.meta}>
-        {work.authorName} · {GENRE_LABEL[work.genre]} · {WORK_STATUS_LABEL[work.status]}
+        {work.authorName} · {WORK_FORMAT_LABEL[work.format]} · {GENRE_LABEL[work.genre]} ·{" "}
+        {WORK_STATUS_LABEL[work.status]}
         <br />
         {work.episodeCount}화 · 조회 {formatCompact(work.viewCount)}
         {work.ratingAverage !== null && ` · 별점 ${work.ratingAverage}`}

@@ -5,6 +5,7 @@ import { WorkCard } from "./work-card";
 const work: WorkSummary = {
   id: "w1",
   title: "등대지기의 마지막 항로",
+  format: "NOVEL",
   authorName: "윤슬",
   genre: "FANTASY",
   status: "COMPLETED",

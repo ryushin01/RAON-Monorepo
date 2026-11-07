@@ -19,7 +19,7 @@ const serif = Noto_Serif_KR({
 
 export const rootMetadata: Metadata = {
   title: { default: "RAON 라온", template: "%s | RAON 라온" },
-  description: "웹소설을 연재하고 감상하는 플랫폼",
+  description: "웹툰과 웹소설을 연재하고 감상하는 플랫폼",
 };
 
 export function RootLayout({ children }: { children: ReactNode }) {

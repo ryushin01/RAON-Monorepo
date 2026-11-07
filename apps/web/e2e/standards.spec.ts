@@ -17,7 +17,7 @@ test.describe("HTML 표준, KWCAG 8.1.1", () => {
   test("화면을 오가도 main은 하나이고 id가 겹치지 않는다", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("navigation", { name: "주요 메뉴" }).getByRole("link", { name: "전체 작품" }).click();
-    await page.waitForURL("/works");
+    await page.waitForURL("/works?format=NOVEL");
     await assertDocumentValid(page);
 
     await page.getByRole("link", { name: "검은 먹의 강호" }).click();
@@ -38,8 +38,8 @@ test.describe("KWCAG 운용", () => {
   test("6.4.1 화면을 옮긴 뒤에도 본문 바로가기가 보이는 본문으로 간다", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("navigation", { name: "주요 메뉴" }).getByRole("link", { name: "전체 작품" }).click();
-    await page.waitForURL("/works");
-    await expect(page.getByRole("heading", { level: 1, name: "전체 작품" })).toBeVisible();
+    await page.waitForURL("/works?format=NOVEL");
+    await expect(page.getByRole("heading", { level: 1, name: "전체 웹소설" })).toBeVisible();
 
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     const skip = page.getByRole("link", { name: "본문 바로가기" });
@@ -51,7 +51,7 @@ test.describe("KWCAG 운용", () => {
       const active = document.activeElement as HTMLElement;
       return { tag: active.tagName, visible: active.checkVisibility(), title: active.querySelector("h1")?.textContent };
     });
-    expect(focused).toEqual({ tag: "MAIN", visible: true, title: "전체 작품" });
+    expect(focused).toEqual({ tag: "MAIN", visible: true, title: "전체 웹소설" });
   });
 
   test("6.5.3 보이는 글자가 접근 가능한 이름에 들어 있고 맨 앞에 온다", async ({ page }) => {
@@ -142,15 +142,22 @@ test.describe("KWCAG 운용", () => {
           return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
         };
         const panel = element.parentElement as HTMLElement;
-        const background = luminance(getComputedStyle(panel).backgroundColor);
-        const contrast = (color: string) => {
+        const panelColor = getComputedStyle(panel).backgroundColor;
+        const contrast = (color: string, backgroundColor: string) => {
           const value = luminance(color);
+          const background = luminance(backgroundColor);
           return (Math.max(value, background) + 0.05) / (Math.min(value, background) + 0.05);
         };
-        return [...panel.querySelectorAll<HTMLElement>("a, input")].map((item) => ({
-          text: item.textContent || item.getAttribute("placeholder"),
-          ratio: contrast(getComputedStyle(item).color),
-        }));
+        return [...panel.querySelectorAll<HTMLElement>("a, input")].map((item) => {
+          const style = getComputedStyle(item);
+          // 선택된 모드 탭처럼 자기 배경이 있으면 그 색과 비교한다.
+          const own = style.backgroundColor;
+          const transparent = own === "transparent" || /,\s*0\)$/.test(own);
+          return {
+            text: item.textContent || item.getAttribute("placeholder"),
+            ratio: contrast(style.color, transparent ? panelColor : own),
+          };
+        });
       });
       expect(ratios.length).toBeGreaterThan(0);
       for (const { text, ratio } of ratios) expect(ratio, text ?? "").toBeGreaterThanOrEqual(4.5);
@@ -366,7 +373,7 @@ test.describe("상태 격리", () => {
     await expect(page.getByText(/보유 [\d,]+코인/)).toBeVisible();
 
     await page.getByRole("navigation", { name: "주요 메뉴" }).getByRole("link", { name: "전체 작품" }).click();
-    await page.waitForURL("/works");
+    await page.waitForURL("/works?format=NOVEL");
     await page.getByRole("button", { name: "로그아웃" }).click();
     await expect(page.getByRole("link", { name: "로그인" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.innerHTML.includes("보유 "))).toBe(false);

@@ -2,6 +2,8 @@ export const SESSION_COOKIE = "raon_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 export const THEME_COOKIE = "raon_theme";
+/** 마지막으로 고른 웹툰·웹소설 모드. 첫 화면이 이 값으로 열린다. */
+export const MODE_COOKIE = "raon_mode";
 export const VIEWER_COOKIE = "raon_viewer";
 export const EPISODE_GOAL_COOKIE = "raon_episode_goal";
 export const EDITOR_PREFS_COOKIE = "raon_editor_prefs";

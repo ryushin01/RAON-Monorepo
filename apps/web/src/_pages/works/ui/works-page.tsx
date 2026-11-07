@@ -1,4 +1,13 @@
-import { GENRE_LABEL, GENRES, genreSchema, type WorkQuery, workSortSchema } from "@raon/contracts";
+import {
+  GENRE_LABEL,
+  GENRES,
+  genreSchema,
+  WORK_FORMAT_LABEL,
+  WORK_FORMATS,
+  type WorkQuery,
+  workFormatSchema,
+  workSortSchema,
+} from "@raon/contracts";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -18,6 +27,7 @@ function parse(params: SearchParams) {
   const status = one(params.status);
   const page = Number(one(params.page));
   return {
+    format: workFormatSchema.safeParse(one(params.format)).data,
     genre: genreSchema.safeParse(one(params.genre)).data,
     status: status === "ONGOING" || status === "COMPLETED" ? status : undefined,
     sort: workSortSchema.safeParse(one(params.sort)).data ?? "popular",
@@ -65,7 +75,13 @@ async function WorksContent({ searchParams }: { searchParams: Promise<SearchPara
   return (
     <>
       <h1 className={styles.title}>
-        {filters.q ? `‘${filters.q}’ 검색 결과` : filters.tag ? `#${filters.tag} 작품` : "전체 작품"}
+        {filters.q
+          ? `‘${filters.q}’ 검색 결과`
+          : filters.tag
+            ? `#${filters.tag} 작품`
+            : filters.format
+              ? `전체 ${WORK_FORMAT_LABEL[filters.format]}`
+              : "전체 작품"}
       </h1>
       {filters.tag && (
         <p>
@@ -73,6 +89,18 @@ async function WorksContent({ searchParams }: { searchParams: Promise<SearchPara
         </p>
       )}
       <div className={styles.filters}>
+        <FilterRow
+          label="형식"
+          options={[
+            { key: "all", label: "전체", href: hrefOf(filters, { format: undefined }), current: !filters.format },
+            ...WORK_FORMATS.map((format) => ({
+              key: format,
+              label: WORK_FORMAT_LABEL[format],
+              href: hrefOf(filters, { format }),
+              current: filters.format === format,
+            })),
+          ]}
+        />
         <FilterRow
           label="장르"
           options={[

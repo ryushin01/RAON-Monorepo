@@ -15,6 +15,7 @@ const meta = {
     work: {
       id: "w1",
       title: "등대지기의 마지막 항로",
+      format: "NOVEL",
       authorName: "윤슬",
       genre: "FANTASY",
       status: "ONGOING",
