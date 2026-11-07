@@ -76,7 +76,11 @@ function ForeshadowForm({
   // 처음 열 때와 오류가 있을 때 해당 칸으로 초점을 옮긴다.
   // biome-ignore lint/correctness/useExhaustiveDependencies: 새 오류가 올 때마다 초점을 다시 옮기려고 넣었다.
   useEffect(() => {
-    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [name="title"]')?.focus();
+    // 두 선택자를 한 번에 쓰면 문서 순서상 앞에 있는 제목 칸이 오류 칸보다 먼저 잡힌다.
+    const form = formRef.current;
+    (
+      form?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? form?.querySelector<HTMLElement>('[name="title"]')
+    )?.focus();
   }, [fieldErrors]);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {

@@ -281,7 +281,7 @@ describe("문서 속성", () => {
     );
   });
 
-  it("속성 오류를 알린다", async () => {
+  it("서버의 속성 오류를 빈 행을 뺀 위치에 맞춰 해당 칸에 연결하고 초점을 옮긴다", async () => {
     (saveNote as jest.Mock).mockResolvedValue({
       ok: false,
       message: "입력을 확인해 주세요.",
@@ -289,9 +289,32 @@ describe("문서 속성", () => {
     });
     wrap(<NotesManager workId="w1" episodeNumbers={{}} />);
     await userEvent.click(await screen.findByRole("button", { name: "새 문서" }));
+    await userEvent.type(screen.getByRole("textbox", { name: /^제목/ }), "새 문서");
     await userEvent.click(screen.getByRole("button", { name: "속성 추가" }));
-    await userEvent.type(screen.getByRole("textbox", { name: "1번째 속성 값" }), "값");
+    await userEvent.click(screen.getByRole("button", { name: "속성 추가" }));
+    // 첫째 행은 비워 두어 보내지 않으므로 서버의 0번은 화면의 둘째 행이다.
+    await userEvent.type(screen.getByRole("textbox", { name: "2번째 속성 값" }), "값");
     await userEvent.click(screen.getByRole("button", { name: "문서 저장" }));
-    expect(await screen.findByText("속성 이름을 입력해 주세요.")).toBeInTheDocument();
+
+    const field = await screen.findByRole("textbox", { name: "2번째 속성 이름" });
+    await waitFor(() => expect(field).toHaveAttribute("aria-invalid", "true"));
+    expect(field).toHaveFocus();
+    expect(field).toHaveAccessibleDescription("속성 이름을 입력해 주세요.");
+    expect(screen.getByRole("textbox", { name: "1번째 속성 이름" })).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("한도에 닿으면 더 추가하지 않고 알린다", async () => {
+    const full = {
+      ...setting,
+      properties: Array.from({ length: 30 }, (_, index) => ({ name: `속성${index}`, value: "값" })),
+    };
+    (listNotes as jest.Mock).mockResolvedValue(ok([full]));
+    wrap(<NotesManager workId="w1" episodeNumbers={{}} />);
+    await userEvent.click(await screen.findByRole("button", { name: "고치기: 이안" }));
+    const add = screen.getByRole("button", { name: "속성 추가" });
+    expect(add).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(add);
+    expect(screen.queryByRole("textbox", { name: "31번째 속성 이름" })).not.toBeInTheDocument();
+    expect(screen.getByText("속성은 30개까지 입력할 수 있습니다.")).toBeInTheDocument();
   });
 });
