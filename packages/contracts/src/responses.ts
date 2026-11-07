@@ -1,5 +1,14 @@
 import type { EpisodeDoc } from "./document.js";
-import type { EpisodeStatus, Genre, Role, WorkBadge, WorkFormat, WorkStatus, WritingStage } from "./domain.js";
+import type {
+  EpisodeStatus,
+  EpisodeType,
+  Genre,
+  Role,
+  WorkBadge,
+  WorkFormat,
+  WorkStatus,
+  WritingStage,
+} from "./domain.js";
 
 export interface User {
   id: string;
@@ -47,6 +56,7 @@ export interface PublicEpisode {
   id: string;
   number: number;
   title: string;
+  episodeType: EpisodeType;
   isFree: boolean;
   charCount: number;
   publishedAt: string;
@@ -110,6 +120,7 @@ export interface EpisodeView {
   authorName: string;
   number: number;
   title: string;
+  episodeType: EpisodeType;
   isFree: boolean;
   publishedAt: string;
   prev: EpisodeNeighbor | null;
@@ -198,6 +209,9 @@ export interface StudioEpisodeSummary {
   title: string;
   status: EpisodeStatus;
   writingStage: WritingStage;
+  episodeType: EpisodeType;
+  /** 작가만 본다. 독자 응답에는 넣지 않는다. */
+  pointOfView: string;
   isFree: boolean;
   charCount: number;
   updatedAt: string;
