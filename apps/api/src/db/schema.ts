@@ -97,6 +97,25 @@ export const episodes = pgTable(
   (t) => [uniqueIndex("episodes_work_number_uq").on(t.workId, t.number)],
 );
 
+/** 웹툰 회차의 이미지. 표지처럼 파일 서버 없이 실행되도록 DB에 둔다. */
+export const episodeImages = pgTable(
+  "episode_images",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    episodeId: uuid("episode_id")
+      .notNull()
+      .references(() => episodes.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    mimeType: text("mime_type").notNull(),
+    data: bytea("data").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    alt: text("alt").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("episode_images_position_uq").on(t.episodeId, t.position)],
+);
+
 /** 회차의 지난 내용. 가격과 공개 상태는 판매와 맞물리므로 담지 않고 원고만 담는다. */
 export const episodeVersions = pgTable(
   "episode_versions",

@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
   countChars,
+  EMPTY_DOC,
   type EpisodeInput,
   type EpisodeVersion,
   type EpisodeVersionSummary,
@@ -18,7 +19,7 @@ import { isForeignKeyViolation } from "../common/db-errors.js";
 import { detectImageType } from "../common/image.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
-import { episodes, episodeVersions, orderItems, workCovers, works } from "../db/schema.js";
+import { episodeImages, episodes, episodeVersions, orderItems, workCovers, works } from "../db/schema.js";
 
 /** 자동 버전은 이 간격마다 하나만 남긴다. 초안은 입력이 멈출 때마다 저장되기 때문이다. */
 export const AUTO_VERSION_INTERVAL_MS = 10 * 60 * 1000;
@@ -134,6 +135,7 @@ export class StudioService {
         updatedAt: episodes.updatedAt,
         publishedAt: episodes.publishedAt,
         deletedAt: episodes.deletedAt,
+        imageCount: sql<number>`(select count(*)::int from "episode_images" i where i."episode_id" = "episodes"."id")`,
       })
       .from(episodes)
       .where(eq(episodes.workId, workId))
@@ -142,7 +144,7 @@ export class StudioService {
       ...toWork(row),
       episodes: list
         .filter((episode) => !episode.deletedAt)
-        .map(({ id, number, title, status, writingStage, isFree, charCount, updatedAt, publishedAt }) => ({
+        .map(({ id, number, title, status, writingStage, isFree, charCount, updatedAt, publishedAt, imageCount }) => ({
           id,
           number,
           title,
@@ -152,6 +154,7 @@ export class StudioService {
           charCount,
           updatedAt: updatedAt.toISOString(),
           publishedAt: publishedAt?.toISOString() ?? null,
+          imageCount,
         })),
       trash: list.flatMap(({ id, number, title, charCount, deletedAt }) =>
         deletedAt ? [{ id, number, title, charCount, deletedAt: deletedAt.toISOString() }] : [],
@@ -221,9 +224,11 @@ export class StudioService {
         .select({ next: sql<number>`coalesce(max(${episodes.number}), 0)::int + 1` })
         .from(episodes)
         .where(eq(episodes.workId, workId));
+      // 웹툰 회차의 내용은 이미지이므로 본문을 받지 않는다.
+      const content = (await this.isComic(tx, workId)) ? EMPTY_DOC : input.content;
       const [row] = await tx
         .insert(episodes)
-        .values({ ...input, workId, number: next, charCount: countChars(input.content) })
+        .values({ ...input, content, workId, number: next, charCount: countChars(content) })
         .returning();
       return toEpisode(row!);
     });
@@ -238,11 +243,14 @@ export class StudioService {
     return this.db.transaction(async (tx) => {
       // 동시에 저장해도 앞선 저장의 원고를 버전으로 남기도록 잠근 뒤 다시 읽는다.
       const current = await this.lockEpisode(tx, episodeId);
-      if (current.status === "PUBLISHED") this.assertPublishable(input);
-      await this.snapshotBeforeSave(tx, current, input);
+      const comic = await this.isComic(tx, current.workId);
+      const content = comic ? EMPTY_DOC : input.content;
+      // 웹툰의 공개 조건은 이미지이고, 이미지는 지울 때 따로 지킨다.
+      if (current.status === "PUBLISHED" && !comic) this.assertPublishable(input);
+      await this.snapshotBeforeSave(tx, current, { ...input, content });
       const [row] = await tx
         .update(episodes)
-        .set({ ...input, charCount: countChars(input.content), updatedAt: new Date() })
+        .set({ ...input, content, charCount: countChars(content), updatedAt: new Date() })
         .where(eq(episodes.id, episodeId))
         .returning();
       return toEpisode(row!);
@@ -407,7 +415,8 @@ export class StudioService {
   /** publishAt이 있으면 그 시각까지 독자에게 보이지 않는다. 예약 중인 회차는 바로 공개하거나 시각을 바꿀 수 있다. */
   async publishEpisode(authorId: string, episodeId: string, publishAt?: string): Promise<StudioEpisode> {
     const current = await this.ownedEpisode(authorId, episodeId);
-    this.assertPublishable({ content: current.content });
+    if (await this.isComic(this.db, current.workId)) await this.assertComicPublishable(episodeId);
+    else this.assertPublishable({ content: current.content });
     const now = new Date();
     const alreadyPublic = current.status === "PUBLISHED" && current.publishedAt !== null && current.publishedAt <= now;
     let publishedAt: Date;
@@ -622,6 +631,23 @@ export class StudioService {
       .where(and(eq(orderItems.workId, workId), or(eq(orderItems.episodeId, episodeId), isNull(orderItems.episodeId))))
       .limit(1);
     return Boolean(sold);
+  }
+
+  private async isComic(db: Pick<Database, "select">, workId: string) {
+    const [work] = await db.select({ format: works.format }).from(works).where(eq(works.id, workId));
+    return work?.format === "COMIC";
+  }
+
+  /** 이미지는 읽어 줄 수 없으므로 모두 설명이 있어야 공개한다(KWCAG 5.1.1). */
+  private async assertComicPublishable(episodeId: string) {
+    const images = await this.db
+      .select({ position: episodeImages.position, alt: episodeImages.alt })
+      .from(episodeImages)
+      .where(eq(episodeImages.episodeId, episodeId))
+      .orderBy(asc(episodeImages.position));
+    if (images.length === 0) throw new BadRequestException("이미지를 올린 뒤에 공개할 수 있습니다.");
+    const missing = images.findIndex((image) => !image.alt);
+    if (missing !== -1) throw new BadRequestException(`${missing + 1}번째 이미지의 설명을 입력해 주세요.`);
   }
 
   private assertPublishable(input: Pick<EpisodeInput, "content">) {

@@ -1,0 +1,91 @@
+.editor {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.bar,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bar {
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.state {
+  font-size: 0.875rem;
+}
+
+.fields,
+.upload {
+  display: grid;
+  gap: 1rem;
+}
+
+.upload {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.heading {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.list {
+  display: grid;
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+
+  @media (width >= 48rem) {
+    grid-template-columns: 10rem minmax(0, 1fr);
+  }
+}
+
+.thumb {
+  width: 100%;
+  max-width: 10rem;
+  height: auto;
+  max-height: 14rem;
+  object-fit: contain;
+  border: 1px solid var(--line);
+}
+
+.itemBody {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+
+  input {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--fg);
+  }
+}

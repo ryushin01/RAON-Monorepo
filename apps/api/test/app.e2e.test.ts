@@ -21,6 +21,7 @@ import { type Database, type DatabaseHandle, openDatabase } from "../src/db/data
 import { DATABASE_HANDLE } from "../src/db/database.module.js";
 import {
   comments as commentsTable,
+  episodeImages as episodeImagesTable,
   episodes as episodesTable,
   episodeVersions as episodeVersionsTable,
   favorites as favoritesTable,
@@ -1335,6 +1336,142 @@ describe("RAON API", () => {
         .insert(foreshadowsTable)
         .values(Array.from({ length: 200 }, (_, index) => ({ workId: work.id, title: `복선 ${index}` })));
       await http().post(url).set(auth).send(input()).expect(409);
+    });
+  });
+
+  describe("웹툰 회차 이미지", () => {
+    const png = (width = 8, height = 16) => {
+      const data = Buffer.alloc(32);
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(data);
+      data.writeUInt32BE(width, 16);
+      data.writeUInt32BE(height, 20);
+      return data;
+    };
+
+    async function setup() {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = (
+        await http()
+          .post("/studio/works")
+          .set(auth)
+          .send({
+            format: "COMIC",
+            title: "시험 웹툰",
+            synopsis: "열 글자가 넘는 작품 소개입니다.",
+            genre: "SF",
+            episodePrice: 100,
+            wholePrice: null,
+            tags: [],
+          })
+          .expect(201)
+      ).body as StudioWorkDetail;
+      const episode = (
+        await http()
+          .post(`/studio/works/${work.id}/episodes`)
+          .set(auth)
+          .send({ title: "1화", content: doc, authorNote: null, isFree: true })
+          .expect(201)
+      ).body as { id: string; charCount: number; content: unknown };
+      const url = `/studio/episodes/${episode.id}/images`;
+      const upload = (alt = "", file = png()) =>
+        http().post(url).set(auth).field("alt", alt).attach("file", file, "image.png");
+      return { auth, work, episode, url, upload };
+    }
+
+    it("본문을 저장하지 않고, 이미지를 올린 순서대로 두며 크기를 읽고, 내용으로 형식을 판별한다", async () => {
+      const { auth, episode, url, upload } = await setup();
+      expect(episode.charCount).toBe(0);
+      const saved = await http()
+        .put(`/studio/episodes/${episode.id}`)
+        .set(auth)
+        .send({ title: "고친 제목", content: doc, authorNote: null, isFree: true })
+        .expect(200);
+      expect(saved.body).toMatchObject({ title: "고친 제목", charCount: 0 });
+
+      const first = (await upload("첫 장면", png(800, 1200)).expect(201)).body;
+      expect(first).toMatchObject({ position: 1, alt: "첫 장면", width: 800, height: 1200 });
+      await upload("둘째 장면").expect(201);
+      await upload("가짜", Buffer.from("<svg></svg>")).expect(400);
+      await http().post(url).set(auth).field("alt", "").expect(400);
+      expect((await http().get(url).set(auth).expect(200)).body.map((image: { alt: string }) => image.alt)).toEqual([
+        "첫 장면",
+        "둘째 장면",
+      ]);
+
+      const read = await http().get(`${url}/${first.id}`).set(auth).expect(200);
+      expect(read.headers["content-type"]).toContain("image/png");
+    });
+
+    it("크기 제한을 넘는 파일과 개수 제한을 넘는 이미지를 막는다", async () => {
+      const { upload, episode } = await setup();
+      const large = Buffer.concat([png(), Buffer.alloc(3 * 1024 * 1024)]);
+      const res = await upload("큼", large);
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.status).toBeLessThan(500);
+      await db.insert(episodeImagesTable).values(
+        Array.from({ length: 100 }, (_, index) => ({
+          episodeId: episode.id,
+          position: index + 1,
+          mimeType: "image/png",
+          data: new Uint8Array(1),
+        })),
+      );
+      await upload("초과").expect(409);
+    });
+
+    it("순서를 옮기고 설명을 고치며 지운다", async () => {
+      const { auth, url, upload } = await setup();
+      const first = (await upload("하나").expect(201)).body;
+      const second = (await upload("둘").expect(201)).body;
+      await http().post(`${url}/${first.id}/move`).set(auth).send({ direction: "up" }).expect(400);
+      await http().post(`${url}/${second.id}/move`).set(auth).send({ direction: "up" }).expect(204);
+      const moved = (await http().get(url).set(auth).expect(200)).body as { id: string }[];
+      expect(moved.map((image) => image.id)).toEqual([second.id, first.id]);
+
+      const updated = await http().put(`${url}/${first.id}`).set(auth).send({ alt: "  고친 설명  " }).expect(200);
+      expect(updated.body.alt).toBe("고친 설명");
+      await http().delete(`${url}/${first.id}`).set(auth).expect(204);
+      await http().delete(`${url}/${first.id}`).set(auth).expect(404);
+      await http().get(`${url}/${first.id}`).set(auth).expect(404);
+    });
+
+    it("이미지가 없거나 설명이 빠지면 공개하지 않고, 공개한 뒤에는 설명과 마지막 이미지를 지킨다", async () => {
+      const { auth, work, episode, url, upload } = await setup();
+      const publish = () => http().post(`/studio/episodes/${episode.id}/publish`).set(auth);
+      await publish().expect(400);
+      const first = (await upload("").expect(201)).body;
+      const refused = await publish().expect(400);
+      expect(refused.body.message).toContain("1번째 이미지");
+      await http().put(`${url}/${first.id}`).set(auth).send({ alt: "등대가 보이는 첫 장면" }).expect(200);
+      await publish().expect(200);
+
+      await http().put(`${url}/${first.id}`).set(auth).send({ alt: " " }).expect(400);
+      await upload("").expect(400);
+      await http().delete(`${url}/${first.id}`).set(auth).expect(409);
+      // 공개한 뒤에 제목을 고쳐도 본문 조건에 걸리지 않는다.
+      await http()
+        .put(`/studio/episodes/${episode.id}`)
+        .set(auth)
+        .send({ title: "새 제목", content: doc, authorNote: null, isFree: true })
+        .expect(200);
+      const detail = (await http().get(`/studio/works/${work.id}`).set(auth).expect(200)).body as StudioWorkDetail;
+      expect(detail.episodes[0]?.imageCount).toBe(1);
+    });
+
+    it("다른 작가와 독자는 다룰 수 없고, 웹소설 회차에는 올릴 수 없다", async () => {
+      const { url, upload } = await setup();
+      const image = (await upload("하나").expect(201)).body;
+      const other = await signup("AUTHOR");
+      const reader = await signup("READER");
+      await http().get(url).set(bearer(other.accessToken)).expect(404);
+      await http().get(`${url}/${image.id}`).set(bearer(other.accessToken)).expect(404);
+      await http().delete(`${url}/${image.id}`).set(bearer(other.accessToken)).expect(404);
+      await http().get(url).set(bearer(reader.accessToken)).expect(403);
+      await http().get(url).expect(401);
+
+      const novel = await publishWork(other.accessToken);
+      await http().get(`/studio/episodes/${novel.episodes[0]?.id}/images`).set(bearer(other.accessToken)).expect(400);
     });
   });
 

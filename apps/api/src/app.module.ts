@@ -5,6 +5,8 @@ import { CatalogService } from "./catalog/catalog.service.js";
 import { CommerceController } from "./commerce/commerce.controller.js";
 import { CommerceService } from "./commerce/commerce.service.js";
 import { DatabaseModule } from "./db/database.module.js";
+import { ComicsController } from "./studio/comics.controller.js";
+import { ComicsService } from "./studio/comics.service.js";
 import { ForeshadowsController } from "./studio/foreshadows.controller.js";
 import { ForeshadowsService } from "./studio/foreshadows.service.js";
 import { NotesController } from "./studio/notes.controller.js";
@@ -29,7 +31,8 @@ class HealthController {
     StudioController,
     NotesController,
     ForeshadowsController,
+    ComicsController,
   ],
-  providers: [CatalogService, CommerceService, StudioService, NotesService, ForeshadowsService],
+  providers: [CatalogService, CommerceService, StudioService, NotesService, ForeshadowsService, ComicsService],
 })
 export class AppModule {}

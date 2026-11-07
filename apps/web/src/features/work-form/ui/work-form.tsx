@@ -1,6 +1,15 @@
 "use client";
 
-import { GENRE_LABEL, GENRES, type Genre, MAX_TAGS, type StudioWork } from "@raon/contracts";
+import {
+  GENRE_LABEL,
+  GENRES,
+  type Genre,
+  MAX_TAGS,
+  type StudioWork,
+  WORK_FORMAT_LABEL,
+  WORK_FORMATS,
+  type WorkFormat,
+} from "@raon/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef } from "react";
@@ -44,7 +53,7 @@ export function WorkForm({ work }: { work?: StudioWork }) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     save.mutate({
-      format: work?.format ?? "NOVEL",
+      format: work?.format ?? (String(form.get("format")) as WorkFormat),
       title: String(form.get("title")),
       synopsis: String(form.get("synopsis")),
       genre: String(form.get("genre")) as Genre,
@@ -65,6 +74,16 @@ export function WorkForm({ work }: { work?: StudioWork }) {
 
   return (
     <form ref={formRef} className={styles.form} onSubmit={onSubmit} noValidate>
+      {/* 형식에 따라 회차의 내용이 달라지므로 만들 때만 고른다. */}
+      {!work && (
+        <SelectField label="형식" name="format" defaultValue="NOVEL" hint="만든 뒤에는 바꿀 수 없습니다.">
+          {WORK_FORMATS.map((format) => (
+            <option key={format} value={format}>
+              {WORK_FORMAT_LABEL[format]}
+            </option>
+          ))}
+        </SelectField>
+      )}
       <TextField
         label="작품명"
         name="title"

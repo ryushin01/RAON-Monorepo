@@ -24,7 +24,14 @@ it("입력한 값을 저장하고 작품 관리로 이동한다", async () => {
   await waitFor(() => expect(push).toHaveBeenCalledWith("/studio/works/w9"));
   expect(saveWork).toHaveBeenCalledWith(
     null,
-    expect.objectContaining({ title: "새 작품", genre: "FANTASY", episodePrice: "100", wholePrice: "", tags: "" }),
+    expect.objectContaining({
+      format: "NOVEL",
+      title: "새 작품",
+      genre: "FANTASY",
+      episodePrice: "100",
+      wholePrice: "",
+      tags: "",
+    }),
   );
 });
 
