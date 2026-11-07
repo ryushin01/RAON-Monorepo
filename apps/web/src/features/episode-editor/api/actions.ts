@@ -137,11 +137,32 @@ export async function moveEpisode(
   return result;
 }
 
-export async function deleteDraft(workId: string, episodeId: string): Promise<ActionResult<null>> {
+/** 초안을 휴지통으로 옮긴다. */
+export async function trashDraft(workId: string, episodeId: string): Promise<ActionResult<null>> {
   const token = await getSessionToken();
   if (!token) return NEED_LOGIN;
   const result = await toActionResult(() =>
     apiFetch<null>(`/studio/episodes/${episodeId}`, { method: "DELETE", token }),
+  );
+  if (result.ok) revalidatePath(`/studio/works/${workId}`);
+  return result;
+}
+
+export async function restoreFromTrash(workId: string, episodeId: string): Promise<ActionResult<StudioEpisode>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  const result = await toActionResult(() =>
+    apiFetch<StudioEpisode>(`/studio/episodes/${episodeId}/restore`, { method: "POST", token }),
+  );
+  if (result.ok) revalidatePath(`/studio/works/${workId}`);
+  return result;
+}
+
+export async function purgeEpisode(workId: string, episodeId: string): Promise<ActionResult<null>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  const result = await toActionResult(() =>
+    apiFetch<null>(`/studio/episodes/${episodeId}/permanent`, { method: "DELETE", token }),
   );
   if (result.ok) revalidatePath(`/studio/works/${workId}`);
   return result;

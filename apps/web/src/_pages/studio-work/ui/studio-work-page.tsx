@@ -5,7 +5,14 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioWork } from "@/entities/studio/index.server";
-import { DeleteDraftButton, isScheduled, MoveEpisodeButtons, NewEpisodeButton } from "@/features/episode-editor";
+import {
+  isScheduled,
+  MoveEpisodeButtons,
+  NewEpisodeButton,
+  PurgeTrashedButton,
+  RestoreTrashedButton,
+  TrashDraftButton,
+} from "@/features/episode-editor";
 import { CoverUpload, DeleteWorkButton, WorkForm, WorkStatusControl } from "@/features/work-form";
 import { WorkTransfer } from "@/features/work-transfer";
 import { formatCoins, formatDate, formatDateTime, formatNumber } from "@/shared/lib";
@@ -74,12 +81,43 @@ async function StudioWorkContent({ params }: { params: Params }) {
                     canMoveDown={index < work.episodes.length - 1}
                   />
                   {episode.status === "DRAFT" && (
-                    <DeleteDraftButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
+                    <TrashDraftButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
                   )}
                 </div>
               </li>
             ))}
           </ol>
+        )}
+      </section>
+
+      <section aria-label="휴지통">
+        <h2 tabIndex={-1} className={styles.h2}>
+          휴지통
+        </h2>
+        {work.trash.length === 0 ? (
+          <p className={styles.empty}>휴지통이 비어 있습니다.</p>
+        ) : (
+          <>
+            <p className={styles.empty}>복원하면 원래 번호로 돌아옵니다. 직접 지우기 전에는 사라지지 않습니다.</p>
+            <ul className={styles.list}>
+              {work.trash.map((episode) => (
+                <li key={episode.id}>
+                  <div>
+                    <span>
+                      {episode.number}화. {episode.title}
+                    </span>
+                    <small>
+                      {formatNumber(episode.charCount)}자 · 옮긴 날 {formatDate(episode.deletedAt)}
+                    </small>
+                  </div>
+                  <div className={styles.badges}>
+                    <RestoreTrashedButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
+                    <PurgeTrashedButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 

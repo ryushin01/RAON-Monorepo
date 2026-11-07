@@ -903,7 +903,7 @@ test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ 
   await expect(editorOf(page)).toContainText("끊긴 동안 쓴 글");
 });
 
-test("초안과 판매 전 작품을 지울 수 있다", async ({ page }) => {
+test("초안을 휴지통으로 옮겼다 되살리고, 완전히 지우며, 판매 전 작품을 지울 수 있다", async ({ page }) => {
   const title = `삭제 ${Date.now()}`;
   await login(page, AUTHOR, "작가");
   await createWork(page, title);
@@ -911,11 +911,21 @@ test("초안과 판매 전 작품을 지울 수 있다", async ({ page }) => {
   await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
   await page.getByRole("link", { name: "작품 관리로" }).click();
 
-  page.on("dialog", (dialog) => void dialog.accept());
-  await page.getByRole("button", { name: "삭제: 1화" }).click();
+  await page.getByRole("button", { name: "휴지통으로: 1화" }).click();
   await expect(page.getByText("아직 쓴 회차가 없습니다.")).toBeVisible();
   // 누른 버튼이 사라져도 초점을 잃지 않는다(KWCAG 6.1.2).
   await expect(page.getByRole("heading", { level: 2, name: "회차" })).toBeFocused();
+
+  await page.getByRole("button", { name: "복원: 1화" }).click();
+  await expect(page.getByRole("button", { name: "휴지통으로: 1화" })).toBeVisible();
+  await expect(page.getByText("휴지통이 비어 있습니다.")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "휴지통" })).toBeFocused();
+
+  await page.getByRole("button", { name: "휴지통으로: 1화" }).click();
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "완전히 지우기: 1화" }).click();
+  await expect(page.getByText("휴지통이 비어 있습니다.")).toBeVisible();
+  await expect(page.getByText("아직 쓴 회차가 없습니다.")).toBeVisible();
 
   await page.getByRole("button", { name: "작품 삭제" }).click();
   await page.waitForURL("/studio");
