@@ -1170,6 +1170,11 @@ describe("RAON API", () => {
   });
 
   describe("회차 휴지통", () => {
+    // 단언이 실패해도 다음 테스트로 대역이 넘어가지 않게 한다.
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     async function setup() {
       const author = await signup("AUTHOR");
       const work = await publishWork(author.accessToken);
@@ -1285,7 +1290,7 @@ describe("RAON API", () => {
       await http().post(`/studio/episodes/${raced.id}/unpublish`).set(auth).expect(200);
       await http().delete(`/studio/episodes/${raced.id}`).set(auth).expect(204);
       const service = app.get(StudioService) as unknown as { assertNotSold: () => Promise<void> };
-      const check = jest.spyOn(service, "assertNotSold").mockImplementation(async () => {
+      jest.spyOn(service, "assertNotSold").mockImplementation(async () => {
         await db.insert(orderItemsTable).values({
           orderId: order!.id,
           userId: buyer.user.id,
@@ -1295,7 +1300,6 @@ describe("RAON API", () => {
         });
       });
       await http().delete(`/studio/episodes/${raced.id}/permanent`).set(auth).expect(409);
-      check.mockRestore();
     });
 
     it("확인과 처리 사이에 상태가 바뀌어도 복원한 회차를 지우거나 없는 회차로 500을 내지 않는다", async () => {
@@ -1306,24 +1310,23 @@ describe("RAON API", () => {
       const original = service.trashedEpisode.bind(service);
 
       // 완전히 지우기가 확인을 지난 뒤에 복원된 경우
-      const purge = jest.spyOn(service, "trashedEpisode").mockImplementationOnce(async (...args: []) => {
+      const spy = jest.spyOn(service, "trashedEpisode");
+      spy.mockImplementationOnce(async (...args: []) => {
         const row = await original(...args);
         await db.update(episodesTable).set({ deletedAt: null }).where(eq(episodesTable.id, draft.id));
         return row;
       });
       await http().delete(`/studio/episodes/${draft.id}/permanent`).set(auth).expect(404);
-      purge.mockRestore();
       expect((await detail()).episodes.map((episode) => episode.id)).toContain(draft.id);
 
       // 복원이 확인을 지난 뒤에 다른 요청이 복원한 경우
       await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(204);
-      const restore = jest.spyOn(service, "trashedEpisode").mockImplementationOnce(async (...args: []) => {
+      spy.mockImplementationOnce(async (...args: []) => {
         const row = await original(...args);
         await db.update(episodesTable).set({ deletedAt: null }).where(eq(episodesTable.id, draft.id));
         return row;
       });
       await http().post(`/studio/episodes/${draft.id}/restore`).set(auth).expect(404);
-      restore.mockRestore();
     });
   });
 
