@@ -200,4 +200,24 @@ describe("입력 보조", () => {
     expect(editor.getText()).not.toContain("→");
     editor.destroy();
   });
+
+  it("여러 글자가 한 번에 들어와도 앞 글자를 남기고 뒤 글자를 건드리지 않는다", () => {
+    const editor = make("a-b");
+    editor.storage.smartInput.rules = [{ from: "->", to: "→" }];
+    editor.commands.setTextSelection(3);
+    const { view } = editor;
+    view.someProp("handleTextInput", (handler) =>
+      handler(view, 3, 3, "x->", () => view.state.tr.insertText("x->", 3, 3)),
+    );
+    expect(editor.getText()).toBe("a-x→b");
+    editor.destroy();
+  });
+
+  it("여는 괄호로 끝나는 사용자 규칙을 자동 괄호보다 먼저 적용한다", () => {
+    const editor = start();
+    editor.storage.smartInput.rules = [{ from: "@(", to: "○" }];
+    typeText(editor, "@(");
+    expect(editor.getText()).toBe("○");
+    editor.destroy();
+  });
 });

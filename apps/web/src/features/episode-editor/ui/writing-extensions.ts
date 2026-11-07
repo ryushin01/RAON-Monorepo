@@ -274,6 +274,19 @@ export const SmartInput = Extension.create({
         props: {
           handleTextInput(view, from, to, text) {
             const { state } = view;
+            // 작가가 직접 정한 규칙을 내장 입력 보조보다 먼저 적용한다.
+            if (storage.rules.length > 0 && from === to) {
+              const parentStart = from - state.doc.resolve(from).parentOffset;
+              const typed = state.doc.textBetween(parentStart, from, "\n", "\n") + text;
+              const rule = matchReplaceRule(storage.rules, typed);
+              if (rule) {
+                // 규칙이 입력한 글자 안에서 끝나면 그 앞의 글자는 그대로 넣고, 넘어가면 이미 쓴 글자까지 바꾼다.
+                const start = from - Math.max(rule.from.length - text.length, 0);
+                const kept = text.slice(0, Math.max(text.length - rule.from.length, 0));
+                view.dispatch(state.tr.insertText(kept + rule.to, start, from));
+                return true;
+              }
+            }
             // 닫는 괄호는 바로 뒤에 있으면 새로 넣지 않고 지나간다.
             if (storage.autoBracket && from === to && CLOSERS.has(text) && state.doc.textBetween(to, to + 1) === text) {
               view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, to + 1)));
@@ -286,16 +299,6 @@ export const SmartInput = Extension.create({
               if (!selected.includes("\n")) {
                 const tr = state.tr.insertText(`${text}${selected}${closer}`, from, to);
                 view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 1, from + 1 + selected.length)));
-                return true;
-              }
-            }
-            if (storage.rules.length > 0 && from === to) {
-              const parentStart = from - state.doc.resolve(from).parentOffset;
-              const typed = state.doc.textBetween(parentStart, from, "\n", "\n") + text;
-              const rule = matchReplaceRule(storage.rules, typed);
-              if (rule) {
-                const start = from + text.length - rule.from.length;
-                view.dispatch(state.tr.insertText(rule.to, start, from));
                 return true;
               }
             }

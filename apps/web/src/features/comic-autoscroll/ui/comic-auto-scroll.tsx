@@ -38,8 +38,10 @@ export function ComicAutoScroll() {
       const pixels = Math.floor(carry);
       if (pixels > 0) {
         carry -= pixels;
+        const before = window.scrollY;
         window.scrollBy({ top: pixels, behavior: "instant" });
-        expected = window.scrollY;
+        // 자동으로 움직인 만큼만 더해, 사용자가 조금씩 끌어도 차이가 쌓이게 한다.
+        expected += window.scrollY - before;
       }
       if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1) {
         setRunning(false);
