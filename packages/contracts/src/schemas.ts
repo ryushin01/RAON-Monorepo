@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { episodeDocSchema } from "./document.js";
-import { COIN_PACKAGES, genreSchema, MAX_TAGS, roleSchema, workSortSchema, writingStageSchema } from "./domain.js";
+import {
+  COIN_PACKAGES,
+  genreSchema,
+  MAX_TAGS,
+  roleSchema,
+  workFormatSchema,
+  workSortSchema,
+  writingStageSchema,
+} from "./domain.js";
 
 const email = z
   .email("이메일 형식을 확인해 주세요.")
@@ -30,6 +38,7 @@ export const signupSchema = z.object({
 export type SignupInput = z.infer<typeof signupSchema>;
 
 export const workQuerySchema = z.object({
+  format: workFormatSchema.optional(),
   genre: genreSchema.optional(),
   status: z.enum(["ONGOING", "COMPLETED"]).optional(),
   sort: workSortSchema.default("popular"),
@@ -48,6 +57,8 @@ const coins = (label: string) =>
     .max(100000, `${label}은 100,000코인 이하로 입력해 주세요.`);
 
 export const workInputSchema = z.object({
+  /** 만들 때만 쓰고 고칠 때는 무시한다. 형식에 따라 회차의 내용이 달라지기 때문이다. */
+  format: workFormatSchema.default("NOVEL"),
   title: z.string().trim().min(1, "작품명을 입력해 주세요.").max(60, "작품명은 60자 이하로 입력해 주세요."),
   synopsis: z
     .string()

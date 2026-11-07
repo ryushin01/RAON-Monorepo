@@ -1,5 +1,5 @@
 import type { EpisodeDoc } from "./document.js";
-import type { EpisodeStatus, Genre, Role, WorkBadge, WorkStatus, WritingStage } from "./domain.js";
+import type { EpisodeStatus, Genre, Role, WorkBadge, WorkFormat, WorkStatus, WritingStage } from "./domain.js";
 
 export interface User {
   id: string;
@@ -16,6 +16,7 @@ export interface AuthResult {
 
 export interface WorkSummary {
   id: string;
+  format: WorkFormat;
   title: string;
   authorName: string;
   genre: Genre;
@@ -170,6 +171,7 @@ export interface Wallet {
 
 export interface StudioWork {
   id: string;
+  format: WorkFormat;
   title: string;
   genre: Genre;
   status: WorkStatus;

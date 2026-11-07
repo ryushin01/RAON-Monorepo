@@ -17,6 +17,12 @@ export const GENRE_LABEL: Record<Genre, string> = {
   MYSTERY: "미스터리",
 };
 
+/** 작품 형식. 같은 계정과 코인으로 두 가지를 함께 읽고 판다. 만든 뒤에는 바꿀 수 없다. */
+export const WORK_FORMATS = ["COMIC", "NOVEL"] as const;
+export const workFormatSchema = z.enum(WORK_FORMATS);
+export type WorkFormat = z.infer<typeof workFormatSchema>;
+export const WORK_FORMAT_LABEL: Record<WorkFormat, string> = { COMIC: "웹툰", NOVEL: "웹소설" };
+
 export const WORK_STATUSES = ["DRAFT", "ONGOING", "COMPLETED"] as const;
 export const workStatusSchema = z.enum(WORK_STATUSES);
 export type WorkStatus = z.infer<typeof workStatusSchema>;
