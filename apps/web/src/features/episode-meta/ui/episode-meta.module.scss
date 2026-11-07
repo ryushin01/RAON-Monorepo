@@ -1,0 +1,13 @@
+.form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.875rem;
+
+  &:empty {
+    display: none;
+  }
+}

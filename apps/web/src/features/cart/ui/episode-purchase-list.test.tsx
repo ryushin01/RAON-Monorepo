@@ -15,6 +15,7 @@ const episode = (number: number, isFree: boolean) => ({
   title: `제목${number}`,
   isFree,
   charCount: 1000,
+  episodeType: "REGULAR" as const,
   publishedAt: "2026-11-01T00:00:00.000Z",
 });
 

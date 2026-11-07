@@ -1,6 +1,6 @@
 "use client";
 
-import type { Role, WorkAccess, WorkDetail } from "@raon/contracts";
+import { EPISODE_TYPE_LABEL, type Role, type WorkAccess, type WorkDetail } from "@raon/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -125,6 +125,7 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
                   {episode.number}화. {episode.title}
                 </strong>
                 <span className={styles.meta}>
+                  {episode.episodeType !== "REGULAR" && `${EPISODE_TYPE_LABEL[episode.episodeType]} · `}
                   {formatDate(episode.publishedAt)}
                   {work.format === "NOVEL" && ` · ${formatNumber(episode.charCount)}자`}
                 </span>

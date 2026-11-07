@@ -1,4 +1,10 @@
-import { WORK_FORMAT_LABEL, WORK_STATUS_LABEL, WRITING_STAGE_LABEL, WRITING_STAGES } from "@raon/contracts";
+import {
+  EPISODE_TYPE_LABEL,
+  WORK_FORMAT_LABEL,
+  WORK_STATUS_LABEL,
+  WRITING_STAGE_LABEL,
+  WRITING_STAGES,
+} from "@raon/contracts";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -77,12 +83,13 @@ async function StudioWorkContent({ params }: { params: Params }) {
                     {work.format === "COMIC"
                       ? `이미지 ${formatNumber(episode.imageCount)}장`
                       : `${formatNumber(episode.charCount)}자`}{" "}
-                    · 수정 {formatDate(episode.updatedAt)}
+                    {episode.pointOfView && `· ${episode.pointOfView} 시점 `}· 수정 {formatDate(episode.updatedAt)}
                   </small>
                 </div>
                 <div className={styles.badges}>
                   <Badge solid={episode.status === "PUBLISHED"}>{episodeLabel(episode)}</Badge>
                   {episode.status === "DRAFT" && <Badge>{WRITING_STAGE_LABEL[episode.writingStage]}</Badge>}
+                  {episode.episodeType !== "REGULAR" && <Badge>{EPISODE_TYPE_LABEL[episode.episodeType]}</Badge>}
                   <Badge>{episode.isFree ? "무료" : "유료"}</Badge>
                   <MoveEpisodeButtons
                     workId={work.id}

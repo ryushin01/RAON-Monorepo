@@ -1,4 +1,4 @@
-import type { EpisodeView, Role } from "@raon/contracts";
+import { EPISODE_TYPE_LABEL, type EpisodeView, type Role } from "@raon/contracts";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -79,6 +79,7 @@ async function ViewerContent({ params }: { params: Params }) {
         <article className={styles.body}>
           <header className={styles.head}>
             <p>
+              {episode.episodeType !== "REGULAR" && `${EPISODE_TYPE_LABEL[episode.episodeType]} · `}
               {episode.authorName} · {formatDate(episode.publishedAt)}
             </p>
             <h1>

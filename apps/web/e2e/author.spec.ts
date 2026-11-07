@@ -1060,6 +1060,42 @@ test("설정 문서에 속성을 넣으면 설정집과 본문 속 설정 내용
   await expect(page.getByRole("complementary", { name: "커서가 놓인 설정" })).toContainText("서른둘");
 });
 
+test("회차 유형은 독자에게 보이고 시점은 작가에게만 보인다", async ({ page, browser }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `유형 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  const workId = page.url().match(/works\/([0-9a-f-]{36})/)?.[1];
+
+  await page.getByText("회차 정보", { exact: true }).click();
+  await page.getByLabel("회차 유형").selectOption("SIDE");
+  await page.getByRole("textbox", { name: "시점" }).fill("비밀 인물");
+  await page.getByRole("button", { name: "회차 정보 저장" }).click();
+  await expect(page.getByText("회차 정보를 저장했습니다.")).toBeVisible();
+
+  await editorOf(page).click();
+  await page.waitForTimeout(100);
+  await page.keyboard.type("외전 본문");
+  await page.getByRole("checkbox", { name: "무료 회차로 공개" }).check();
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByText(/비밀 인물 시점/)).toBeVisible();
+  // 숨겨진 에디터 화면의 선택지에도 같은 글자가 있으므로 작품 관리의 회차 영역에서 찾는다.
+  await expect(
+    page.getByRole("region", { name: "회차", exact: true }).getByText("외전", { exact: true }),
+  ).toBeVisible();
+
+  const reader = await (await browser.newContext()).newPage();
+  const response = await reader.goto(`/works/${workId}/episodes/1`);
+  await expect(reader.getByText(/^외전 · /)).toBeVisible();
+  expect(await response?.text()).not.toContain("비밀 인물");
+  await reader.goto(`/works/${workId}`);
+  await expect(reader.getByText(/외전 · /)).toBeVisible();
+  await reader.context().close();
+});
+
 test("괄호를 자동으로 닫고, 사용자 규칙으로 바꾸며, 특수문자를 뺀 글자 수를 보여 준다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `입력 보조 ${Date.now()}`);
