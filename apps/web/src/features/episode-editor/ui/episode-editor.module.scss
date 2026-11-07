@@ -114,6 +114,12 @@
     }
 
     /* ProseMirror 장식이 붙이는 전역 클래스다. 모듈 해시가 붙으면 적용되지 않는다. */
+    :global(.note-link) {
+      /* 색만으로 구분하지 않도록 점선 밑줄을 쓴다(KWCAG 5.4.1). */
+      text-decoration: underline dotted;
+      text-underline-offset: 0.2em;
+    }
+
     :global(.search-match) {
       background: var(--surface);
       text-decoration: underline;

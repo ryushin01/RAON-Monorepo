@@ -6,6 +6,7 @@ import {
   type EpisodeVersion,
   type EpisodeVersionSummary,
   type StudioEpisode,
+  type WorkNote,
   type WritingStage,
 } from "@raon/contracts";
 import { revalidatePath, updateTag } from "next/cache";
@@ -136,6 +137,14 @@ export async function moveEpisode(
     revalidatePath(`/studio/works/${workId}`);
   }
   return result;
+}
+
+/** 본문의 설정 이름을 표시하는 데 쓴다. 메모는 인물이나 장소의 이름이 아니므로 뺀다. */
+export async function listSettingNotes(workId: string): Promise<ActionResult<WorkNote[]>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  const result = await toActionResult(() => apiFetch<WorkNote[]>(`/studio/works/${workId}/notes`, { token }));
+  return result.ok ? { ...result, data: result.data.filter((note) => note.kind === "SETTING") } : result;
 }
 
 export async function setWritingStage(episodeId: string, stage: WritingStage): Promise<ActionResult<StudioEpisode>> {

@@ -1,6 +1,6 @@
 import { Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
+import { type EditorState, Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 export interface TextRange {
@@ -110,6 +110,106 @@ export const SearchHighlight = Extension.create({
               ),
             );
           },
+        },
+      }),
+    ];
+  },
+});
+
+export interface NoteLinkSource {
+  id: string;
+  title: string;
+  aliases: string[];
+}
+
+export interface NoteMatch extends TextRange {
+  noteId: string;
+}
+
+/** 한 글자 이름은 조사나 다른 낱말 곳곳에 걸려 표시가 의미를 잃으므로 찾지 않는다. */
+const MIN_TERM_LENGTH = 2;
+
+export interface NoteMatcher {
+  pattern: RegExp;
+  ids: Map<string, string>;
+}
+
+/** 긴 이름부터 찾아 ‘이안 왕자’가 ‘이안’보다 먼저 잡히게 한다. 이름이 겹치면 앞 문서가 차지한다. */
+export function createNoteMatcher(notes: NoteLinkSource[]): NoteMatcher | null {
+  const ids = new Map<string, string>();
+  for (const note of notes) {
+    for (const name of [note.title, ...note.aliases]) {
+      const term = name.trim().toLowerCase();
+      if (term.length >= MIN_TERM_LENGTH && !ids.has(term)) ids.set(term, note.id);
+    }
+  }
+  if (!ids.size) return null;
+  const source = [...ids.keys()]
+    .sort((a, b) => b.length - a.length)
+    .map((term) => term.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&"))
+    .join("|");
+  return { pattern: new RegExp(source, "giu"), ids };
+}
+
+/** 문서에서 설정 이름이 나오는 자리를 찾는다. 단락을 넘어서는 찾지 않는다. */
+export function findNoteMatches(doc: ProseMirrorNode, matcher: NoteMatcher | null): NoteMatch[] {
+  if (!matcher) return [];
+  const matches: NoteMatch[] = [];
+  eachTextblock(doc, (text, start) => {
+    for (const match of text.matchAll(matcher.pattern)) {
+      const noteId = matcher.ids.get(match[0].toLowerCase());
+      if (noteId) matches.push({ from: start + match.index, to: start + match.index + match[0].length, noteId });
+    }
+  });
+  return matches;
+}
+
+interface NoteLinkState {
+  matcher: NoteMatcher | null;
+  matches: NoteMatch[];
+  decorations: DecorationSet;
+}
+
+export const noteLinkKey = new PluginKey<NoteLinkState>("raonNoteLinks");
+
+function buildNoteLinks(doc: ProseMirrorNode, matcher: NoteMatcher | null): NoteLinkState {
+  const matches = findNoteMatches(doc, matcher);
+  return {
+    matcher,
+    matches,
+    decorations: DecorationSet.create(
+      doc,
+      matches.map(({ from, to }) => Decoration.inline(from, to, { class: "note-link" })),
+    ),
+  };
+}
+
+/** 커서가 놓인 설정 이름의 문서를 돌려준다. 이름 바로 뒤에 있어도 그 이름으로 친다. */
+export function noteIdAtCursor(state: EditorState): string | null {
+  const head = state.selection.head;
+  return noteLinkKey.getState(state)?.matches.find(({ from, to }) => from <= head && head <= to)?.noteId ?? null;
+}
+
+/**
+ * 본문의 설정 이름에 밑줄을 긋는다. 문서를 바꾸지 않으므로 저장이나 실행 취소 기록에 남지 않는다.
+ * 내용은 커서가 그 이름에 놓였을 때 에디터 아래에 보여 준다. 마우스를 올려야만 보이면 키보드로 읽을 수 없기 때문이다.
+ */
+export const NoteLinks = Extension.create({
+  name: "noteLinks",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin<NoteLinkState>({
+        key: noteLinkKey,
+        state: {
+          init: (_, { doc }) => buildNoteLinks(doc, null),
+          apply(tr, value) {
+            const next = tr.getMeta(noteLinkKey) as NoteMatcher | null | undefined;
+            if (next !== undefined) return buildNoteLinks(tr.doc, next);
+            return tr.docChanged ? buildNoteLinks(tr.doc, value.matcher) : value;
+          },
+        },
+        props: {
+          decorations: (state) => noteLinkKey.getState(state)?.decorations ?? null,
         },
       }),
     ];

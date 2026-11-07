@@ -146,6 +146,8 @@ describe("ForeshadowReference", () => {
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(input).toHaveAccessibleDescription("복선 이름을 입력해 주세요.");
 
+    await userEvent.type(input, " ");
+    expect(input).toHaveAttribute("aria-invalid", "true");
     await userEvent.type(input, "낡");
     expect(input).not.toHaveAttribute("aria-invalid");
     expect(screen.queryByText("복선 이름을 입력해 주세요.")).not.toBeInTheDocument();
