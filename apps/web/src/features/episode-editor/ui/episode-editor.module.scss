@@ -7,6 +7,13 @@
   position: sticky;
   top: 0;
   z-index: 10;
+
+  // 좁은 화면에서는 버튼이 두 줄로 감겨 막대가 화면의 4분의 1을 덮고, 초점 받은 요소를 가린다(KWCAG 6.1.2).
+  // 그래서 위에 붙이지 않는다. 저장은 Ctrl/⌘ + S로도 할 수 있다.
+  @media (width < 30rem) {
+    position: static;
+  }
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;

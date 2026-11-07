@@ -1,35 +1,49 @@
 .hero {
+  position: relative;
   display: grid;
+  gap: 2rem;
+  max-width: var(--page-width);
+  margin-inline: auto;
+  padding: 2rem var(--gutter) 3rem;
 
   @media (width >= 56rem) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    min-height: min(36rem, 70dvh);
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: end;
+    min-height: min(40rem, 78dvh);
+    padding-block: 3rem 4rem;
+  }
+
+  /* 왼쪽 가장자리의 눈금자. 제도판 느낌을 주는 장식이다. */
+  @media (width >= 80rem) {
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block: 0;
+
+      // 머리말 여백(--gutter) 안쪽에 두어 본문과 겹치지 않게 한다.
+      left: 0.375rem;
+      width: 0.75rem;
+      background:
+        repeating-linear-gradient(to bottom, var(--muted) 0 1px, transparent 1px 64px) left / 0.75rem 100% no-repeat,
+        repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px 8px) left / 0.375rem 100% no-repeat;
+    }
   }
 }
 
 .copy {
   display: grid;
-  gap: 1.25rem;
-  align-content: center;
+  gap: 1.5rem;
   justify-items: start;
-  padding: 1.5rem var(--gutter);
-
-  @media (width >= 48rem) {
-    padding-block: 2.5rem;
-  }
-
-  @media (width >= 56rem) {
-    padding-inline: max(var(--gutter), calc((100vw - var(--page-width)) / 2 + var(--gutter))) 3rem;
-  }
 }
 
 .kicker {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
+  color: var(--muted);
   font-family: var(--font-mono);
   word-spacing: var(--mono-word-spacing);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 
   &::before {
     content: "";
@@ -43,37 +57,87 @@
 
 .title {
   // rem을 섞어야 확대율에 비례해 커진다. vw만 쓰거나 크기를 단계로 끊으면 확대할 때 오히려 작아진다.
-  font-size: clamp(1.75rem, 1rem + 3.125vw, 3.5rem);
+  font-size: clamp(2.25rem, 1rem + 4vw, 4.25rem);
   font-weight: 500;
-  line-height: 1.15;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
 }
 
 .lead {
-  max-width: 32rem;
+  max-width: 30rem;
   color: var(--muted);
-  font-size: 1.0625rem;
+  font-size: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  line-height: 1.55;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 0.625rem;
+  margin-top: 0.5rem;
 }
 
-/* 좁은 화면에서는 작품이 첫 화면에 보이도록 장식 나선만 뺀다. 확대해도 내용은 사라지지 않는다. */
+/* 좁은 화면에서는 작품이 첫 화면에 보이도록 장식만 뺀다. 확대해도 내용은 사라지지 않는다. */
 .art {
   display: none;
   position: relative;
-  min-height: 12rem;
+  aspect-ratio: 1;
   overflow: hidden;
-  background-color: var(--panel-bg);
-  background-image: radial-gradient(circle, var(--panel-line) 1px, transparent 1.25px);
-  background-size: 12px 12px;
-  color: var(--panel-fg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background-color: var(--raised);
+  background-image: radial-gradient(circle, var(--line) 1px, transparent 1.25px);
+  background-size: 16px 16px;
+  color: var(--muted);
 
   @media (width >= 48rem) {
     display: block;
   }
+}
+
+.caption {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1;
+  display: grid;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  word-spacing: var(--mono-word-spacing);
+  font-size: 0.75rem;
+  line-height: 1.5;
+
+  span:last-child {
+    color: var(--fg);
+  }
+}
+
+/* 위쪽의 빨간 치수선. 양 끝에 짧은 세로 선을 둔다. */
+.dimension {
+  position: absolute;
+  top: 2.25rem;
+  right: 1.25rem;
+  left: 45%;
+  z-index: 1;
+  height: 0.5rem;
+  border-inline: 1px solid var(--accent);
+  background: linear-gradient(var(--accent), var(--accent)) center / 100% 1px no-repeat;
+}
+
+/* 나선의 시작점. */
+.origin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translate(-50%, -50%);
 }
 
 .spiral {
