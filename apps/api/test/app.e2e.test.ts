@@ -2001,6 +2001,64 @@ describe("RAON API", () => {
       await http().put(`/studio/notes/${created.body.id}`).set(bearer(token)).send(note()).expect(404);
     });
 
+    it("속성을 저장하고 고치며, 검색에 넣고, 값을 검사한다", async () => {
+      const { token, work } = await setup();
+      const created = await http()
+        .post(`/studio/works/${work.id}/notes`)
+        .set(bearer(token))
+        .send(
+          note({
+            title: "무연",
+            properties: [
+              { name: " 나이 ", value: " 서른둘 " },
+              { name: "소속", value: "폐역" },
+            ],
+          }),
+        )
+        .expect(201);
+      expect(created.body.properties).toEqual([
+        { name: "나이", value: "서른둘" },
+        { name: "소속", value: "폐역" },
+      ]);
+      const found = await http()
+        .get(`/studio/works/${work.id}/search`)
+        .query({ q: "서른둘" })
+        .set(bearer(token))
+        .expect(200);
+      expect(found.body.notes.map((item: { title: string }) => item.title)).toEqual(["무연"]);
+
+      const updated = await http()
+        .put(`/studio/notes/${created.body.id}`)
+        .set(bearer(token))
+        .send(note({ title: "무연", properties: [] }))
+        .expect(200);
+      expect(updated.body.properties).toEqual([]);
+
+      const url = `/studio/works/${work.id}/notes`;
+      await http()
+        .post(url)
+        .set(bearer(token))
+        .send(note({ properties: [{ name: " ", value: "값" }] }))
+        .expect(400);
+      await http()
+        .post(url)
+        .set(bearer(token))
+        .send(note({ properties: [{ name: "이름", value: "값", extra: 1 }] }))
+        .expect(400);
+      await http()
+        .post(url)
+        .set(bearer(token))
+        .send(note({ properties: Array.from({ length: 31 }, (_, index) => ({ name: `속성${index}`, value: "값" })) }))
+        .expect(400);
+      // 예전 요청처럼 속성을 보내지 않아도 저장한다.
+      const plain = await http()
+        .post(url)
+        .set(bearer(token))
+        .send(note({ title: "속성 없음" }))
+        .expect(201);
+      expect(plain.body.properties).toEqual([]);
+    });
+
     it("입력을 검사한다", async () => {
       const { token, work } = await setup();
       const res = await http()

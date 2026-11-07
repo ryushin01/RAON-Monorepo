@@ -25,6 +25,7 @@ const toNote = (row: typeof workNotes.$inferSelect): WorkNote => ({
   category: row.category,
   title: row.title,
   aliases: row.aliases,
+  properties: row.properties,
   body: row.body,
   updatedAt: row.updatedAt.toISOString(),
 });
@@ -131,7 +132,10 @@ export class NotesService {
       if (hit) result.episodes.push({ id: row.id, number: row.number, title: row.title, ...hit });
     }
     for (const row of noteRows) {
-      const hit = matchIn(`${row.title}\n${row.aliases.join(" ")}\n${row.body}`, query);
+      const hit = matchIn(
+        `${row.title}\n${row.aliases.join(" ")}\n${row.properties.map(({ name, value }) => `${name} ${value}`).join("\n")}\n${row.body}`,
+        query,
+      );
       if (hit) result.notes.push({ id: row.id, kind: row.kind, title: row.title, ...hit });
     }
     return result;
