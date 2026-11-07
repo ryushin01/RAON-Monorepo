@@ -1,4 +1,4 @@
-import { WORK_STATUS_LABEL, WRITING_STAGE_LABEL, WRITING_STAGES } from "@raon/contracts";
+import { WORK_FORMAT_LABEL, WORK_STATUS_LABEL, WRITING_STAGE_LABEL, WRITING_STAGES } from "@raon/contracts";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -48,8 +48,8 @@ async function StudioWorkContent({ params }: { params: Params }) {
         </p>
         <h1 className={styles.title}>{work.title}</h1>
         <p className={styles.meta}>
-          {WORK_STATUS_LABEL[work.status]} · 판매 {formatNumber(work.salesCount)}건({formatCoins(work.salesCoins)}) ·
-          선호작 {formatNumber(work.favoriteCount)}명
+          {WORK_FORMAT_LABEL[work.format]} · {WORK_STATUS_LABEL[work.status]} · 판매 {formatNumber(work.salesCount)}건(
+          {formatCoins(work.salesCoins)}) · 선호작 {formatNumber(work.favoriteCount)}명
         </p>
         <WorkStatusControl workId={work.id} status={work.status} />
         <p className={styles.notesLink}>
@@ -74,7 +74,10 @@ async function StudioWorkContent({ params }: { params: Params }) {
                     {episode.number}화. {episode.title}
                   </Link>
                   <small>
-                    {formatNumber(episode.charCount)}자 · 수정 {formatDate(episode.updatedAt)}
+                    {work.format === "COMIC"
+                      ? `이미지 ${formatNumber(episode.imageCount)}장`
+                      : `${formatNumber(episode.charCount)}자`}{" "}
+                    · 수정 {formatDate(episode.updatedAt)}
                   </small>
                 </div>
                 <div className={styles.badges}>
@@ -129,10 +132,13 @@ async function StudioWorkContent({ params }: { params: Params }) {
         )}
       </section>
 
-      <section aria-label="내보내기와 가져오기">
-        <h2 className={styles.h2}>내보내기와 가져오기</h2>
-        <WorkTransfer workId={work.id} />
-      </section>
+      {/* 내보내기와 가져오기는 글자 원고를 다룬다. */}
+      {work.format === "NOVEL" && (
+        <section aria-label="내보내기와 가져오기">
+          <h2 className={styles.h2}>내보내기와 가져오기</h2>
+          <WorkTransfer workId={work.id} />
+        </section>
+      )}
 
       <section aria-label="작품 정보">
         <h2 className={styles.h2}>작품 정보</h2>

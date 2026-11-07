@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioEpisode, getStudioWork } from "@/entities/studio/index.server";
+import { ComicEpisodeEditor } from "@/features/comic-editor";
 import { EpisodeEditor, Tool } from "@/features/episode-editor";
 import { ForeshadowReference } from "@/features/foreshadow-tracker";
 import { EpisodeMemo, NoteReference } from "@/features/work-notes";
@@ -22,27 +23,31 @@ async function EditorContent({ params }: { params: Params }) {
   return (
     <>
       <h1 className={styles.title}>{work.title}</h1>
-      <EpisodeEditor
-        key={episode.id}
-        episode={episode}
-        tools={
-          <>
-            <Tool title="설정집 참조">
-              <NoteReference workId={workId} />
-            </Tool>
-            <Tool title="복선">
-              <ForeshadowReference
-                workId={workId}
-                episodeId={episode.id}
-                episodes={[...work.episodes, ...work.trash.map((item) => ({ ...item, trashed: true }))]}
-              />
-            </Tool>
-            <Tool title="회차 메모">
-              <EpisodeMemo workId={workId} episodeId={episode.id} />
-            </Tool>
-          </>
-        }
-      />
+      {work.format === "COMIC" ? (
+        <ComicEpisodeEditor key={episode.id} episode={episode} />
+      ) : (
+        <EpisodeEditor
+          key={episode.id}
+          episode={episode}
+          tools={
+            <>
+              <Tool title="설정집 참조">
+                <NoteReference workId={workId} />
+              </Tool>
+              <Tool title="복선">
+                <ForeshadowReference
+                  workId={workId}
+                  episodeId={episode.id}
+                  episodes={[...work.episodes, ...work.trash.map((item) => ({ ...item, trashed: true }))]}
+                />
+              </Tool>
+              <Tool title="회차 메모">
+                <EpisodeMemo workId={workId} episodeId={episode.id} />
+              </Tool>
+            </>
+          }
+        />
+      )}
     </>
   );
 }

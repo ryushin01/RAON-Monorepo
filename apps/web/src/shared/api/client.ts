@@ -44,8 +44,11 @@ export async function apiFetch<T>(path: string, { method = "GET", body, token }:
 }
 
 /** 이미지처럼 JSON이 아닌 응답을 그대로 받는다. */
-export function apiRaw(path: string): Promise<Response> {
-  return fetch(`${API_URL}${path}`, { cache: "no-store" });
+export function apiRaw(path: string, token?: string): Promise<Response> {
+  return fetch(`${API_URL}${path}`, {
+    cache: "no-store",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
 }
 
 /** 서버 액션에서 API 호출을 감싸 화면에 보여 줄 수 있는 결과로 바꾼다. */

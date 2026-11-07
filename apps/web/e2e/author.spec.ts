@@ -915,6 +915,67 @@ test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ 
   await expect(editorOf(page)).toContainText("끊긴 동안 쓴 글");
 });
 
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAYAAACZgbYnAAAADklEQVR42mNkYGD4DwQAAfQB/8l5l8cAAAAASUVORK5CYII=",
+  "base64",
+);
+
+test("웹툰 회차에 이미지를 올리고 설명을 넣어야 공개하며, 순서를 옮기고 지운다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await page.goto("/studio/works/new");
+  const title = `웹툰 ${Date.now()}`;
+  await page.getByLabel("형식").selectOption("COMIC");
+  await page.getByRole("textbox", { name: /작품명/ }).fill(title);
+  await page.getByRole("textbox", { name: /작품 소개/ }).fill("등대가 나오는 시험용 웹툰 소개입니다.");
+  await page.getByRole("button", { name: "작품 만들기" }).click();
+  await page.waitForURL(/\/studio\/works\/[0-9a-f-]{36}$/);
+  await expect(page.getByText(/^웹툰 · /)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "내보내기와 가져오기" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { name: "회차 이미지" })).toBeVisible();
+
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText("이미지를 올린 뒤에 공개할 수 있습니다.")).toBeVisible();
+
+  await page.getByLabel("이미지 파일").setInputFiles([
+    { name: "2.png", mimeType: "image/png", buffer: PNG },
+    { name: "1.png", mimeType: "image/png", buffer: PNG },
+  ]);
+  await page.getByRole("button", { name: "이미지 올리기" }).click();
+  await expect(page.getByText("이미지 2장을 올렸습니다. 설명을 입력해 주세요.")).toBeVisible();
+  await expect(page.getByText(/이미지 2장$/)).toBeVisible();
+  const preview = page.getByRole("region", { name: "회차 이미지" }).locator("img").first();
+  await expect
+    .poll(() => preview.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth))
+    .toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText("1번째 이미지의 설명을 입력해 주세요.")).toBeVisible();
+
+  await page.getByRole("textbox", { name: "1번째 이미지 설명" }).fill("첫 장면");
+  await page.getByRole("button", { name: "설명 저장: 1번째 이미지" }).click();
+  await expect(page.getByText("1번째 이미지의 설명을 저장했습니다.")).toBeVisible();
+  await page.getByRole("textbox", { name: "2번째 이미지 설명" }).fill("둘째 장면");
+  await page.getByRole("button", { name: "설명 저장: 2번째 이미지" }).click();
+  await expect(page.getByText("2번째 이미지의 설명을 저장했습니다.")).toBeVisible();
+
+  await page.getByRole("button", { name: "아래로: 1번째 이미지" }).click();
+  await expect(page.getByRole("textbox", { name: "1번째 이미지 설명" })).toHaveValue("둘째 장면");
+
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중 · 이미지 2장/)).toBeVisible();
+
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "삭제: 2번째 이미지" }).click();
+  await expect(page.getByRole("heading", { name: "회차 이미지" })).toBeFocused();
+  await expect(page.getByText(/이미지 1장$/)).toBeVisible();
+
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByText(/이미지 1장 · 수정/)).toBeVisible();
+});
+
 test("본문의 설정 이름에 표시하고, 커서가 놓이면 내용을 보여 주며, 저장되는 원고에는 남기지 않는다", async ({
   page,
 }) => {
