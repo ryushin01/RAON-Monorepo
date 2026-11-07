@@ -446,9 +446,18 @@ export class StudioService {
         .limit(1);
       if (!neighbor) throw new BadRequestException("더 옮길 수 없습니다.");
       // (작품, 번호) 유일 제약이 있어 임시 번호를 거쳐 맞바꾼다.
-      await tx.update(episodes).set({ number: -1 }).where(eq(episodes.id, current.id));
-      await tx.update(episodes).set({ number: current.number }).where(eq(episodes.id, neighbor.id));
-      await tx.update(episodes).set({ number: neighbor.number }).where(eq(episodes.id, current.id));
+      // 고르는 사이에 휴지통으로 옮겼다면 되돌린다. 복원했을 때 원래 번호로 돌아와야 하기 때문이다.
+      const renumber = async (id: string, number: number) => {
+        const [row] = await tx
+          .update(episodes)
+          .set({ number })
+          .where(and(eq(episodes.id, id), isNull(episodes.deletedAt)))
+          .returning({ id: episodes.id });
+        if (!row) throw new ConflictException("회차가 바뀌었습니다. 다시 시도해 주세요.");
+      };
+      await renumber(current.id, -1);
+      await renumber(neighbor.id, current.number);
+      await renumber(current.id, neighbor.number);
     });
   }
 
