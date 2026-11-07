@@ -198,8 +198,18 @@ export interface StudioEpisodeSummary {
   publishedAt: string | null;
 }
 
+/** 휴지통에 있는 회차. 복원하면 원래 번호로 돌아온다. */
+export interface TrashedEpisode {
+  id: string;
+  number: number;
+  title: string;
+  charCount: number;
+  deletedAt: string;
+}
+
 export interface StudioWorkDetail extends StudioWork {
   episodes: StudioEpisodeSummary[];
+  trash: TrashedEpisode[];
 }
 
 export interface StudioEpisode extends StudioEpisodeSummary {
