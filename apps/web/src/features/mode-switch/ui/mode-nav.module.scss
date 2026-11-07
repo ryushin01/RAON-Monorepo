@@ -44,15 +44,17 @@
     isolation: isolate;
   }
 
-  /* 색만으로 구분하지 않도록 밑줄을 함께 쓴다(KWCAG 5.4.1). 바탕은 움직이는 표시가 그린다. */
+  /* 색만으로 구분하지 않도록 밑줄을 함께 쓴다(KWCAG 5.4.1).
+     글자색은 바로 바뀌므로, 움직이는 표시가 도착하기 전에도 대비가 유지되게 바탕을 고정해 둔다. */
   a[aria-current="true"] {
+    background: var(--fg);
     color: var(--bg);
     font-weight: 700;
     text-decoration: underline;
     text-underline-offset: 0.25em;
 
     &:hover {
-      background: transparent;
+      background: var(--fg);
       color: var(--bg);
     }
   }

@@ -44,7 +44,7 @@ export function ModeNav() {
               aria-current={item === mode ? "true" : undefined}
               onClick={() => chooseMode(item)}
             >
-              {/* 고른 탭의 바탕이 옆 탭으로 미끄러져 옮겨 간다. 장식이라 읽지 않는다. */}
+              {/* 고른 탭으로 바탕이 미끄러져 오는 장식. 고른 탭의 바탕은 CSS가 따로 그려 이동 중에도 읽힌다. */}
               {item === mode && (
                 <motion.span
                   layoutId="mode-indicator"
