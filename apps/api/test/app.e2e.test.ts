@@ -24,6 +24,7 @@ import {
   episodes as episodesTable,
   episodeVersions as episodeVersionsTable,
   favorites as favoritesTable,
+  foreshadows as foreshadowsTable,
   orderItems as orderItemsTable,
   orders as ordersTable,
   users,
@@ -1225,6 +1226,114 @@ describe("RAON API", () => {
       await http().put(url).set(bearer(reader.accessToken)).send({ stage: "IDEA" }).expect(403);
       await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(204);
       await http().put(url).set(auth).send({ stage: "IDEA" }).expect(404);
+    });
+  });
+
+  describe("복선", () => {
+    async function setup() {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const detail = (await http().get(`/studio/works/${work.id}`).set(auth).expect(200)).body as StudioWorkDetail;
+      const input = (values = {}) => ({
+        title: "깨진 나침반",
+        body: "1화의 나침반",
+        plantedEpisodeId: null,
+        resolvedEpisodeId: null,
+        ...values,
+      });
+      return { auth, work, detail, input, url: `/studio/works/${work.id}/foreshadows` };
+    }
+
+    it("심고 회수하고 지우며, 다른 사람과 독자에게는 보이지 않는다", async () => {
+      const { auth, work, detail, input, url } = await setup();
+      const planted = detail.episodes[0]?.id;
+      const resolved = detail.episodes[2]?.id;
+      const created = await http()
+        .post(url)
+        .set(auth)
+        .send(input({ title: "  깨진 나침반  ", plantedEpisodeId: planted }))
+        .expect(201);
+      expect(created.body).toMatchObject({ title: "깨진 나침반", plantedEpisodeId: planted, resolvedEpisodeId: null });
+
+      const updated = await http()
+        .put(`/studio/foreshadows/${created.body.id}`)
+        .set(auth)
+        .send(input({ plantedEpisodeId: planted, resolvedEpisodeId: resolved }))
+        .expect(200);
+      expect(updated.body.resolvedEpisodeId).toBe(resolved);
+      expect((await http().get(url).set(auth).expect(200)).body).toHaveLength(1);
+
+      const other = await signup("AUTHOR");
+      const reader = await signup("READER");
+      await http().get(url).set(bearer(other.accessToken)).expect(404);
+      await http().get(url).set(bearer(reader.accessToken)).expect(403);
+      await http().get(url).expect(401);
+      await http()
+        .put(`/studio/foreshadows/${created.body.id}`)
+        .set(bearer(other.accessToken))
+        .send(input())
+        .expect(404);
+      await http().delete(`/studio/foreshadows/${created.body.id}`).set(bearer(other.accessToken)).expect(404);
+      const publicWork = await http().get(`/works/${work.id}`).expect(200);
+      expect(JSON.stringify(publicWork.body)).not.toContain("깨진 나침반");
+
+      await http().delete(`/studio/foreshadows/${created.body.id}`).set(auth).expect(204);
+      expect((await http().get(url).set(auth).expect(200)).body).toEqual([]);
+    });
+
+    it("입력을 검사하고, 다른 작품의 회차는 연결할 수 없다", async () => {
+      const { auth, input, url } = await setup();
+      const other = await setup();
+      await http()
+        .post(url)
+        .set(auth)
+        .send(input({ title: " " }))
+        .expect(400);
+      await http()
+        .post(url)
+        .set(auth)
+        .send(input({ plantedEpisodeId: "x" }))
+        .expect(400);
+      await http()
+        .post(url)
+        .set(auth)
+        .send(input({ resolvedEpisodeId: other.detail.episodes[0]?.id }))
+        .expect(400);
+    });
+
+    it("휴지통의 회차와 연결을 유지하고, 완전히 지우면 연결만 풀린다", async () => {
+      const { auth, work, input, url } = await setup();
+      const draft = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(auth)
+        .send({ title: "초안", content: doc, authorNote: null, isFree: false })
+        .expect(201);
+      const created = await http()
+        .post(url)
+        .set(auth)
+        .send(input({ plantedEpisodeId: draft.body.id }))
+        .expect(201);
+
+      await http().delete(`/studio/episodes/${draft.body.id}`).set(auth).expect(204);
+      expect((await http().get(url).set(auth).expect(200)).body[0].plantedEpisodeId).toBe(draft.body.id);
+      await http()
+        .put(`/studio/foreshadows/${created.body.id}`)
+        .set(auth)
+        .send(input({ title: "고친 이름", plantedEpisodeId: draft.body.id }))
+        .expect(200);
+
+      await http().delete(`/studio/episodes/${draft.body.id}/permanent`).set(auth).expect(204);
+      const list = (await http().get(url).set(auth).expect(200)).body;
+      expect(list[0]).toMatchObject({ title: "고친 이름", plantedEpisodeId: null });
+    });
+
+    it("개수를 제한한다", async () => {
+      const { auth, work, input, url } = await setup();
+      await db
+        .insert(foreshadowsTable)
+        .values(Array.from({ length: 200 }, (_, index) => ({ workId: work.id, title: `복선 ${index}` })));
+      await http().post(url).set(auth).send(input()).expect(409);
     });
   });
 

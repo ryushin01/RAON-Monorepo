@@ -246,6 +246,16 @@ export interface WorkNote {
   updatedAt: string;
 }
 
+export interface Foreshadow {
+  id: string;
+  workId: string;
+  title: string;
+  body: string;
+  plantedEpisodeId: string | null;
+  resolvedEpisodeId: string | null;
+  updatedAt: string;
+}
+
 export interface WorkSearchHit {
   id: string;
   title: string;

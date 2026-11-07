@@ -1,0 +1,2 @@
+CREATE INDEX "foreshadows_planted_episode_idx" ON "foreshadows" USING btree ("planted_episode_id");--> statement-breakpoint
+CREATE INDEX "foreshadows_resolved_episode_idx" ON "foreshadows" USING btree ("resolved_episode_id");

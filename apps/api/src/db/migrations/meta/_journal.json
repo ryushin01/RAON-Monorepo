@@ -50,6 +50,20 @@
       "when": 1794014077662,
       "tag": "0006_ordinary_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794016737227,
+      "tag": "0007_light_reavers",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794020082342,
+      "tag": "0008_sloppy_corsair",
+      "breakpoints": true
     }
   ]
 }

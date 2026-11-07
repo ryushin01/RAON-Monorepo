@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioWork } from "@/entities/studio/index.server";
+import { ForeshadowManager } from "@/features/foreshadow-tracker";
 import { NotesManager } from "@/features/work-notes";
 import { Main } from "@/shared/ui";
 import styles from "./studio-notes.module.scss";
@@ -30,6 +31,10 @@ async function StudioNotesContent({ params }: { params: Params }) {
       <NotesManager
         workId={work.id}
         episodeNumbers={Object.fromEntries(work.episodes.map((episode) => [episode.id, episode.number]))}
+      />
+      <ForeshadowManager
+        workId={work.id}
+        episodes={[...work.episodes, ...work.trash.map((episode) => ({ ...episode, trashed: true }))]}
       />
     </>
   );
