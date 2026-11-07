@@ -72,7 +72,9 @@ export function countCharsWithSpaces(doc: EpisodeDoc): number {
 export function countCharsWithoutSymbols(doc: EpisodeDoc): number {
   return sumText(
     doc,
-    (text) => text.replace(/\s|\p{P}|\p{S}|\u200D|\uFE0E|\uFE0F|\u20E3|[\u{E0020}-\u{E007F}]/gu, "").length,
+    (text) =>
+      text.replace(/[0-9#*]\uFE0F?\u20E3|\s|\p{P}|\p{S}|\u200D|\uFE0E|\uFE0F|\u20E3|[\u{E0020}-\u{E007F}]/gu, "")
+        .length,
   );
 }
 

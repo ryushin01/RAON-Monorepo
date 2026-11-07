@@ -131,5 +131,6 @@ describe("countCharsWithoutSymbols", () => {
   it("이모지를 이루는 연결 문자와 변형 선택자도 뺀다", () => {
     expect(countCharsWithoutSymbols(docFromText("가❤️나"))).toBe(2);
     expect(countCharsWithoutSymbols(docFromText("가👩‍💻나"))).toBe(2);
+    expect(countCharsWithoutSymbols(docFromText("가1️⃣나1"))).toBe(3);
   });
 });
