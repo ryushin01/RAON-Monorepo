@@ -100,6 +100,15 @@ export const noteInputSchema = z.object({
 });
 export type NoteInput = z.input<typeof noteInputSchema>;
 
+export const foreshadowInputSchema = z.object({
+  title: z.string().trim().min(1, "복선 이름을 입력해 주세요.").max(60, "복선 이름은 60자 이하로 입력해 주세요."),
+  body: z.string().trim().max(2000, "내용은 2,000자 이하로 입력해 주세요."),
+  plantedEpisodeId: z.uuid().nullable(),
+  /** 값이 있으면 회수한 복선이다. */
+  resolvedEpisodeId: z.uuid().nullable(),
+});
+export type ForeshadowInput = z.infer<typeof foreshadowInputSchema>;
+
 export const workSearchQuerySchema = z.object({
   q: z.string().trim().min(1, "검색어를 입력해 주세요.").max(50, "검색어는 50자 이하로 입력해 주세요."),
 });
