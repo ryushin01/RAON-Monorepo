@@ -145,7 +145,12 @@ export const foreshadows = pgTable(
     resolvedEpisodeId: uuid("resolved_episode_id").references(() => episodes.id, { onDelete: "set null" }),
     ...timestamps,
   },
-  (t) => [index("foreshadows_work_idx").on(t.workId)],
+  (t) => [
+    index("foreshadows_work_idx").on(t.workId),
+    // 회차를 지울 때 연결을 풀 행을 찾는 데 쓴다.
+    index("foreshadows_planted_episode_idx").on(t.plantedEpisodeId),
+    index("foreshadows_resolved_episode_idx").on(t.resolvedEpisodeId),
+  ],
 );
 
 /** episodeId가 없으면 작품 전체를 담은 항목이다. */

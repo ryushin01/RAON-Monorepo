@@ -57,6 +57,13 @@
       "when": 1794016737227,
       "tag": "0007_light_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794020082342,
+      "tag": "0008_sloppy_corsair",
+      "breakpoints": true
     }
   ]
 }
