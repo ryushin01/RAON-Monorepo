@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { Notice } from "@/shared/ui";
+import { NoteProperties } from "./note-properties";
 import styles from "./notes.module.scss";
 import { useNotes } from "./use-notes";
 
@@ -15,7 +16,13 @@ export function NoteReference({ workId }: { workId: string }) {
     (note) =>
       note.kind === "SETTING" &&
       (!needle ||
-        [note.title, note.category, ...note.aliases, note.body].some((text) => text.toLowerCase().includes(needle))),
+        [
+          note.title,
+          note.category,
+          ...note.aliases,
+          ...note.properties.flatMap(({ name, value }) => [name, value]),
+          note.body,
+        ].some((text) => text.toLowerCase().includes(needle))),
   );
 
   return (
@@ -45,6 +52,7 @@ export function NoteReference({ workId }: { workId: string }) {
               {note.title}
             </h4>
             {note.aliases.length > 0 && <p className={styles.note}>다른 이름: {note.aliases.join(", ")}</p>}
+            <NoteProperties properties={note.properties} />
             {note.body && <p className={styles.body}>{note.body}</p>}
           </li>
         ))}

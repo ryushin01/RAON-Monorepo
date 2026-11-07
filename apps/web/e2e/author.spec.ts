@@ -1036,6 +1036,30 @@ test("작가 주석을 달면 에디터에만 보이고 독자에게는 나오�
   await reader.context().close();
 });
 
+test("설정 문서에 속성을 넣으면 설정집과 본문 속 설정 내용에 보인다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  const title = `속성 ${Date.now()}`;
+  await createWork(page, title);
+  await page.getByRole("link", { name: "설정집과 메모" }).click();
+  await page.getByRole("button", { name: "새 문서" }).click();
+  await page.getByRole("textbox", { name: /^제목/ }).fill("무연");
+  await page.getByRole("button", { name: "속성 추가" }).click();
+  await page.getByRole("textbox", { name: "1번째 속성 이름" }).fill("나이");
+  await page.getByRole("textbox", { name: "1번째 속성 값" }).fill("서른둘");
+  await page.getByRole("button", { name: "문서 저장" }).click();
+  await expect(page.getByRole("definition").filter({ hasText: "서른둘" })).toBeVisible();
+
+  await page.getByRole("link", { name: title }).click();
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("button", { name: "설정 표시" })).toHaveAttribute("aria-pressed", "true");
+  await page.waitForLoadState("networkidle");
+  await editorOf(page).click();
+  await page.waitForTimeout(100);
+  await page.keyboard.type("무연");
+  await expect(page.getByRole("complementary", { name: "커서가 놓인 설정" })).toContainText("서른둘");
+});
+
 test("괄호를 자동으로 닫고, 사용자 규칙으로 바꾸며, 특수문자를 뺀 글자 수를 보여 준다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `입력 보조 ${Date.now()}`);

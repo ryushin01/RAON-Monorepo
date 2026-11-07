@@ -23,10 +23,20 @@ const setting: WorkNote = {
   category: "인물",
   title: "이안",
   aliases: ["등대지기"],
+  properties: [{ name: "나이", value: "서른둘" }],
   body: "소금 사막의 등대지기.",
   updatedAt: "2026-11-05T00:00:00.000Z",
 };
-const memo: WorkNote = { ...setting, id: "n2", kind: "MEMO", category: "", title: "떡밥", aliases: [], body: "복선" };
+const memo: WorkNote = {
+  ...setting,
+  id: "n2",
+  kind: "MEMO",
+  category: "",
+  title: "떡밥",
+  aliases: [],
+  properties: [],
+  body: "복선",
+};
 const episodeMemo: WorkNote = { ...memo, id: "n3", title: "회차 메모", episodeId: "e1", body: "옛 메모" };
 
 const wrap = (node: React.ReactNode) =>
@@ -237,5 +247,51 @@ describe("EpisodeMemo", () => {
     await userEvent.click(screen.getByRole("button", { name: "메모 저장" }));
     expect(await screen.findByText("저장하지 못했습니다.")).toBeInTheDocument();
     expect(input).toHaveValue("옛 메모 더");
+  });
+});
+
+describe("문서 속성", () => {
+  beforeEach(() => {
+    (listNotes as jest.Mock).mockResolvedValue(ok([setting]));
+    (saveNote as jest.Mock).mockResolvedValue(ok(setting));
+  });
+
+  it("목록과 고치기 양식에 속성을 보여 주고, 행을 더하고 지워 저장한다", async () => {
+    wrap(<NotesManager workId="w1" episodeNumbers={{}} />);
+    expect(await screen.findByRole("definition")).toHaveTextContent("서른둘");
+    await userEvent.click(screen.getByRole("button", { name: "고치기: 이안" }));
+    expect(screen.getByRole("textbox", { name: "1번째 속성 값" })).toHaveValue("서른둘");
+
+    await userEvent.click(screen.getByRole("button", { name: "속성 추가" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "2번째 속성 이름" }), "소속");
+    await userEvent.type(screen.getByRole("textbox", { name: "2번째 속성 값" }), "폐역");
+    await userEvent.click(screen.getByRole("button", { name: "속성 추가" }));
+    await userEvent.click(screen.getByRole("button", { name: "1번째 속성 지우기" }));
+    expect(screen.getByRole("button", { name: "속성 추가" })).toHaveFocus();
+    // 지운 뒤에도 남은 행의 입력이 섞이지 않는다.
+    expect(screen.getByRole("textbox", { name: "1번째 속성 이름" })).toHaveValue("소속");
+
+    await userEvent.click(screen.getByRole("button", { name: "문서 저장" }));
+    await waitFor(() =>
+      expect(saveNote).toHaveBeenCalledWith(
+        "w1",
+        "n1",
+        expect.objectContaining({ properties: [{ name: "소속", value: "폐역" }] }),
+      ),
+    );
+  });
+
+  it("속성 오류를 알린다", async () => {
+    (saveNote as jest.Mock).mockResolvedValue({
+      ok: false,
+      message: "입력을 확인해 주세요.",
+      fieldErrors: { "properties.0.name": "속성 이름을 입력해 주세요." },
+    });
+    wrap(<NotesManager workId="w1" episodeNumbers={{}} />);
+    await userEvent.click(await screen.findByRole("button", { name: "새 문서" }));
+    await userEvent.click(screen.getByRole("button", { name: "속성 추가" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "1번째 속성 값" }), "값");
+    await userEvent.click(screen.getByRole("button", { name: "문서 저장" }));
+    expect(await screen.findByText("속성 이름을 입력해 주세요.")).toBeInTheDocument();
   });
 });
