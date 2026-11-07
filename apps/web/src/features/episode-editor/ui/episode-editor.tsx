@@ -245,6 +245,8 @@ function EpisodeEditorBody({
   const { data: settingNotes } = useQuery({
     queryKey: ["episode-note-links", initial.workId],
     enabled: prefs.noteLinks,
+    // 설정은 다른 화면에서 고치므로 에디터를 열 때마다 다시 읽는다.
+    staleTime: 0,
     queryFn: async () => {
       const result = await listSettingNotes(initial.workId);
       if (!result.ok) throw new Error(result.message);

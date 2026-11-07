@@ -960,6 +960,17 @@ test("본문의 설정 이름에 표시하고, 커서가 놓이면 내용을 보
   await expect(editorOf(page).locator(".note-link")).toHaveCount(0);
   await page.getByRole("button", { name: "설정 표시" }).click();
   await expect(editorOf(page).locator(".note-link")).toHaveCount(1);
+
+  // 설정집에서 고치고 바로 돌아와도 새 이름을 표시한다.
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await page.getByRole("link", { name: "설정집과 메모" }).click();
+  await page.getByRole("button", { name: "고치기: 이안" }).click();
+  await page.getByRole("textbox", { name: "다른 이름" }).fill("등대지기, 그날");
+  await page.getByRole("button", { name: "문서 저장" }).click();
+  await expect(page.getByText("다른 이름: 등대지기, 그날")).toBeVisible();
+  await page.getByRole("link", { name: title }).click();
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await expect(editorOf(page).locator(".note-link")).toHaveCount(2);
 });
 
 test("복선을 에디터에서 심고 회수하며, 설정집 화면에서 진행을 본다", async ({ page }) => {
