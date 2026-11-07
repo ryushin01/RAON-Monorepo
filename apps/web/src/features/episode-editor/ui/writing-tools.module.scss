@@ -139,3 +139,12 @@
     }
   }
 }
+
+.polished {
+  padding: 0.75rem 1rem;
+  border: 1px dashed currentcolor;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-serif);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
