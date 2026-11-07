@@ -1,11 +1,12 @@
 "use client";
 
-import { NOTE_KINDS, type NoteKind, type WorkNote, type WorkSearchResult } from "@raon/contracts";
+import { MAX_NOTE_PROPERTIES, NOTE_KINDS, type NoteKind, type WorkNote, type WorkSearchResult } from "@raon/contracts";
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Button, Notice, SelectField, TextAreaField, TextField } from "@/shared/ui";
 import { deleteNote, saveNote, searchWork } from "../api/actions";
+import { NoteProperties } from "./note-properties";
 import styles from "./notes.module.scss";
 import { useNotes } from "./use-notes";
 
@@ -38,9 +39,22 @@ function NoteForm({
   onCancel: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  // 행을 지워도 다른 행의 입력이 섞이지 않게 위치가 아닌 고정 번호를 키로 쓴다.
+  const nextRowId = useRef(0);
+  const newRow = (name = "", value = "") => {
+    nextRowId.current += 1;
+    return { id: nextRowId.current, name, value };
+  };
+  const [rows, setRows] = useState(() => (note?.properties ?? []).map(({ name, value }) => newRow(name, value)));
+  const addRowRef = useRef<HTMLButtonElement>(null);
+  const sentRowIds = useRef<number[]>([]);
   const save = useMutation({
     mutationFn: async (form: FormData) => {
+      // 이름과 값을 모두 비운 행은 없는 것으로 친다. 서버의 오류 위치는 이 목록 기준이다.
+      const sent = rows.filter(({ name, value }) => name.trim() || value.trim());
+      sentRowIds.current = sent.map(({ id }) => id);
       const result = await saveNote(workId, note?.id ?? null, {
+        properties: sent.map(({ name, value }) => ({ name, value })),
         kind: String(form.get("kind")) as NoteKind,
         category: String(form.get("category")),
         title: String(form.get("title")),
@@ -55,11 +69,24 @@ function NoteForm({
   });
   const fieldErrors = save.error instanceof FormError ? save.error.fieldErrors : undefined;
   const aliasError = Object.entries(fieldErrors ?? {}).find(([key]) => key.startsWith("aliases"))?.[1];
+  /** 서버는 보낸 목록의 위치로 오류를 알려 주므로 화면의 행으로 되돌린다. */
+  const rowError = (id: number, field: "name" | "value") => {
+    const index = sentRowIds.current.indexOf(id);
+    return index === -1 ? undefined : fieldErrors?.[`properties.${index}.${field}`];
+  };
+  // 특정 행이 아닌 오류(개수 초과 등)만 묶음 아래에 보여 준다.
+  const propertyError = fieldErrors?.properties;
+  const changeRow = (id: number, field: "name" | "value", text: string) =>
+    setRows((current) => current.map((row) => (row.id === id ? { ...row, [field]: text } : row)));
 
   // 처음 열 때와 오류가 있을 때 해당 칸으로 초점을 옮긴다.
   // biome-ignore lint/correctness/useExhaustiveDependencies: 새 오류가 올 때마다 초점을 다시 옮기려고 넣었다.
   useEffect(() => {
-    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [name="title"]')?.focus();
+    // 두 선택자를 한 번에 쓰면 문서 순서상 앞에 있는 제목 칸이 오류 칸보다 먼저 잡힌다.
+    const form = formRef.current;
+    (
+      form?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? form?.querySelector<HTMLElement>('[name="title"]')
+    )?.focus();
   }, [fieldErrors]);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -105,6 +132,58 @@ function NoteForm({
         hint="쉼표로 나누어 씁니다. 검색할 때 함께 찾습니다."
         error={aliasError}
       />
+      <fieldset className={styles.propertyRows}>
+        <legend>속성</legend>
+        {rows.map((row, index) => (
+          <div key={row.id} className={styles.propertyRow}>
+            <TextField
+              label={`${index + 1}번째 속성 이름`}
+              value={row.name}
+              maxLength={20}
+              error={rowError(row.id, "name")}
+              onChange={(event) => changeRow(row.id, "name", event.target.value)}
+            />
+            <TextField
+              label={`${index + 1}번째 속성 값`}
+              value={row.value}
+              maxLength={200}
+              error={rowError(row.id, "value")}
+              onChange={(event) => changeRow(row.id, "value", event.target.value)}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              small
+              aria-label={`${index + 1}번째 속성 지우기`}
+              onClick={() => {
+                setRows((current) => current.filter((item) => item.id !== row.id));
+                // 누른 버튼이 사라지므로 초점을 남아 있는 버튼으로 옮긴다(KWCAG 6.1.2).
+                addRowRef.current?.focus();
+              }}
+            >
+              지우기
+            </Button>
+          </div>
+        ))}
+        {propertyError && <Notice tone="error">{propertyError}</Notice>}
+        <div className={styles.actions}>
+          <Button
+            ref={addRowRef}
+            type="button"
+            variant="secondary"
+            small
+            aria-disabled={rows.length >= MAX_NOTE_PROPERTIES}
+            onClick={() => {
+              if (rows.length < MAX_NOTE_PROPERTIES) setRows((current) => [...current, newRow()]);
+            }}
+          >
+            속성 추가
+          </Button>
+        </div>
+        <p className={styles.note} role="status">
+          {rows.length >= MAX_NOTE_PROPERTIES ? `속성은 ${MAX_NOTE_PROPERTIES}개까지 입력할 수 있습니다.` : ""}
+        </p>
+      </fieldset>
       <TextAreaField
         label="내용"
         name="body"
@@ -328,6 +407,7 @@ export function NotesManager({
                       : note.title}
                   </h4>
                   {note.aliases.length > 0 && <p className={styles.note}>다른 이름: {note.aliases.join(", ")}</p>}
+                  <NoteProperties properties={note.properties} />
                   {note.body && <p className={styles.body}>{note.body}</p>}
                   <div className={styles.actions}>
                     <Button

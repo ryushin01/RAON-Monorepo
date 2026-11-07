@@ -1,4 +1,4 @@
-import type { EpisodeDoc } from "@raon/contracts";
+import type { EpisodeDoc, NoteProperty } from "@raon/contracts";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -148,6 +148,7 @@ export const workNotes = pgTable(
     category: text("category").notNull().default(""),
     title: text("title").notNull(),
     aliases: text("aliases").array().notNull().default(sql`'{}'::text[]`),
+    properties: jsonb("properties").$type<NoteProperty[]>().notNull().default([]),
     body: text("body").notNull().default(""),
     ...timestamps,
   },

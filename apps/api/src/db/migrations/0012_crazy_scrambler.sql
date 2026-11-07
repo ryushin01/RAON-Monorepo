@@ -1,0 +1,1 @@
+ALTER TABLE "work_notes" ADD COLUMN "properties" jsonb DEFAULT '[]'::jsonb NOT NULL;
