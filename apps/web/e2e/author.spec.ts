@@ -1013,18 +1013,21 @@ test("작가 주석을 달면 에디터에만 보이고 독자에게는 나오�
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "주석", exact: true }).click();
   await expect(page.getByRole("button", { name: "주석", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // 도구 모음을 누른 뒤 에디터로 초점이 돌아오기를 기다린다. 사람보다 빠른 자동화에서만 첫 글자를 놓친다.
+  await expect(editorOf(page)).toBeFocused();
+  await page.waitForTimeout(100);
   await page.keyboard.type("비밀 복선 메모");
   await expect(editorOf(page).getByRole("note", { name: "작가 주석" })).toHaveText("비밀 복선 메모");
   await expect(page.getByText(/공백 포함 8자 · 공백 제외 6자/)).toBeVisible();
 
+  await page.getByRole("checkbox", { name: "무료 회차로 공개" }).check();
   await page.getByRole("button", { name: "공개하기" }).click();
   await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
 
   // 다시 열어도 주석이 남고, 독자에게는 보이지 않는다.
   await page.goto(url);
   await expect(editorOf(page).getByRole("note", { name: "작가 주석" })).toHaveText("비밀 복선 메모");
-  await page.getByRole("link", { name: "작품 관리로" }).click();
-  const workId = page.url().split("/").at(-1);
+  const workId = url.match(/works\/([0-9a-f-]{36})/)?.[1];
   const reader = await (await browser.newContext()).newPage();
   const response = await reader.goto(`/works/${workId}/episodes/1`);
   await expect(reader.getByText("독자가 읽는 글")).toBeVisible();
