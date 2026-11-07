@@ -1,4 +1,4 @@
-import { EPISODE_TYPE_LABEL, type EpisodeView, type Role } from "@raon/contracts";
+import { type CommentSort, EPISODE_TYPE_LABEL, type EpisodeView, type Role } from "@raon/contracts";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -48,8 +48,11 @@ function LockedPanel({ episode, role, path }: { episode: EpisodeView; role: Role
   );
 }
 
-async function ViewerContent({ params }: { params: Params }) {
-  const { workId, number } = await params;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+async function ViewerContent({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
+  const [{ workId, number }, query] = await Promise.all([params, searchParams]);
+  const commentSort: CommentSort = query.commentSort === "likes" ? "likes" : "latest";
   const parsed = parseNumber(number);
   if (parsed === null) notFound();
 
@@ -60,7 +63,7 @@ async function ViewerContent({ params }: { params: Params }) {
   const base = `/works/${workId}/episodes`;
   const path = `${base}/${parsed}`;
   // 유료 회차는 산 사람만 댓글을 볼 수 있으므로 읽을 수 있을 때만 부른다.
-  const comments = episode.accessible ? await getComments(episode.id, token) : null;
+  const comments = episode.accessible ? await getComments(episode.id, token, commentSort) : null;
   return (
     <>
       <header className={styles.bar}>
@@ -111,6 +114,7 @@ async function ViewerContent({ params }: { params: Params }) {
                   comments={comments.items}
                   total={comments.total}
                   loggedIn={Boolean(user)}
+                  sort={commentSort}
                 />
               ) : (
                 <Notice>댓글을 불러오지 못했습니다. 잠시 뒤 다시 확인해 주세요.</Notice>
@@ -173,11 +177,11 @@ async function ViewerContent({ params }: { params: Params }) {
   );
 }
 
-export function ViewerPage({ params }: { params: Params }) {
+export function ViewerPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   return (
     <div className={styles.viewer}>
       <Suspense fallback={<div aria-busy="true" />}>
-        <ViewerContent params={params} />
+        <ViewerContent params={params} searchParams={searchParams} />
       </Suspense>
     </div>
   );
