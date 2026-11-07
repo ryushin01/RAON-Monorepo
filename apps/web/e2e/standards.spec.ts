@@ -127,9 +127,9 @@ test.describe("KWCAG 운용", () => {
     }
   });
 
-  // 머리글 배경에 그라디언트를 써서 axe가 대비를 판정하지 못하므로 직접 계산한다(KWCAG 5.4.3).
+  // 움직이는 탭 바탕(Motion)처럼 axe가 대비를 판정하기 어려운 부분이 있어 직접 계산한다(KWCAG 5.4.3).
   for (const theme of ["light", "dark"] as const) {
-    test(`5.4.3 ${theme} 머리글의 글자가 판 색과 4.5:1 이상 대비된다`, async ({ page }) => {
+    test(`5.4.3 ${theme} 머리글의 글자가 바탕과 4.5:1 이상 대비된다`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: theme });
       await page.goto("/");
       const nav = page.getByRole("navigation", { name: "주요 메뉴" });
@@ -142,7 +142,11 @@ test.describe("KWCAG 운용", () => {
           return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
         };
         const panel = element.parentElement as HTMLElement;
-        const panelColor = getComputedStyle(panel).backgroundColor;
+        const isTransparent = (color: string) => color === "transparent" || /,\s*0\)$/.test(color);
+        // 머리글은 배경이 투명할 수 있으므로, 위로 올라가며 처음 칠해진 배경을 실제 바탕으로 본다.
+        let painted: HTMLElement | null = panel;
+        while (painted && isTransparent(getComputedStyle(painted).backgroundColor)) painted = painted.parentElement;
+        const panelColor = getComputedStyle(painted ?? document.body).backgroundColor;
         const contrast = (color: string, backgroundColor: string) => {
           const value = luminance(color);
           const background = luminance(backgroundColor);
@@ -153,7 +157,7 @@ test.describe("KWCAG 운용", () => {
           // 선택된 모드 탭처럼 자기 배경이나 움직이는 바탕 표시가 있으면 그 색과 비교한다.
           const indicator = item.querySelector<HTMLElement>("[data-indicator]");
           const own = indicator ? getComputedStyle(indicator).backgroundColor : style.backgroundColor;
-          const transparent = own === "transparent" || /,\s*0\)$/.test(own);
+          const transparent = isTransparent(own);
           return {
             text: item.textContent || item.getAttribute("placeholder"),
             ratio: contrast(style.color, transparent ? panelColor : own),

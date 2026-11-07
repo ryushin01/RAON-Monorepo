@@ -2,21 +2,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
   min-height: 2.75rem;
-  padding: 0.5rem 1.25rem;
+  padding: 0.5rem 1.375rem;
   border: 1px solid transparent;
-  border-radius: var(--radius);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
-  font-size: 0.875rem;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
   font-weight: 500;
-  letter-spacing: 0.01em;
   line-height: 1.3;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 120ms, color 120ms, border-color 120ms;
+  transition: background-color 150ms, color 150ms, border-color 150ms;
 
   &:disabled,
   &[aria-disabled="true"] {
@@ -30,19 +28,17 @@
   color: var(--bg);
 
   &:hover:not(:disabled) {
-    border-color: var(--fg);
-    background: var(--bg);
-    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 86%, var(--bg));
   }
 }
 
 .secondary {
-  background: var(--surface);
+  border-color: var(--line);
+  background: var(--raised);
   color: var(--fg);
 
   &:hover:not(:disabled) {
-    background: var(--fg);
-    color: var(--bg);
+    border-color: var(--fg);
   }
 }
 
@@ -57,10 +53,43 @@
 }
 
 .small {
-  padding: 0.25rem 0.75rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.875rem;
   font-size: 0.8125rem;
 }
 
 .block {
   width: 100%;
+}
+
+// 화살표가 있으면 오른쪽 여백을 줄여 원이 버튼 안쪽 끝에 붙게 한다.
+.withArrow {
+  padding-inline-end: 0.3125rem;
+}
+
+/* 장식이다. 이름은 글자가 맡고, 원은 스크린 리더에 읽히지 않는다. */
+.arrow {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--fg);
+  transition: transform 200ms;
+
+  svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  .primary & {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .button:hover & {
+    transform: rotate(45deg);
+  }
 }

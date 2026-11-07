@@ -12,3 +12,15 @@ describe("Button", () => {
     expect(screen.getByRole("link", { name: "장바구니" })).toHaveAttribute("href", "/cart");
   });
 });
+
+describe("화살표", () => {
+  it("화살표는 장식이라 이름에 들어가지 않는다", () => {
+    const { container } = render(
+      <ButtonLink href="/works" arrow>
+        작품 둘러보기
+      </ButtonLink>,
+    );
+    expect(screen.getByRole("link", { name: "작품 둘러보기" })).toBeInTheDocument();
+    expect(container.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
+  });
+});

@@ -10,22 +10,31 @@ export function HomeHero() {
       <div className={styles.copy}>
         <p className={styles.kicker}>웹툰·웹소설 연재 플랫폼</p>
         <h1 id={titleId} className={styles.title}>
-          오늘 밤 읽을 이야기,
+          오늘 밤 읽을
           <br />
-          라온에서.
+          이야기, 라온에서.
         </h1>
         <p className={styles.lead}>
           작가는 회차를 연재하고, 독자는 회차나 완결 작품을 골라 코인으로 읽습니다. 읽던 곳은 내 서재에서 이어 봅니다.
         </p>
         <p className={styles.actions}>
-          <ButtonLink href="/works">작품 둘러보기</ButtonLink>
-          <ButtonLink href="/works?sort=popular" variant="secondary">
+          <ButtonLink href="/works" arrow>
+            작품 둘러보기
+          </ButtonLink>
+          <ButtonLink href="/works?sort=popular" variant="secondary" arrow>
             인기순으로 보기
           </ButtonLink>
         </p>
       </div>
-      <div className={styles.art}>
+      {/* 제도판 위의 글자 나선. 장식이라 읽지 않는다. */}
+      <div className={styles.art} aria-hidden="true">
+        <p className={styles.caption}>
+          <span>Fig. 01</span>
+          <span>연재 나선</span>
+        </p>
+        <span className={styles.dimension} />
         <TypeSpiral />
+        <span className={styles.origin} />
       </div>
     </section>
   );
