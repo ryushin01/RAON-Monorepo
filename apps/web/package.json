@@ -15,6 +15,8 @@
     "screenshots": "SCREENSHOTS=1 playwright test --reporter=line"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.97",
+    "@ai-sdk/react": "^4.0.167",
     "@raon/contracts": "workspace:*",
     "@tanstack/react-query": "5.105.3",
     "@tiptap/core": "3.32.2",
@@ -23,6 +25,7 @@
     "@tiptap/pm": "3.32.2",
     "@tiptap/react": "3.32.2",
     "@tiptap/starter-kit": "3.32.2",
+    "ai": "^7.0.163",
     "js-cookie": "3.0.8",
     "next": "16.4.5",
     "react": "19.2.9",

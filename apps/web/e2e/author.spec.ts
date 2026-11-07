@@ -1096,6 +1096,34 @@ test("회차 유형은 독자에게 보이고 시점은 작가에게만 보인�
   await reader.context().close();
 });
 
+test("AI로 다듬은 단락을 확인한 뒤 적용하고 되돌리며, 키가 없으면 안내한다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `다듬기 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  await editorOf(page).click();
+  await page.waitForTimeout(100);
+  await page.keyboard.type("등대가 빛났다.");
+  await page.getByText("AI 문단 다듬기", { exact: true }).click();
+
+  // 이 테스트 환경에는 키가 없으므로 실제 경로는 꺼진 것으로 답한다.
+  await page.getByRole("button", { name: "다듬기" }).click();
+  await expect(page.getByText("AI 키가 설정되지 않아 문단 다듬기를 쓸 수 없습니다.")).toBeVisible();
+
+  await page.route("**/api/ai/polish", (route) =>
+    route.fulfill({ status: 200, contentType: "text/plain; charset=utf-8", body: "등대가 환하게 빛났다." }),
+  );
+  await editorOf(page).click();
+  await page.waitForTimeout(100);
+  await page.getByRole("button", { name: "다듬기" }).click();
+  await expect(page.getByRole("region", { name: "다듬은 글" })).toHaveText("등대가 환하게 빛났다.");
+  await expect(page.getByRole("region", { name: "다듬은 글" })).toBeFocused();
+  await page.getByRole("button", { name: "적용" }).click();
+  await expect(editorOf(page)).toHaveText("등대가 환하게 빛났다.");
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(editorOf(page)).toHaveText("등대가 빛났다.");
+});
+
 test("괄호를 자동으로 닫고, 사용자 규칙으로 바꾸며, 특수문자를 뺀 글자 수를 보여 준다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `입력 보조 ${Date.now()}`);

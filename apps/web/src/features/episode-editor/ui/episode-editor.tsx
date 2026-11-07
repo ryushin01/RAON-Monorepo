@@ -24,6 +24,7 @@ import { DEFAULT_EDITOR_PREFS, readEditorPrefs, subscribeEditorPrefs, toggleEdit
 import { type ReplaceRule, readReplaceRules, subscribeReplaceRules } from "../model/replace-rules";
 import { isScheduled, toPublishAt } from "../model/schedule";
 import { useAutosave } from "../model/use-autosave";
+import { AiPolish } from "./ai-polish";
 import { CharGoal } from "./char-goal";
 import styles from "./episode-editor.module.scss";
 import { EpisodeExport } from "./episode-export";
@@ -716,6 +717,9 @@ function EpisodeEditorBody({
                 onRestored(restored);
               }}
             />
+          </Tool>
+          <Tool title="AI 문단 다듬기">
+            <AiPolish editor={editor} />
           </Tool>
           <Tool title="이 회차 내보내기">
             <EpisodeExport
