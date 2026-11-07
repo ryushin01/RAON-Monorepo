@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import { Notice } from "../notice/notice";
 import styles from "./sortable-list.module.scss";
 
@@ -47,6 +47,7 @@ const instructions: ScreenReaderInstructions = {
 
 /** 순서를 끌어 놓아 바꾼다. 같은 일을 하는 버튼(위로·아래로)과 함께 두어 끌기가 어려운 사람도 쓸 수 있게 한다. */
 export function SortableList({ items, onReorder, name, listClassName, itemClassName }: Props) {
+  const dndId = useId();
   const [order, setOrder] = useState(() => items.map((item) => item.id));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -93,6 +94,8 @@ export function SortableList({ items, onReorder, name, listClassName, itemClassN
   return (
     <>
       <DndContext
+        // 서버와 브라우저가 같은 id를 써야 손잡이의 aria-describedby가 조작 안내를 가리킨다.
+        id={dndId}
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={onDragEnd}
