@@ -147,3 +147,57 @@ describe("설정 이름 표시", () => {
     editor.destroy();
   });
 });
+
+describe("입력 보조", () => {
+  const typeText = (editor: Editor, text: string) => {
+    const { view } = editor;
+    for (const char of text) {
+      const { from, to } = view.state.selection;
+      const handled = view.someProp("handleTextInput", (handler) =>
+        handler(view, from, to, char, () => view.state.tr.insertText(char, from, to)),
+      );
+      if (!handled) view.dispatch(view.state.tr.insertText(char, from, to));
+    }
+  };
+  const start = () => {
+    const editor = make("");
+    editor.commands.setTextSelection(1);
+    return editor;
+  };
+
+  it("여는 괄호에 닫는 괄호를 넣고 그 사이에 커서를 두며, 닫는 괄호는 덧쓴다", () => {
+    const editor = start();
+    typeText(editor, "(가");
+    expect(editor.getText()).toBe("(가)");
+    typeText(editor, ")나");
+    expect(editor.getText()).toBe("(가)나");
+    editor.destroy();
+  });
+
+  it("고른 글자를 괄호로 묶고, 끄면 그대로 쓴다", () => {
+    const editor = make("등대");
+    editor.commands.setTextSelection({ from: 1, to: 3 });
+    typeText(editor, "「");
+    expect(editor.getText()).toBe("「등대」");
+    editor.destroy();
+
+    const off = start();
+    off.storage.smartInput.autoBracket = false;
+    typeText(off, "(가)");
+    expect(off.getText()).toBe("(가)");
+    off.destroy();
+  });
+
+  it("사용자 규칙으로 바꾸고, 실행 취소로 되돌리며, 규칙이 없으면 그대로 둔다", () => {
+    const editor = start();
+    typeText(editor, "가->");
+    expect(editor.getText()).toBe("가->");
+    editor.storage.smartInput.rules = [{ from: "->", to: "→" }];
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    typeText(editor, "나->");
+    expect(editor.getText()).toBe("가->나→");
+    editor.commands.undo();
+    expect(editor.getText()).not.toContain("→");
+    editor.destroy();
+  });
+});

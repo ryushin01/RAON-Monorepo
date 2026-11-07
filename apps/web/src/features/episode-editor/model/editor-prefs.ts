@@ -10,6 +10,8 @@ export interface EditorPrefs {
   dim: boolean;
   /** 곧은 따옴표와 점 세 개를 입력할 때 표준 기호로 바꾼다. */
   smartInput: boolean;
+  /** 여는 괄호를 쓰면 닫는 괄호를 함께 넣는다. */
+  autoBracket: boolean;
   /** 본문의 설정 이름을 표시하고 커서가 놓이면 내용을 보여 준다. */
   noteLinks: boolean;
 }
@@ -19,6 +21,7 @@ export const DEFAULT_EDITOR_PREFS: EditorPrefs = {
   typewriter: false,
   dim: false,
   smartInput: true,
+  autoBracket: true,
   noteLinks: true,
 };
 

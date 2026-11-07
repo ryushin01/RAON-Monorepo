@@ -169,3 +169,25 @@ describe("FindReplace", () => {
     expect(screen.getByRole("status")).toHaveTextContent("기호 3곳을 바꿨습니다.");
   });
 });
+
+describe("자동 대치", () => {
+  it("규칙을 등록하고 지우며, 빈 값과 중복은 알린다", async () => {
+    render(<WritingTools editor={make("본문")} chars={0} onFind={() => {}} />);
+    const tool = within(open("자동 대치"));
+    await userEvent.click(tool.getByRole("button", { name: "규칙 등록" }));
+    expect(await tool.findByText("바꿀 글자를 입력해 주세요.")).toBeInTheDocument();
+    expect(tool.getByRole("textbox", { name: "입력하는 글자" })).toHaveFocus();
+
+    await userEvent.type(tool.getByRole("textbox", { name: "입력하는 글자" }), "->");
+    await userEvent.type(tool.getByRole("textbox", { name: "바뀌는 글자" }), "→");
+    await userEvent.click(tool.getByRole("button", { name: "규칙 등록" }));
+    expect(await tool.findByText("-> → →")).toBeInTheDocument();
+
+    await userEvent.type(tool.getByRole("textbox", { name: "입력하는 글자" }), "->");
+    await userEvent.click(tool.getByRole("button", { name: "규칙 등록" }));
+    expect(await tool.findByText("이미 등록한 규칙입니다.")).toBeInTheDocument();
+
+    await userEvent.click(tool.getByRole("button", { name: "규칙 삭제: ->" }));
+    expect(tool.queryByText("-> → →")).not.toBeInTheDocument();
+  });
+});

@@ -2,6 +2,7 @@
 
 import {
   countChars,
+  countCharsWithoutSymbols,
   countCharsWithSpaces,
   type EpisodeDoc,
   type EpisodeInput,
@@ -20,6 +21,7 @@ import { fetchEpisode, listSettingNotes, saveEpisode, setEpisodePublished, setWr
 import { UNTITLED } from "../model/constants";
 import { clearBackup, type DraftBackup, loggedOutSince, readBackup, writeBackup } from "../model/draft-backup";
 import { DEFAULT_EDITOR_PREFS, readEditorPrefs, subscribeEditorPrefs, toggleEditorPref } from "../model/editor-prefs";
+import { type ReplaceRule, readReplaceRules, subscribeReplaceRules } from "../model/replace-rules";
 import { isScheduled, toPublishAt } from "../model/schedule";
 import { useAutosave } from "../model/use-autosave";
 import { CharGoal } from "./char-goal";
@@ -32,6 +34,7 @@ import { VersionHistory } from "./version-history";
 import { createNoteMatcher, noteIdAtCursor, noteLinkKey } from "./writing-extensions";
 import { Tool, WritingTools } from "./writing-tools";
 
+const NO_REPLACE_RULES: ReplaceRule[] = [];
 const AUTOSAVE_MS = 2000;
 const RETRY_MS = 15_000;
 const BACKUP_MS = 500;
@@ -232,14 +235,19 @@ function EpisodeEditorBody({
             canRedo: current.can().redo(),
             chars: countChars(current.getJSON() as EpisodeDoc),
             charsWithSpaces: countCharsWithSpaces(current.getJSON() as EpisodeDoc),
+            charsWithoutSymbols: countCharsWithoutSymbols(current.getJSON() as EpisodeDoc),
             noteId: noteIdAtCursor(current.state),
           }
         : null,
   });
 
+  const replaceRules = useSyncExternalStore(subscribeReplaceRules, readReplaceRules, () => NO_REPLACE_RULES);
   useEffect(() => {
-    if (editor) editor.storage.smartInput.enabled = prefs.smartInput;
-  }, [editor, prefs.smartInput]);
+    if (!editor) return;
+    editor.storage.smartInput.enabled = prefs.smartInput;
+    editor.storage.smartInput.autoBracket = prefs.autoBracket;
+    editor.storage.smartInput.rules = replaceRules;
+  }, [editor, prefs.smartInput, prefs.autoBracket, replaceRules]);
 
   // 보조 표시라 읽지 못해도 글쓰기를 막지 않는다. 설정집 참조 도구가 오류를 알린다.
   const { data: settingNotes } = useQuery({
@@ -642,6 +650,9 @@ function EpisodeEditorBody({
             <button type="button" aria-pressed={prefs.smartInput} onClick={() => toggleEditorPref("smartInput")}>
               자동 따옴표
             </button>
+            <button type="button" aria-pressed={prefs.autoBracket} onClick={() => toggleEditorPref("autoBracket")}>
+              자동 괄호
+            </button>
             <button type="button" aria-pressed={prefs.noteLinks} onClick={() => toggleEditorPref("noteLinks")}>
               설정 표시
             </button>
@@ -662,6 +673,7 @@ function EpisodeEditorBody({
         <CharGoal
           withSpaces={toolbar?.charsWithSpaces ?? 0}
           withoutSpaces={toolbar?.chars ?? 0}
+          withoutSymbols={toolbar?.charsWithoutSymbols ?? 0}
           compact={prefs.focus}
         />
       </div>

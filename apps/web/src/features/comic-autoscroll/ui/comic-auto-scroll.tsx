@@ -25,7 +25,13 @@ export function ComicAutoScroll() {
     let frame = 0;
     let last = performance.now();
     let carry = 0;
+    let expected = window.scrollY;
     const step = (now: number) => {
+      // 스크롤바를 끄는 것처럼 이벤트로 알 수 없는 조작은 위치가 달라진 것으로 알아챈다.
+      if (Math.abs(window.scrollY - expected) > 1) {
+        setRunning(false);
+        return;
+      }
       // 스크롤은 정수 단위로 반영되므로 소수점을 모아 느린 속도에서도 움직이게 한다.
       carry += ((now - last) / 1000) * speed.current;
       last = now;
@@ -33,6 +39,7 @@ export function ComicAutoScroll() {
       if (pixels > 0) {
         carry -= pixels;
         window.scrollBy({ top: pixels, behavior: "instant" });
+        expected = window.scrollY;
       }
       if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1) {
         setRunning(false);

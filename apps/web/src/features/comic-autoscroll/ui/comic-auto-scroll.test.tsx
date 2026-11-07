@@ -65,6 +65,14 @@ it("포인터가 버튼 위에 있어도 휠을 굴리면 멈춘다", async () =
   expect(await screen.findByRole("button", { name: "자동 스크롤" })).toHaveAttribute("aria-pressed", "false");
 });
 
+it("스크롤바를 끌어 위치가 달라지면 멈춘다", async () => {
+  render(<ComicAutoScroll />);
+  await userEvent.click(toggle());
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 500 });
+  expect(await screen.findByRole("button", { name: "자동 스크롤" })).toHaveAttribute("aria-pressed", "false");
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+});
+
 it("페이지 끝에 닿으면 멈춘다", async () => {
   Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: 0 });
   render(<ComicAutoScroll />);
