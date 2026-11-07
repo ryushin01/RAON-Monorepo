@@ -12,6 +12,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioWork } from "@/entities/studio/index.server";
 import {
+  EpisodeOrderList,
   isScheduled,
   MoveEpisodeButtons,
   NewEpisodeButton,
@@ -72,39 +73,45 @@ async function StudioWorkContent({ params }: { params: Params }) {
         {work.episodes.length === 0 ? (
           <p>아직 쓴 회차가 없습니다.</p>
         ) : (
-          <ol className={styles.list}>
-            {work.episodes.map((episode, index) => (
-              <li key={episode.id}>
-                <div>
-                  <Link href={`/studio/works/${work.id}/episodes/${episode.id}`}>
-                    {episode.number}화. {episode.title}
-                  </Link>
-                  <small>
-                    {work.format === "COMIC"
-                      ? `이미지 ${formatNumber(episode.imageCount)}장`
-                      : `${formatNumber(episode.charCount)}자`}{" "}
-                    {episode.pointOfView && `· ${episode.pointOfView} 시점 `}· 수정 {formatDate(episode.updatedAt)}
-                  </small>
+          <EpisodeOrderList
+            workId={work.id}
+            listClassName={styles.list}
+            items={work.episodes.map((episode, index) => ({
+              id: episode.id,
+              label: `${episode.number}화`,
+              content: (
+                <div className={styles.row}>
+                  <div>
+                    <Link href={`/studio/works/${work.id}/episodes/${episode.id}`}>
+                      {episode.number}화. {episode.title}
+                    </Link>
+                    <small>
+                      {work.format === "COMIC"
+                        ? `이미지 ${formatNumber(episode.imageCount)}장`
+                        : `${formatNumber(episode.charCount)}자`}{" "}
+                      {episode.pointOfView && `· ${episode.pointOfView} 시점 `}· 수정 {formatDate(episode.updatedAt)}
+                    </small>
+                  </div>
+                  <div className={styles.badges}>
+                    <Badge solid={episode.status === "PUBLISHED"}>{episodeLabel(episode)}</Badge>
+                    {episode.status === "DRAFT" && <Badge>{WRITING_STAGE_LABEL[episode.writingStage]}</Badge>}
+                    {episode.episodeType !== "REGULAR" && <Badge>{EPISODE_TYPE_LABEL[episode.episodeType]}</Badge>}
+                    <Badge>{episode.isFree ? "무료" : "유료"}</Badge>
+                    <MoveEpisodeButtons
+                      workId={work.id}
+                      episodeId={episode.id}
+                      label={`${episode.number}화`}
+                      canMoveUp={index > 0}
+                      canMoveDown={index < work.episodes.length - 1}
+                    />
+                    {episode.status === "DRAFT" && (
+                      <TrashDraftButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
+                    )}
+                  </div>
                 </div>
-                <div className={styles.badges}>
-                  <Badge solid={episode.status === "PUBLISHED"}>{episodeLabel(episode)}</Badge>
-                  {episode.status === "DRAFT" && <Badge>{WRITING_STAGE_LABEL[episode.writingStage]}</Badge>}
-                  {episode.episodeType !== "REGULAR" && <Badge>{EPISODE_TYPE_LABEL[episode.episodeType]}</Badge>}
-                  <Badge>{episode.isFree ? "무료" : "유료"}</Badge>
-                  <MoveEpisodeButtons
-                    workId={work.id}
-                    episodeId={episode.id}
-                    label={`${episode.number}화`}
-                    canMoveUp={index > 0}
-                    canMoveDown={index < work.episodes.length - 1}
-                  />
-                  {episode.status === "DRAFT" && (
-                    <TrashDraftButton workId={work.id} episodeId={episode.id} label={`${episode.number}화`} />
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
+              ),
+            }))}
+          />
         )}
       </section>
 

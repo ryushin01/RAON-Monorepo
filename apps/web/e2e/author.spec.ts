@@ -1124,6 +1124,45 @@ test("AI로 다듬은 단락을 확인한 뒤 적용하고 되돌리며, 키가 
   await expect(editorOf(page)).toHaveText("등대가 빛났다.");
 });
 
+test("회차를 끌어 놓거나 키보드로 옮겨 순서를 바꾼다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `순서 ${Date.now()}`);
+  for (const title of ["첫째", "둘째", "셋째"]) {
+    await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+    await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+    await page.getByRole("textbox", { name: "회차 제목" }).fill(title);
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    // 숨겨 둔 앞 회차의 편집 화면에도 같은 문구가 있으므로 보이는 화면에서 찾는다.
+    await expect(page.getByRole("main").getByText(/저장됨/)).toBeVisible();
+    await page.getByRole("link", { name: "작품 관리로" }).click();
+  }
+  const list = page.getByRole("list", { name: "회차 목록" });
+  const titles = () => list.getByRole("link").allTextContents();
+  await expect.poll(titles).toEqual(["1화. 첫째", "2화. 둘째", "3화. 셋째"]);
+
+  // 키보드로 셋째를 맨 위로 옮긴다.
+  await list.getByRole("button", { name: "끌어서 옮기기: 3화" }).focus();
+  // 들고 옮길 때마다 자리를 다시 재므로 사람이 누르는 정도의 간격을 둔다.
+  for (const key of ["Space", "ArrowUp", "ArrowUp", "Space"]) {
+    await page.keyboard.press(key);
+    await page.waitForTimeout(250);
+  }
+  await expect.poll(titles).toEqual(["1화. 셋째", "2화. 첫째", "3화. 둘째"]);
+
+  // 마우스로 끌어 첫째를 맨 아래로 옮긴다.
+  const handle = list.getByRole("button", { name: "끌어서 옮기기: 2화" });
+  const target = list.getByRole("button", { name: "끌어서 옮기기: 3화" });
+  const from = await handle.boundingBox();
+  const to = await target.boundingBox();
+  if (!from || !to) throw new Error("손잡이를 찾지 못했습니다.");
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, from.y + 20, { steps: 5 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2 + 10, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(titles).toEqual(["1화. 셋째", "2화. 둘째", "3화. 첫째"]);
+});
+
 test("괄호를 자동으로 닫고, 사용자 규칙으로 바꾸며, 특수문자를 뺀 글자 수를 보여 준다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `입력 보조 ${Date.now()}`);

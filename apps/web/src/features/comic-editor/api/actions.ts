@@ -46,6 +46,14 @@ export async function moveImage(
   );
 }
 
+export async function reorderImages(episodeId: string, ids: string[]): Promise<ActionResult<null>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  return toActionResult(() =>
+    apiFetch<null>(`${imagesPath(episodeId)}/order`, { method: "PUT", body: { ids }, token }),
+  );
+}
+
 export async function deleteImage(episodeId: string, imageId: string): Promise<ActionResult<null>> {
   const token = await getSessionToken();
   if (!token) return NEED_LOGIN;

@@ -122,6 +122,19 @@ export async function setEpisodePublished(
   return result;
 }
 
+export async function reorderEpisodes(workId: string, ids: string[]): Promise<ActionResult<null>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  const result = await toActionResult(() =>
+    apiFetch<null>(`/studio/works/${workId}/episode-order`, { method: "PUT", body: { ids }, token }),
+  );
+  if (result.ok) {
+    updateTag(WORKS_TAG);
+    revalidatePath(`/studio/works/${workId}`);
+  }
+  return result;
+}
+
 export async function moveEpisode(
   workId: string,
   episodeId: string,

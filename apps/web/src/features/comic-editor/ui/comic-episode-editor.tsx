@@ -10,11 +10,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useRef, useState } from "react";
-import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
+import { Button, ButtonLink, Notice, SortableList, TextAreaField, TextField } from "@/shared/ui";
 import {
   deleteImage,
   listImages,
   moveImage,
+  reorderImages,
   saveComicEpisode,
   setComicPublished,
   updateImageAlt,
@@ -74,7 +75,7 @@ function ImageRow({ episodeId, image, index, count, onChanged, focusAfterRemove 
   const error = save.error ?? move.error ?? remove.error;
 
   return (
-    <li className={styles.item}>
+    <div className={styles.item}>
       {/* 설명은 바로 옆 입력 칸에 있으므로 미리보기는 빈 대체 텍스트로 둔다. */}
       {/* biome-ignore lint/performance/noImgElement: 인증이 필요한 원본을 그대로 보여 주므로 이미지 최적화를 거치지 않는다. */}
       <img
@@ -142,7 +143,7 @@ function ImageRow({ episodeId, image, index, count, onChanged, focusAfterRemove 
         </div>
         {error && <Notice tone="error">{error.message}</Notice>}
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -350,19 +351,29 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
         {images.isPending && <p aria-busy="true">이미지를 불러오는 중입니다.</p>}
         {images.data && list.length === 0 && <p className={styles.note}>아직 올린 이미지가 없습니다.</p>}
         {list.length > 0 && (
-          <ol className={styles.list}>
-            {list.map((image, index) => (
-              <ImageRow
-                key={image.id}
-                episodeId={initial.id}
-                image={image}
-                index={index}
-                count={list.length}
-                onChanged={onChanged}
-                focusAfterRemove={() => headingRef.current?.focus()}
-              />
-            ))}
-          </ol>
+          <SortableList
+            name="회차 이미지 목록"
+            listClassName={styles.list}
+            items={list.map((image, index) => ({
+              id: image.id,
+              label: `${index + 1}번째 이미지`,
+              content: (
+                <ImageRow
+                  episodeId={initial.id}
+                  image={image}
+                  index={index}
+                  count={list.length}
+                  onChanged={onChanged}
+                  focusAfterRemove={() => headingRef.current?.focus()}
+                />
+              ),
+            }))}
+            onReorder={async (ids) => {
+              const result = await reorderImages(initial.id, ids);
+              if (!result.ok) throw new Error(result.message);
+              await onChanged("이미지 순서를 바꿨습니다.");
+            }}
+          />
         )}
       </section>
     </div>
