@@ -93,18 +93,28 @@ export interface ReadingEntry extends WorkSummary {
 }
 
 export interface EpisodeCommentList {
-  /** 최신순으로 일부만 담는다. */
+  /** 고른 순서로 일부만 담는다. 답글은 댓글 안에 쓴 순서대로 담는다. */
   items: EpisodeComment[];
   total: number;
 }
 
-export interface EpisodeComment {
+export interface EpisodeCommentReply {
   id: string;
   authorName: string;
   body: string;
   createdAt: string;
   /** 쓴 사람과 작품의 작가만 지울 수 있다. */
   canDelete: boolean;
+  /** 이 작품의 작가가 쓴 글이다. */
+  isAuthor: boolean;
+  likeCount: number;
+  likedByMe: boolean;
+}
+
+export interface EpisodeComment extends EpisodeCommentReply {
+  /** 답글이 있어 자리만 남긴 댓글이다. 쓴 사람과 내용은 내려가지 않는다. */
+  deleted: boolean;
+  replies: EpisodeCommentReply[];
 }
 
 export interface EpisodeNeighbor {
