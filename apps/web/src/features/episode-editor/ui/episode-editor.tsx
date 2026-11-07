@@ -231,6 +231,7 @@ function EpisodeEditorBody({
             bold: current.isActive("bold"),
             italic: current.isActive("italic"),
             blockquote: current.isActive("blockquote"),
+            authorComment: current.isActive("authorComment"),
             canUndo: current.can().undo(),
             canRedo: current.can().redo(),
             chars: countChars(current.getJSON() as EpisodeDoc),
@@ -625,6 +626,13 @@ function EpisodeEditorBody({
               onClick={() => editor?.chain().focus().toggleBlockquote().run()}
             >
               인용
+            </button>
+            <button
+              type="button"
+              aria-pressed={toolbar?.authorComment ?? false}
+              onClick={() => editor?.chain().focus().toggleAuthorComment().run()}
+            >
+              주석
             </button>
             <button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>
               구분선

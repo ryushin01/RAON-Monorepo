@@ -8,6 +8,7 @@ describe("editorExtensions", () => {
   it("계약에서 허용한 노드와 마크만 켠다", () => {
     expect(Object.keys(schema.marks).sort()).toEqual(["bold", "italic"]);
     expect(Object.keys(schema.nodes).sort()).toEqual([
+      "authorComment",
       "blockquote",
       "doc",
       "hardBreak",

@@ -120,6 +120,27 @@ describe("EPUB", () => {
   });
 });
 
+it("작가 주석은 어떤 형식으로도 내보내지 않는다", () => {
+  const commented = {
+    ...episode,
+    content: {
+      type: "doc" as const,
+      content: [
+        ...content.content,
+        {
+          type: "authorComment" as const,
+          content: [{ type: "paragraph" as const, content: [{ type: "text" as const, text: "비밀 메모" }] }],
+        },
+      ],
+    },
+  };
+  for (const format of ["txt", "md", "html"] as const) {
+    expect(renderEpisodeFile(format, commented)).not.toContain("비밀 메모");
+  }
+  expect(entries(renderEpisodeFile("docx", commented)).get("word/document.xml")).not.toContain("비밀 메모");
+  expect(entries(renderEpisodeFile("epub", commented)).get("OEBPS/chapter1.xhtml")).not.toContain("비밀 메모");
+});
+
 it("글자 형식은 그대로 글자로 만든다", () => {
   expect(typeof renderEpisodeFile("txt", episode)).toBe("string");
   expect(typeof renderWorkFile("html", { title: "작품", episodes: [episode] })).toBe("string");

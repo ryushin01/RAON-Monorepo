@@ -13,6 +13,9 @@ function renderInline(node: EpisodeInline, key: number): ReactNode {
 
 function renderBlock(block: EpisodeBlock, key: number): ReactNode {
   switch (block.type) {
+    case "authorComment":
+      // API가 독자 응답에서 빼지만, 혹시 남아 있어도 그리지 않는다.
+      return null;
     case "horizontalRule":
       return <hr key={key} />;
     case "blockquote":

@@ -51,6 +51,8 @@ function inlineHtml(node: EpisodeInline): string {
 
 export function blockHtml(block: EpisodeBlock): string {
   switch (block.type) {
+    case "authorComment":
+      return "";
     case "horizontalRule":
       return "<hr>";
     case "blockquote":
@@ -89,6 +91,8 @@ function inlineMarkdown(node: EpisodeInline): string {
 
 function blockMarkdown(block: EpisodeBlock): string {
   switch (block.type) {
+    case "authorComment":
+      return "";
     case "horizontalRule":
       return "---";
     case "blockquote":

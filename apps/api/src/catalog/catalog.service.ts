@@ -6,6 +6,7 @@ import {
   type Paginated,
   type PublicEpisode,
   ReadingEntry,
+  stripAuthorComments,
   type WorkAccess,
   type WorkBadge,
   type WorkDetail,
@@ -295,7 +296,7 @@ export class CatalogService {
       next: neighbors.find((n) => n.number === number + 1) ?? (await this.adjacent(workId, number, "next")),
       accessible,
       price: row.episode.isFree ? 0 : row.price,
-      content: accessible ? row.episode.content : null,
+      content: accessible ? stripAuthorComments(row.episode.content) : null,
       authorNote: accessible ? row.episode.authorNote : null,
     };
   }

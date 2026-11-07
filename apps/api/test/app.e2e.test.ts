@@ -1339,6 +1339,61 @@ describe("RAON API", () => {
     });
   });
 
+  describe("작가 주석", () => {
+    it("저장하면 작가에게 남고, 독자 응답에는 나오지 않으며, 글자 수에 넣지 않는다", async () => {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const episodeId = work.episodes[0]?.id as string;
+      const content = {
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "독자가 읽는 글" }] },
+          {
+            type: "authorComment",
+            content: [{ type: "paragraph", content: [{ type: "text", text: "비밀 복선 메모" }] }],
+          },
+        ],
+      };
+      const saved = await http()
+        .put(`/studio/episodes/${episodeId}`)
+        .set(auth)
+        .send({ title: "1화", content, authorNote: null, isFree: true })
+        .expect(200);
+      expect(saved.body.charCount).toBe(6);
+      expect(JSON.stringify(saved.body.content)).toContain("비밀 복선 메모");
+
+      for (const headers of [{}, auth]) {
+        const view = await http().get(`/works/${work.id}/episodes/1`).set(headers).expect(200);
+        expect(view.body.accessible).toBe(true);
+        expect(JSON.stringify(view.body)).toContain("독자가 읽는 글");
+        expect(JSON.stringify(view.body)).not.toContain("비밀 복선 메모");
+      }
+    });
+
+    it("주석만 있는 회차는 공개할 수 없다", async () => {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const draft = await http()
+        .post(`/studio/works/${work.id}/episodes`)
+        .set(auth)
+        .send({
+          title: "주석만",
+          content: {
+            type: "doc",
+            content: [
+              { type: "authorComment", content: [{ type: "paragraph", content: [{ type: "text", text: "메모" }] }] },
+            ],
+          },
+          authorNote: null,
+          isFree: true,
+        })
+        .expect(201);
+      await http().post(`/studio/episodes/${draft.body.id}/publish`).set(auth).expect(400);
+    });
+  });
+
   describe("웹툰 회차 이미지", () => {
     const png = (width = 8, height = 16) => {
       const data = Buffer.alloc(32);

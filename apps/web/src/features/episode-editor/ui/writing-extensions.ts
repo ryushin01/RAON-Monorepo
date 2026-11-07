@@ -1,4 +1,4 @@
-import { Extension } from "@tiptap/core";
+import { Extension, mergeAttributes, Node, wrappingInputRule } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { type EditorState, Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
@@ -79,6 +79,41 @@ export function applyEdits(tr: Transaction, edits: SymbolEdit[]): Transaction {
   }
   return tr;
 }
+
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    authorComment: {
+      /** 고른 단락을 작가 주석으로 감싸거나 풀어 준다. */
+      toggleAuthorComment: () => ReturnType;
+    };
+  }
+}
+
+/** 작가만 보는 주석 단락. 글자 수와 내보내기에서 빠지고, 독자 응답에는 API가 빼고 보낸다. */
+export const AuthorComment = Node.create({
+  name: "authorComment",
+  group: "block",
+  content: "paragraph+",
+  defining: true,
+  parseHTML: () => [{ tag: "div[data-author-comment]" }],
+  renderHTML: ({ HTMLAttributes }) => [
+    "div",
+    mergeAttributes(HTMLAttributes, { "data-author-comment": "", role: "note", "aria-label": "작가 주석" }),
+    0,
+  ],
+  addCommands() {
+    return {
+      toggleAuthorComment:
+        () =>
+        ({ commands }) =>
+          commands.toggleWrap(this.name),
+    };
+  },
+  addInputRules() {
+    // 단락 맨 앞의 %% 뒤에 공백을 쓰면 주석이 된다.
+    return [wrappingInputRule({ find: /^%%\s$/, type: this.type })];
+  },
+});
 
 export interface SearchState {
   query: string;

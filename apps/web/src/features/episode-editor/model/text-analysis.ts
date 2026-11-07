@@ -10,7 +10,7 @@ const MONOLOGUE_START = /^['‘]/;
 export function paragraphTexts(doc: EpisodeDoc): string[] {
   const texts: string[] = [];
   const visit = (block: EpisodeBlock) => {
-    if (block.type === "horizontalRule") return;
+    if (block.type === "horizontalRule" || block.type === "authorComment") return;
     if (block.type === "blockquote") {
       block.content.forEach(visit);
       return;
