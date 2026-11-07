@@ -105,6 +105,7 @@ export interface EpisodeNeighbor {
 export interface EpisodeView {
   id: string;
   workId: string;
+  format: WorkFormat;
   workTitle: string;
   authorName: string;
   number: number;
@@ -117,6 +118,8 @@ export interface EpisodeView {
   accessible: boolean;
   price: number;
   content: EpisodeDoc | null;
+  /** 웹툰 회차의 이미지. 볼 권한이 없으면 null이고 이미지 주소를 알 수 없다. */
+  images: ComicImage[] | null;
   authorNote: string | null;
 }
 
