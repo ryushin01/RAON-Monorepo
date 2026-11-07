@@ -477,19 +477,19 @@ export class StudioService {
         throw new ConflictException("회차 목록이 바뀌었습니다. 새로 고친 뒤 다시 옮겨 주세요.");
       }
       const numbers = current.map((row) => row.number);
+      // 휴지통으로 옮기기는 작품 행을 잠그지 않으므로, 그사이 휴지통에 간 회차는 번호를 바꾸지 않고 되돌린다.
+      // 복원하면 원래 번호로 돌아와야 하기 때문이다.
+      const renumber = async (id: string, number: number) => {
+        const [row] = await tx
+          .update(episodes)
+          .set({ number })
+          .where(and(eq(episodes.id, id), isNull(episodes.deletedAt)))
+          .returning({ id: episodes.id });
+        if (!row) throw new ConflictException("회차 목록이 바뀌었습니다. 새로 고친 뒤 다시 옮겨 주세요.");
+      };
       // (작품, 번호) 유일 제약이 있어 음수 임시 번호를 거쳐 바꾼다.
-      for (const [index, id] of ids.entries()) {
-        await tx
-          .update(episodes)
-          .set({ number: -(index + 1) })
-          .where(eq(episodes.id, id));
-      }
-      for (const [index, id] of ids.entries()) {
-        await tx
-          .update(episodes)
-          .set({ number: numbers[index] as number })
-          .where(eq(episodes.id, id));
-      }
+      for (const [index, id] of ids.entries()) await renumber(id, -(index + 1));
+      for (const [index, id] of ids.entries()) await renumber(id, numbers[index] as number);
     });
   }
 
