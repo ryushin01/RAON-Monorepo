@@ -131,6 +131,23 @@ export const workNotes = pgTable(
   ],
 );
 
+/** 작가만 보는 복선 기록. 회차를 완전히 지우면 연결만 풀린다. */
+export const foreshadows = pgTable(
+  "foreshadows",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workId: uuid("work_id")
+      .notNull()
+      .references(() => works.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    plantedEpisodeId: uuid("planted_episode_id").references(() => episodes.id, { onDelete: "set null" }),
+    resolvedEpisodeId: uuid("resolved_episode_id").references(() => episodes.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("foreshadows_work_idx").on(t.workId)],
+);
+
 /** episodeId가 없으면 작품 전체를 담은 항목이다. */
 export const cartItems = pgTable(
   "cart_items",
