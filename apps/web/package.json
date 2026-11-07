@@ -27,6 +27,7 @@
     "@tiptap/starter-kit": "3.32.2",
     "ai": "^7.0.163",
     "js-cookie": "3.0.8",
+    "motion": "^14.9.1",
     "next": "16.4.5",
     "react": "19.2.9",
     "react-dom": "19.2.9",

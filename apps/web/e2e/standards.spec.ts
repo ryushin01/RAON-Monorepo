@@ -150,8 +150,9 @@ test.describe("KWCAG 운용", () => {
         };
         return [...panel.querySelectorAll<HTMLElement>("a, input")].map((item) => {
           const style = getComputedStyle(item);
-          // 선택된 모드 탭처럼 자기 배경이 있으면 그 색과 비교한다.
-          const own = style.backgroundColor;
+          // 선택된 모드 탭처럼 자기 배경이나 움직이는 바탕 표시가 있으면 그 색과 비교한다.
+          const indicator = item.querySelector<HTMLElement>("[data-indicator]");
+          const own = indicator ? getComputedStyle(indicator).backgroundColor : style.backgroundColor;
           const transparent = own === "transparent" || /,\s*0\)$/.test(own);
           return {
             text: item.textContent || item.getAttribute("placeholder"),

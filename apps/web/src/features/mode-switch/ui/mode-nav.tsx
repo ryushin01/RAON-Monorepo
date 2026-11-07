@@ -1,6 +1,7 @@
 "use client";
 
 import { GENRE_LABEL, GENRES, WORK_FORMAT_LABEL, WORK_FORMATS, type WorkFormat } from "@raon/contracts";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSyncExternalStore } from "react";
@@ -43,7 +44,17 @@ export function ModeNav() {
               aria-current={item === mode ? "true" : undefined}
               onClick={() => chooseMode(item)}
             >
-              {WORK_FORMAT_LABEL[item]}
+              {/* 고른 탭의 바탕이 옆 탭으로 미끄러져 옮겨 간다. 장식이라 읽지 않는다. */}
+              {item === mode && (
+                <motion.span
+                  layoutId="mode-indicator"
+                  className={styles.indicator}
+                  data-indicator=""
+                  aria-hidden="true"
+                  transition={{ type: "spring", bounce: 0.15, duration: 0.35 }}
+                />
+              )}
+              <span className={styles.label}>{WORK_FORMAT_LABEL[item]}</span>
             </Link>
           </li>
         ))}

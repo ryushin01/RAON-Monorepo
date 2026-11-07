@@ -45,3 +45,10 @@ it("탭을 누르면 고른 모드를 기억해 다른 화면의 메뉴에도 �
   expect(document.cookie).toContain("raon_mode=COMIC");
   expect(nav().getByRole("link", { name: "전체 작품" })).toHaveAttribute("href", "/works?format=COMIC");
 });
+
+it("고른 탭에만 장식용 바탕 표시를 두고 읽지 않게 한다", () => {
+  render(<ModeNav />);
+  const current = nav().getByRole("link", { name: "웹소설" });
+  expect(current.querySelector("[data-indicator]")).toHaveAttribute("aria-hidden", "true");
+  expect(nav().getByRole("link", { name: "웹툰" }).querySelector("[data-indicator]")).toBeNull();
+});

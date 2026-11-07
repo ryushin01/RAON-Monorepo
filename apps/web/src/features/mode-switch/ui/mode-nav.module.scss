@@ -39,18 +39,37 @@
     font-weight: 500;
   }
 
-  /* 색만으로 구분하지 않도록 밑줄을 함께 쓴다(KWCAG 5.4.1). */
+  a {
+    position: relative;
+    isolation: isolate;
+  }
+
+  /* 색만으로 구분하지 않도록 밑줄을 함께 쓴다(KWCAG 5.4.1). 바탕은 움직이는 표시가 그린다. */
   a[aria-current="true"] {
-    background: var(--fg);
     color: var(--bg);
     font-weight: 700;
     text-decoration: underline;
     text-underline-offset: 0.25em;
 
     &:hover {
-      background: var(--fg);
+      background: transparent;
       color: var(--bg);
     }
+  }
+}
+
+.indicator {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--radius-sm);
+  background: var(--fg);
+}
+
+/* 강제 색상 모드에서는 바탕이 그려지지 않으므로 테두리로 고른 탭을 알린다. */
+@media (forced-colors: active) {
+  .indicator {
+    border: 2px solid CanvasText;
   }
 }
 
