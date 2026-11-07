@@ -967,6 +967,18 @@ test("웹툰 회차에 이미지를 올리고 설명을 넣어야 공개하며, 
   await page.getByRole("button", { name: "공개하기" }).click();
   await expect(page.getByText(/1화 · 공개 중 · 이미지 2장/)).toBeVisible();
 
+  // 공개한 뒤에도 설명을 함께 넣으면 더 올릴 수 있다.
+  await page.getByLabel("이미지 파일").setInputFiles({ name: "3.png", mimeType: "image/png", buffer: PNG });
+  await page.getByRole("button", { name: "이미지 올리기" }).click();
+  await expect(page.getByRole("textbox", { name: /올릴 이미지 설명/ })).toBeFocused();
+  await page.getByRole("textbox", { name: /올릴 이미지 설명/ }).fill("셋째 장면");
+  await page.getByRole("button", { name: "이미지 올리기" }).click();
+  await expect(page.getByText(/1화 · 공개 중 · 이미지 3장/)).toBeVisible();
+  await page.getByRole("button", { name: "삭제: 3번째 이미지" }).waitFor();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "삭제: 3번째 이미지" }).click();
+  await expect(page.getByText(/1화 · 공개 중 · 이미지 2장/)).toBeVisible();
+
   page.on("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "삭제: 2번째 이미지" }).click();
   await expect(page.getByRole("heading", { name: "회차 이미지" })).toBeFocused();

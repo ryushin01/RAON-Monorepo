@@ -157,8 +157,12 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
   const [isFree, setIsFree] = useState(initial.isFree);
   const [message, setMessage] = useState("");
   const [fileError, setFileError] = useState<string>();
+  const [altError, setAltError] = useState<string>();
+  const [newAlt, setNewAlt] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+
+  const isDraft = episode.status !== "PUBLISHED";
 
   const images = useQuery({
     queryKey,
@@ -180,7 +184,7 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
       for (const [index, file] of files.entries()) {
         setMessage(`${files.length}장 중 ${index + 1}번째를 올리는 중입니다.`);
         const data = new FormData();
-        data.append("alt", "");
+        data.append("alt", newAlt.trim());
         data.append("file", file);
         const result = await uploadImage(initial.id, data);
         if (!result.ok) throw new Error(`${file.name}: ${result.message}`);
@@ -189,7 +193,8 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
     },
     onSuccess: (count) => {
       formRef.current?.reset();
-      setMessage(`이미지 ${count}장을 올렸습니다. 설명을 입력해 주세요.`);
+      setNewAlt("");
+      setMessage(isDraft ? `이미지 ${count}장을 올렸습니다. 설명을 입력해 주세요.` : "이미지를 올렸습니다.");
     },
     onError: () => setMessage(""),
     onSettled: () => refresh(),
@@ -226,10 +231,18 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
     // 파일 이름 순서가 곧 장면 순서인 경우가 많으므로 이름순으로 올린다.
     const files = [...(input.files ?? [])].sort((a, b) => a.name.localeCompare(b.name, "ko", { numeric: true }));
     const problem = files.length === 0 ? "이미지 파일을 골라 주세요." : files.map(validateImageFile).find(Boolean);
+    // 공개 중인 회차는 독자에게 바로 보이므로 설명 없이 올릴 수 없다(KWCAG 5.1.1).
+    const missingAlt =
+      !problem && !isDraft && !newAlt.trim() ? "공개 중인 회차는 설명을 함께 입력해 주세요." : undefined;
     setFileError(problem ?? undefined);
+    setAltError(missingAlt);
     upload.reset();
     if (problem) {
       input.focus();
+      return;
+    }
+    if (missingAlt) {
+      event.currentTarget.querySelector<HTMLElement>("textarea")?.focus();
       return;
     }
     upload.mutate(files);
@@ -237,7 +250,6 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
 
   const list = images.data ?? [];
   const busy = save.isPending || publish.isPending;
-  const isDraft = episode.status !== "PUBLISHED";
   const error = save.error ?? publish.error ?? images.error;
 
   return (
@@ -303,11 +315,26 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
           label="이미지 파일"
           name="files"
           type="file"
-          multiple
+          // 공개 중인 회차는 설명과 함께 한 장씩 올린다.
+          multiple={isDraft}
           accept={COVER_MIME_TYPES.join(",")}
           error={fileError}
-          hint={`JPG, PNG, WebP. 한 장에 ${MAX_MB}MB, 회차마다 ${COMIC_IMAGE_MAX_COUNT}장까지입니다. 파일 이름 순서대로 올립니다.`}
+          hint={`JPG, PNG, WebP. 한 장에 ${MAX_MB}MB, 회차마다 ${COMIC_IMAGE_MAX_COUNT}장까지입니다.${isDraft ? " 파일 이름 순서대로 올립니다." : ""}`}
         />
+        {!isDraft && (
+          <TextAreaField
+            label="올릴 이미지 설명"
+            value={newAlt}
+            rows={3}
+            maxLength={1000}
+            required
+            error={altError}
+            onChange={(event) => {
+              setNewAlt(event.target.value);
+              if (event.target.value.trim()) setAltError(undefined);
+            }}
+          />
+        )}
         <div className={styles.actions}>
           <Button type="submit" variant="secondary" small aria-disabled={upload.isPending}>
             {upload.isPending ? "올리는 중…" : "이미지 올리기"}

@@ -115,6 +115,28 @@ it("파일을 고르지 않으면 안내하고, 올리다 실패하면 어느 �
   expect(await screen.findByText("1.png: 개수 초과")).toBeInTheDocument();
 });
 
+it("공개 중인 회차는 한 장씩 설명과 함께 올리고, 설명이 없으면 보내지 않는다", async () => {
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <ComicEpisodeEditor episode={{ ...episode, status: "PUBLISHED" }} />
+    </QueryClientProvider>,
+  );
+  const input = screen.getByLabelText("이미지 파일");
+  expect(input).not.toHaveAttribute("multiple");
+  await userEvent.upload(input, file("1.png"));
+  await userEvent.click(screen.getByRole("button", { name: "이미지 올리기" }));
+  const alt = screen.getByRole("textbox", { name: /올릴 이미지 설명/ });
+  expect(uploadImage).not.toHaveBeenCalled();
+  expect(alt).toHaveFocus();
+  expect(alt).toHaveAttribute("aria-invalid", "true");
+
+  await userEvent.type(alt, "새 장면");
+  await userEvent.click(screen.getByRole("button", { name: "이미지 올리기" }));
+  await waitFor(() => expect(uploadImage).toHaveBeenCalledTimes(1));
+  expect((uploadImage as jest.Mock).mock.calls[0]?.[1].get("alt")).toBe("새 장면");
+  expect(await screen.findByText("이미지를 올렸습니다.")).toBeInTheDocument();
+});
+
 it("파일 형식과 크기를 먼저 확인한다", () => {
   expect(validateImageFile(file("a.gif", "image/gif"))).toContain("JPG, PNG, WebP");
   expect(validateImageFile(file("a.png", "image/png", 3 * 1024 * 1024))).toContain("2.5MB");
