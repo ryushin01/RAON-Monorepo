@@ -1,1 +1,1 @@
-export { getStudioEpisode, getStudioWork, getStudioWorks } from "./api/queries";
+export { getStudioEpisode, getStudioWork, getStudioWorks, getTrashedWorks } from "./api/queries";

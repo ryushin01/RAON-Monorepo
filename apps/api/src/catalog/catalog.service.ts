@@ -30,6 +30,9 @@ import {
   works,
 } from "../db/schema.js";
 
+/** 독자에게 보이는 작품: 공개했고 휴지통에 없다. 판매한 작품은 휴지통으로 옮길 수 없으므로 구매자의 권리는 그대로다. */
+const publicWork = () => and(ne(works.status, "DRAFT"), isNull(works.deletedAt));
+
 /** 독자에게 보이는 회차: 공개했고, 예약이라면 그 시각이 지났다. */
 const VISIBLE = sql.raw(`e."status" = 'PUBLISHED' and e."published_at" <= now()`);
 const visibleEpisode = () => and(eq(episodes.status, "PUBLISHED"), lte(episodes.publishedAt, sql`now()`));
@@ -117,7 +120,7 @@ export class CatalogService {
   async listWorks(query: z.output<typeof workQuerySchema>): Promise<Paginated<WorkSummary>> {
     const pattern = query.q ? `%${escapeLike(query.q)}%` : null;
     const where = and(
-      ne(works.status, "DRAFT"),
+      publicWork(),
       HAS_VISIBLE_EPISODE,
       query.tag ? sql`${query.tag} = any(${works.tags})` : undefined,
       query.genre ? eq(works.genre, query.genre) : undefined,
@@ -161,7 +164,7 @@ export class CatalogService {
       .select({ ...summaryColumns, episodePrice: works.episodePrice, wholePrice: works.wholePrice })
       .from(works)
       .innerJoin(users, eq(works.authorId, users.id))
-      .where(and(eq(works.id, workId), ne(works.status, "DRAFT"), HAS_VISIBLE_EPISODE));
+      .where(and(eq(works.id, workId), publicWork(), HAS_VISIBLE_EPISODE));
     if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
 
     const list = await this.db
@@ -238,9 +241,7 @@ export class CatalogService {
       .from(episodes)
       .innerJoin(works, eq(episodes.workId, works.id))
       .innerJoin(users, eq(works.authorId, users.id))
-      .where(
-        and(eq(episodes.workId, workId), eq(episodes.number, number), visibleEpisode(), ne(works.status, "DRAFT")),
-      );
+      .where(and(eq(episodes.workId, workId), eq(episodes.number, number), visibleEpisode(), publicWork()));
     if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
 
     const accessible = await this.canRead(row.episode, row.authorId, user);
@@ -283,9 +284,7 @@ export class CatalogService {
       .select({ episode: episodes, authorId: works.authorId })
       .from(episodes)
       .innerJoin(works, eq(episodes.workId, works.id))
-      .where(
-        and(eq(episodes.workId, workId), eq(episodes.number, number), visibleEpisode(), ne(works.status, "DRAFT")),
-      );
+      .where(and(eq(episodes.workId, workId), eq(episodes.number, number), visibleEpisode(), publicWork()));
     if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
     if (user?.id === row.authorId || !(await this.canRead(row.episode, row.authorId, user))) return;
     await this.db
@@ -302,7 +301,7 @@ export class CatalogService {
     const [work] = await this.db
       .select({ id: works.id })
       .from(works)
-      .where(and(eq(works.id, workId), ne(works.status, "DRAFT"), HAS_VISIBLE_EPISODE));
+      .where(and(eq(works.id, workId), publicWork(), HAS_VISIBLE_EPISODE));
     if (!work) throw new NotFoundException("작품을 찾을 수 없습니다.");
     await this.db.insert(favorites).values({ userId: user.id, workId }).onConflictDoNothing();
   }
@@ -315,7 +314,7 @@ export class CatalogService {
     const [work] = await this.db
       .select({ id: works.id })
       .from(works)
-      .where(and(eq(works.id, workId), ne(works.status, "DRAFT"), HAS_VISIBLE_EPISODE));
+      .where(and(eq(works.id, workId), publicWork(), HAS_VISIBLE_EPISODE));
     if (!work) throw new NotFoundException("작품을 찾을 수 없습니다.");
     await this.db
       .insert(ratings)
@@ -324,7 +323,13 @@ export class CatalogService {
   }
 
   async getCover(workId: string) {
-    const [cover] = await this.db.select().from(workCovers).where(eq(workCovers.workId, workId));
+    // 작가가 공개 전에 표지를 확인하므로 초안은 막지 않고, 휴지통의 작품만 뺀다.
+    const [row] = await this.db
+      .select({ cover: workCovers })
+      .from(workCovers)
+      .innerJoin(works, eq(workCovers.workId, works.id))
+      .where(and(eq(workCovers.workId, workId), isNull(works.deletedAt)));
+    const cover = row?.cover;
     if (!cover) throw new NotFoundException("표지가 없습니다.");
     return cover;
   }
@@ -337,7 +342,7 @@ export class CatalogService {
       .innerJoin(users, eq(works.authorId, users.id))
       .leftJoin(readingProgress, and(eq(readingProgress.workId, works.id), eq(readingProgress.userId, user.id)))
       // 상세가 404인 작품은 링크가 깨지므로 뺀다. 회차가 다시 공개되면 목록에 돌아온다.
-      .where(and(eq(favorites.userId, user.id), ne(works.status, "DRAFT"), HAS_VISIBLE_EPISODE))
+      .where(and(eq(favorites.userId, user.id), publicWork(), HAS_VISIBLE_EPISODE))
       .orderBy(desc(favorites.createdAt));
     return rows.map(toSummary);
   }
@@ -355,7 +360,7 @@ export class CatalogService {
       .where(
         and(
           eq(readingProgress.userId, user.id),
-          ne(works.status, "DRAFT"),
+          publicWork(),
           // 읽던 회차를 작가가 내렸으면 이어 보기 링크가 깨지므로 뺀다.
           sql`exists (select 1 from "episodes" e where e."work_id" = "works"."id" and e."number" = ${readingProgress.episodeNumber} and ${VISIBLE})`,
         ),
@@ -424,7 +429,7 @@ export class CatalogService {
       .select({ episode: episodes, authorId: works.authorId })
       .from(episodes)
       .innerJoin(works, eq(episodes.workId, works.id))
-      .where(and(eq(episodes.id, episodeId), visibleEpisode(), ne(works.status, "DRAFT")));
+      .where(and(eq(episodes.id, episodeId), visibleEpisode(), publicWork()));
     if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
     if (!(await this.canRead(row.episode, row.authorId, user))) {
       throw new ForbiddenException("이 회차를 구매한 뒤 이용할 수 있습니다.");

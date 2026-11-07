@@ -25,7 +25,7 @@ export class CommerceService {
 
   async addToCart(userId: string, input: AddCartItemInput): Promise<Cart> {
     const [work] = await this.db.select().from(works).where(eq(works.id, input.workId));
-    if (!work || work.status === "DRAFT") throw new NotFoundException("작품을 찾을 수 없습니다.");
+    if (!work || work.status === "DRAFT" || work.deletedAt) throw new NotFoundException("작품을 찾을 수 없습니다.");
 
     const owned = await this.db
       .select({ episodeId: orderItems.episodeId })
@@ -50,6 +50,7 @@ export class CommerceService {
         throw new BadRequestException("이 작품은 전체 구매를 지원하지 않습니다.");
       }
       await this.db.transaction(async (tx) => {
+        await this.lockBuyer(tx, userId);
         // 작품 전체에는 모든 회차가 포함되므로 같은 작품의 회차 항목은 뺀다.
         await tx.delete(cartItems).where(and(eq(cartItems.userId, userId), eq(cartItems.workId, input.workId)));
         await tx.insert(cartItems).values({ userId, workId: input.workId, episodeId: null });
@@ -78,10 +79,13 @@ export class CommerceService {
     const targets = buyable.filter((e) => !e.isFree && !ownedIds.has(e.id));
     if (targets.length === 0) throw new BadRequestException("담을 수 있는 유료 회차가 없습니다.");
 
-    await this.db
-      .insert(cartItems)
-      .values(targets.map((e) => ({ userId, workId: input.workId, episodeId: e.id })))
-      .onConflictDoNothing();
+    await this.db.transaction(async (tx) => {
+      await this.lockBuyer(tx, userId);
+      await tx
+        .insert(cartItems)
+        .values(targets.map((e) => ({ userId, workId: input.workId, episodeId: e.id })))
+        .onConflictDoNothing();
+    });
     return this.getCart(userId);
   }
 
@@ -107,6 +111,13 @@ export class CommerceService {
           return { orderId: previous.id, total: previous.total, coinBalance: user.coinBalance };
         }
 
+        // 작가가 판매 여부를 확인하고 휴지통으로 옮기는 사이에 결제가 끼어들지 못하게 작품 행을 잠근다.
+        await tx
+          .select({ id: works.id })
+          .from(works)
+          .innerJoin(cartItems, eq(cartItems.workId, works.id))
+          .where(eq(cartItems.userId, userId))
+          .for("share", { of: works });
         const cart = await this.readCart(tx, userId);
         if (cart.items.length === 0) throw new BadRequestException("장바구니가 비어 있습니다.");
         const unavailable = cart.items.find((item) => item.unavailableReason);
@@ -208,6 +219,11 @@ export class CommerceService {
     }));
   }
 
+  /** 결제가 사용자 행을 잠근 동안 장바구니에 새 작품이 들어와 작품 잠금을 피해 가지 못하게 한다. */
+  private async lockBuyer(tx: Transaction, userId: string) {
+    await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+  }
+
   private async readCart(db: Database | Transaction, userId: string): Promise<Cart> {
     const rows = await db
       .select({
@@ -216,6 +232,7 @@ export class CommerceService {
         episodeId: cartItems.episodeId,
         workTitle: works.title,
         workStatus: works.status,
+        workDeletedAt: works.deletedAt,
         workVisible: sql<boolean>`exists (select 1 from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED' and e."published_at" <= now())`,
         episodePrice: works.episodePrice,
         wholePrice: works.wholePrice,
@@ -244,7 +261,8 @@ export class CommerceService {
     const items = rows.map((row): CartItem => {
       const isWork = row.episodeId === null;
       let unavailableReason: string | null = null;
-      if (ownedWorks.has(row.workId)) unavailableReason = "이미 구매한 작품입니다.";
+      if (row.workDeletedAt) unavailableReason = "판매가 중단된 작품입니다.";
+      else if (ownedWorks.has(row.workId)) unavailableReason = "이미 구매한 작품입니다.";
       else if (row.episodeId && ownedEpisodes.has(row.episodeId)) unavailableReason = "이미 구매한 회차입니다.";
       else if (isWork && (row.workStatus !== "COMPLETED" || row.wholePrice === null || !row.workVisible))
         unavailableReason = "전체 구매 판매가 끝났습니다.";

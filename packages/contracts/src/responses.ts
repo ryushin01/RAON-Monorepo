@@ -208,6 +208,14 @@ export interface TrashedEpisode {
   deletedAt: string;
 }
 
+/** 휴지통에 있는 작품. 복원하면 공개 상태와 회차가 그대로 돌아온다. */
+export interface TrashedWork {
+  id: string;
+  title: string;
+  episodeCount: number;
+  deletedAt: string;
+}
+
 export interface StudioWorkDetail extends StudioWork {
   episodes: StudioEpisodeSummary[];
   trash: TrashedEpisode[];

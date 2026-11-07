@@ -152,7 +152,7 @@ export class NotesService {
     const [row] = await this.db
       .select({ id: works.id })
       .from(works)
-      .where(and(eq(works.id, workId), eq(works.authorId, authorId)));
+      .where(and(eq(works.id, workId), eq(works.authorId, authorId), isNull(works.deletedAt)));
     if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
   }
 
@@ -161,7 +161,7 @@ export class NotesService {
       .select({ note: workNotes })
       .from(workNotes)
       .innerJoin(works, eq(workNotes.workId, works.id))
-      .where(and(eq(workNotes.id, noteId), eq(works.authorId, authorId)));
+      .where(and(eq(workNotes.id, noteId), eq(works.authorId, authorId), isNull(works.deletedAt)));
     if (!row) throw new NotFoundException("문서를 찾을 수 없습니다.");
     return row.note;
   }

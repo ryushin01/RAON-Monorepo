@@ -45,6 +45,11 @@ export class StudioController {
     return this.studio.listWorks(user.id);
   }
 
+  @Get("trash/works")
+  trashedWorks(@CurrentUser() user: AuthUser) {
+    return this.studio.listTrashedWorks(user.id);
+  }
+
   @Post("works")
   create(@CurrentUser() user: AuthUser, @Body(new ZodPipe(workInputSchema)) body: WorkInput) {
     return this.studio.createWork(user.id, body);
@@ -216,7 +221,19 @@ export class StudioController {
 
   @Delete("works/:workId")
   @HttpCode(204)
-  async deleteWork(@CurrentUser() user: AuthUser, @Param("workId", ParseUUIDPipe) workId: string) {
-    await this.studio.deleteWork(user.id, workId);
+  async trashWork(@CurrentUser() user: AuthUser, @Param("workId", ParseUUIDPipe) workId: string) {
+    await this.studio.trashWork(user.id, workId);
+  }
+
+  @Post("works/:workId/restore")
+  @HttpCode(204)
+  async restoreWork(@CurrentUser() user: AuthUser, @Param("workId", ParseUUIDPipe) workId: string) {
+    await this.studio.restoreWork(user.id, workId);
+  }
+
+  @Delete("works/:workId/permanent")
+  @HttpCode(204)
+  async purgeWork(@CurrentUser() user: AuthUser, @Param("workId", ParseUUIDPipe) workId: string) {
+    await this.studio.purgeWork(user.id, workId);
   }
 }

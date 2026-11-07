@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type { Foreshadow, ForeshadowInput } from "@raon/contracts";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { isForeignKeyViolation } from "../common/db-errors.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
@@ -99,7 +99,7 @@ export class ForeshadowsService {
     const [row] = await this.db
       .select({ id: works.id })
       .from(works)
-      .where(and(eq(works.id, workId), eq(works.authorId, authorId)));
+      .where(and(eq(works.id, workId), eq(works.authorId, authorId), isNull(works.deletedAt)));
     if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
   }
 
@@ -108,7 +108,7 @@ export class ForeshadowsService {
       .select({ foreshadow: foreshadows })
       .from(foreshadows)
       .innerJoin(works, eq(foreshadows.workId, works.id))
-      .where(and(eq(foreshadows.id, id), eq(works.authorId, authorId)));
+      .where(and(eq(foreshadows.id, id), eq(works.authorId, authorId), isNull(works.deletedAt)));
     if (!row) throw new NotFoundException("복선을 찾을 수 없습니다.");
     return row.foreshadow;
   }
