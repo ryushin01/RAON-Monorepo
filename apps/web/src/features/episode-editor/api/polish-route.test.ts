@@ -52,6 +52,21 @@ it("고른 문체와 단락으로 기본 모델을 부르고 글자를 흘려보
   expect(options.abortSignal).toBeInstanceOf(AbortSignal);
 });
 
+it("본문을 다 읽기 전에 너무 큰 요청을 막는다", async () => {
+  const declared = new Request("http://localhost/api/ai/polish", {
+    method: "POST",
+    headers: { "content-length": "999999" },
+    body: "{}",
+  });
+  expect((await polishRouteHandler(declared)).status).toBe(413);
+  const streamed = await polishRouteHandler(request({ prompt: "가".repeat(6000), style: "natural" }));
+  expect(streamed.status).toBe(413);
+  expect((await polishRouteHandler(new Request("http://localhost/x", { method: "POST", body: "{깨짐" }))).status).toBe(
+    400,
+  );
+  expect(streamText).not.toHaveBeenCalled();
+});
+
 it("환경 변수로 모델을 바꾸고, 1분에 10번을 넘으면 막는다", async () => {
   process.env.RAON_AI_MODEL = "claude-sonnet-5-5";
   for (let index = 0; index < 10; index += 1) {

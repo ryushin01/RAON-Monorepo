@@ -45,7 +45,6 @@ export function AiPolish({ editor }: { editor: Editor }) {
   const { completion, complete, isLoading, stop, error, setCompletion } = useCompletion({
     api: "/api/ai/polish",
     streamProtocol: "text",
-    body: { style },
     onFinish: () => {
       setMessage("다듬은 글을 만들었습니다. 확인한 뒤 적용해 주세요.");
       resultRef.current?.focus();
@@ -64,7 +63,8 @@ export function AiPolish({ editor }: { editor: Editor }) {
     setTarget(next);
     setCompletion("");
     setMessage("다듬는 중입니다.");
-    void complete(next.text);
+    // 다듬는 도중 문체를 바꿔도 이 요청은 누른 때의 문체로 보낸다.
+    void complete(next.text, { body: { style } });
   };
 
   const apply = () => {
@@ -101,7 +101,12 @@ export function AiPolish({ editor }: { editor: Editor }) {
       <p className={styles.note}>
         고른 글이나 커서가 있는 단락을 Anthropic의 AI로 보내 다듬습니다. 결과는 확인한 뒤에 적용합니다.
       </p>
-      <SelectField label="문체" value={style} onChange={(event) => setStyle(event.target.value as PolishStyle)}>
+      <SelectField
+        label="문체"
+        value={style}
+        disabled={isLoading}
+        onChange={(event) => setStyle(event.target.value as PolishStyle)}
+      >
         {POLISH_STYLES.map((value) => (
           <option key={value} value={value}>
             {POLISH_STYLE_LABEL[value]}

@@ -6,6 +6,29 @@ import { getCurrentUser } from "@/entities/session/index.server";
 import { POLISH_STYLE_LABEL, polishRequestSchema } from "../model/polish";
 
 const DEFAULT_MODEL = "claude-haiku-5-5";
+/** 2,000자 단락의 JSON은 한글 3바이트를 쳐도 이보다 작다. 길이를 밝히지 않은 요청도 읽다가 멈춘다. */
+const MAX_BODY_BYTES = 16_000;
+
+/** 본문을 다 읽기 전에 크기를 확인해 큰 요청으로 서버 메모리를 쓰지 않게 한다. 넘으면 null이다. */
+async function readCapped(request: Request, limit: number): Promise<string | null> {
+  const declared = Number(request.headers.get("content-length"));
+  if (declared > limit) return null;
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 10;
 /** 작가마다 1분에 몇 번까지 부르는지 센다. 서버를 여러 대 띄우면 공유 저장소로 옮겨야 한다. */
@@ -51,7 +74,15 @@ export async function polishRouteHandler(request: Request): Promise<Response> {
   if (!user) return text(401, "로그인이 필요합니다.");
   if (user.role !== "AUTHOR") return text(403, "작가만 쓸 수 있습니다.");
 
-  const parsed = polishRequestSchema.safeParse(await request.json().catch(() => null));
+  const raw = await readCapped(request, MAX_BODY_BYTES);
+  if (raw === null) return text(413, "요청이 너무 큽니다.");
+  let body: unknown = null;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    // 아래 검증이 형식 오류로 답한다.
+  }
+  const parsed = polishRequestSchema.safeParse(body);
   if (!parsed.success) return text(400, parsed.error.issues[0]?.message ?? "요청을 확인해 주세요.");
   if (overLimit(user.id)) return text(429, "잠시 뒤 다시 시도해 주세요. 1분에 10번까지 쓸 수 있습니다.");
 

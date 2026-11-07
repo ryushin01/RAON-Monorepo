@@ -28,7 +28,7 @@ it("커서가 있는 단락을 보내고, 외부로 보낸다는 사실을 알�
   render(<AiPolish editor={editor} />);
   expect(screen.getByText(/Anthropic의 AI로 보내/)).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "다듬기" }));
-  expect(hook.complete).toHaveBeenCalledWith("첫 단락.");
+  expect(hook.complete).toHaveBeenCalledWith("첫 단락.", { body: { style: "natural" } });
   expect(screen.getByRole("status")).toHaveTextContent("다듬는 중입니다.");
 });
 
@@ -86,6 +86,7 @@ it("만드는 동안 멈출 수 있고, 실패 이유를 알린다", () => {
   hook.error = new Error("AI 키가 설정되지 않아 문단 다듬기를 쓸 수 없습니다.");
   render(<AiPolish editor={make("글")} />);
   expect(screen.getByRole("button", { name: "다듬기" })).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByLabelText("문체")).toBeDisabled();
   expect(screen.getByRole("button", { name: "멈추기" })).toBeInTheDocument();
   expect(screen.getByText(/AI 키가 설정되지 않아/)).toBeInTheDocument();
 });
