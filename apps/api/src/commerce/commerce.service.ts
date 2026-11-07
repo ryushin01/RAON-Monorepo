@@ -25,7 +25,7 @@ export class CommerceService {
 
   async addToCart(userId: string, input: AddCartItemInput): Promise<Cart> {
     const [work] = await this.db.select().from(works).where(eq(works.id, input.workId));
-    if (!work || work.status === "DRAFT") throw new NotFoundException("작품을 찾을 수 없습니다.");
+    if (!work || work.status === "DRAFT" || work.deletedAt) throw new NotFoundException("작품을 찾을 수 없습니다.");
 
     const owned = await this.db
       .select({ episodeId: orderItems.episodeId })
@@ -107,6 +107,13 @@ export class CommerceService {
           return { orderId: previous.id, total: previous.total, coinBalance: user.coinBalance };
         }
 
+        // 작가가 판매 여부를 확인하고 휴지통으로 옮기는 사이에 결제가 끼어들지 못하게 작품 행을 잠근다.
+        await tx
+          .select({ id: works.id })
+          .from(works)
+          .innerJoin(cartItems, eq(cartItems.workId, works.id))
+          .where(eq(cartItems.userId, userId))
+          .for("share", { of: works });
         const cart = await this.readCart(tx, userId);
         if (cart.items.length === 0) throw new BadRequestException("장바구니가 비어 있습니다.");
         const unavailable = cart.items.find((item) => item.unavailableReason);
@@ -216,6 +223,7 @@ export class CommerceService {
         episodeId: cartItems.episodeId,
         workTitle: works.title,
         workStatus: works.status,
+        workDeletedAt: works.deletedAt,
         workVisible: sql<boolean>`exists (select 1 from "episodes" e where e."work_id" = "works"."id" and e."status" = 'PUBLISHED' and e."published_at" <= now())`,
         episodePrice: works.episodePrice,
         wholePrice: works.wholePrice,
@@ -244,7 +252,8 @@ export class CommerceService {
     const items = rows.map((row): CartItem => {
       const isWork = row.episodeId === null;
       let unavailableReason: string | null = null;
-      if (ownedWorks.has(row.workId)) unavailableReason = "이미 구매한 작품입니다.";
+      if (row.workDeletedAt) unavailableReason = "판매가 중단된 작품입니다.";
+      else if (ownedWorks.has(row.workId)) unavailableReason = "이미 구매한 작품입니다.";
       else if (row.episodeId && ownedEpisodes.has(row.episodeId)) unavailableReason = "이미 구매한 회차입니다.";
       else if (isWork && (row.workStatus !== "COMPLETED" || row.wholePrice === null || !row.workVisible))
         unavailableReason = "전체 구매 판매가 끝났습니다.";

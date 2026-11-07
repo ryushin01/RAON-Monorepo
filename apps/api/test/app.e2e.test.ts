@@ -1337,6 +1337,118 @@ describe("RAON API", () => {
     });
   });
 
+  describe("작품 휴지통", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("옮기면 독자와 작가 화면에서 사라지고, 복원하면 공개 상태와 회차와 선호작이 그대로 돌아온다", async () => {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken, { complete: true });
+      const episode = work.episodes[0]!;
+      const paid = work.episodes[1]!;
+      const reader = await signup("READER", 1000);
+      const readerAuth = bearer(reader.accessToken);
+      await http().put(`/works/${work.id}/favorite`).set(readerAuth).expect(204);
+      await http()
+        .post("/cart/items")
+        .set(readerAuth)
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [paid.id] });
+      const note = (
+        await http()
+          .post(`/studio/works/${work.id}/notes`)
+          .set(auth)
+          .send({ kind: "SETTING", category: "", title: "이안", aliases: [], body: "", episodeId: null })
+          .expect(201)
+      ).body;
+
+      await http().delete(`/studio/works/${work.id}`).set(auth).expect(204);
+
+      // 독자에게는 없는 작품이다.
+      await http().get(`/works/${work.id}`).expect(404);
+      await http().get(`/works/${work.id}/episodes/1`).expect(404);
+      await http().get(`/episodes/${episode.id}/comments`).expect(404);
+      await http().post(`/works/${work.id}/episodes/1/view`).expect(404);
+      await http().put(`/works/${work.id}/rating`).set(readerAuth).send({ score: 5 }).expect(404);
+      await http().put(`/works/${work.id}/favorite`).set(readerAuth).expect(404);
+      const listed = await http().get("/works").query({ q: "테스트 작품", pageSize: 48 }).expect(200);
+      expect(listed.body.items.map((item: { id: string }) => item.id)).not.toContain(work.id);
+      const favorites = await http().get("/favorites").set(readerAuth).expect(200);
+      expect(favorites.body).toEqual([]);
+
+      // 담아 둔 것은 살 수 없고, 새로 담을 수도 없다.
+      const cart = (await http().get("/cart").set(readerAuth).expect(200)).body as Cart;
+      expect(cart.items[0]?.unavailableReason).toBe("판매가 중단된 작품입니다.");
+      expect(cart.total).toBe(0);
+      await http()
+        .post("/cart/items")
+        .set(readerAuth)
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [paid.id] })
+        .expect(404);
+      await http().post("/orders").set(readerAuth).send({ idempotencyKey: randomUUID() }).expect(409);
+
+      // 작가도 복원하기 전에는 다룰 수 없다.
+      await http().get(`/studio/works/${work.id}`).set(auth).expect(404);
+      await http().get(`/studio/works/${work.id}/export`).set(auth).expect(404);
+      await http().get(`/studio/episodes/${episode.id}`).set(auth).expect(404);
+      await http().post(`/studio/episodes/${episode.id}/unpublish`).set(auth).expect(404);
+      await http().get(`/studio/works/${work.id}/notes`).set(auth).expect(404);
+      await http().get(`/studio/works/${work.id}/foreshadows`).set(auth).expect(404);
+      await http().delete(`/studio/notes/${note.id}`).set(auth).expect(404);
+      await http().delete(`/studio/works/${work.id}`).set(auth).expect(404);
+      const mine = (await http().get("/studio/works").set(auth).expect(200)).body as { id: string }[];
+      expect(mine.map((item) => item.id)).not.toContain(work.id);
+      const trash = await http().get("/studio/trash/works").set(auth).expect(200);
+      expect(trash.body).toEqual([expect.objectContaining({ id: work.id, title: "테스트 작품", episodeCount: 3 })]);
+
+      // 다른 작가의 휴지통은 보거나 다룰 수 없고, 독자는 쓸 수 없다.
+      const other = await signup("AUTHOR");
+      expect((await http().get("/studio/trash/works").set(bearer(other.accessToken)).expect(200)).body).toEqual([]);
+      await http().post(`/studio/works/${work.id}/restore`).set(bearer(other.accessToken)).expect(404);
+      await http().delete(`/studio/works/${work.id}/permanent`).set(bearer(other.accessToken)).expect(404);
+      await http().get("/studio/trash/works").set(readerAuth).expect(403);
+
+      await http().post(`/studio/works/${work.id}/restore`).set(auth).expect(204);
+      await http().post(`/studio/works/${work.id}/restore`).set(auth).expect(404);
+      const restored = (await http().get(`/studio/works/${work.id}`).set(auth).expect(200)).body as StudioWorkDetail;
+      expect(restored.status).toBe("COMPLETED");
+      expect(restored.episodes).toHaveLength(3);
+      await http().get(`/works/${work.id}`).expect(200);
+      expect((await http().get("/favorites").set(readerAuth).expect(200)).body).toHaveLength(1);
+      const again = (await http().get("/cart").set(readerAuth).expect(200)).body as Cart;
+      expect(again.items[0]?.unavailableReason).toBeNull();
+    });
+
+    it("판매한 작품은 옮길 수 없고, 완전히 지우기는 휴지통의 작품만 되며 딸린 내용도 함께 지운다", async () => {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      await http().delete(`/studio/works/${work.id}/permanent`).set(auth).expect(404);
+      await http().delete(`/studio/works/${work.id}`).set(auth).expect(204);
+      await http().delete(`/studio/works/${work.id}/permanent`).set(auth).expect(204);
+      await http().post(`/studio/works/${work.id}/restore`).set(auth).expect(404);
+      expect((await http().get("/studio/trash/works").set(auth).expect(200)).body).toEqual([]);
+      expect(await db.select().from(episodesTable).where(eq(episodesTable.workId, work.id))).toEqual([]);
+
+      const sold = await publishWork(author.accessToken);
+      const paid = sold.episodes[1]!;
+      const buyer = await signup("READER", 1000);
+      await http()
+        .post("/cart/items")
+        .set(bearer(buyer.accessToken))
+        .send({ kind: "EPISODES", workId: sold.id, episodeIds: [paid.id] })
+        .expect(201);
+      await http().post("/orders").set(bearer(buyer.accessToken)).send({ idempotencyKey: randomUUID() }).expect(200);
+      await http().delete(`/studio/works/${sold.id}`).set(auth).expect(409);
+      await http().get(`/works/${sold.id}`).expect(200);
+
+      // 주문이 있는 채로 휴지통에 있어도 외래 키가 막아 500이 되지 않는다.
+      await db.update(worksTable).set({ deletedAt: new Date() }).where(eq(worksTable.id, sold.id));
+      await http().delete(`/studio/works/${sold.id}/permanent`).set(auth).expect(409);
+    });
+  });
+
   describe("회차 휴지통", () => {
     // 단언이 실패해도 다음 테스트로 대역이 넘어가지 않게 한다.
     afterEach(() => {

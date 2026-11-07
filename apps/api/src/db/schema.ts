@@ -61,6 +61,8 @@ export const works = pgTable(
     wholePrice: integer("whole_price"),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     viewCount: integer("view_count").notNull().default(0),
+    /** 값이 있으면 휴지통에 있다. 독자용 쿼리는 publicWork()로, 작가용 쿼리는 이 값으로 거른다. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [index("works_author_idx").on(t.authorId), index("works_status_genre_idx").on(t.status, t.genre)],
