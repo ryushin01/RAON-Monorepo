@@ -33,6 +33,8 @@ const episode: StudioEpisode = {
   title: "첫 장면",
   status: "DRAFT",
   writingStage: "DRAFTING",
+  episodeType: "REGULAR",
+  pointOfView: "",
   isFree: true,
   charCount: 0,
   content: docFromText(""),

@@ -1339,6 +1339,60 @@ describe("RAON API", () => {
     });
   });
 
+  describe("회차 유형과 시점", () => {
+    it("유형은 독자에게 보이고, 시점은 작가만 보며, 원고와 수정 시각과 버전은 그대로다", async () => {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const id = work.episodes[0]?.id as string;
+      const before = (await http().get(`/studio/episodes/${id}`).set(auth).expect(200)).body;
+      expect(before).toMatchObject({ episodeType: "REGULAR", pointOfView: "" });
+
+      const updated = await http()
+        .put(`/studio/episodes/${id}/meta`)
+        .set(auth)
+        .send({ episodeType: "SIDE", pointOfView: "  비밀 시점  " })
+        .expect(200);
+      expect(updated.body).toMatchObject({
+        episodeType: "SIDE",
+        pointOfView: "비밀 시점",
+        updatedAt: before.updatedAt,
+      });
+      expect((await http().get(`/studio/episodes/${id}/versions`).set(auth).expect(200)).body).toEqual([]);
+
+      const detail = (await http().get(`/works/${work.id}`).expect(200)).body as WorkDetail;
+      expect(detail.episodes[0]?.episodeType).toBe("SIDE");
+      const view = (await http().get(`/works/${work.id}/episodes/1`).expect(200)).body as EpisodeView;
+      expect(view.episodeType).toBe("SIDE");
+      expect(JSON.stringify(detail)).not.toContain("비밀 시점");
+      expect(JSON.stringify(view)).not.toContain("비밀 시점");
+      const studio = (await http().get(`/studio/works/${work.id}`).set(auth).expect(200)).body as StudioWorkDetail;
+      expect(studio.episodes[0]).toMatchObject({ episodeType: "SIDE", pointOfView: "비밀 시점" });
+    });
+
+    it("값을 검사하고, 다른 작가와 독자는 바꿀 수 없다", async () => {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const url = `/studio/episodes/${work.episodes[0]?.id}/meta`;
+      const body = { episodeType: "SIDE", pointOfView: "" };
+      await http()
+        .put(url)
+        .set(auth)
+        .send({ ...body, episodeType: "NOPE" })
+        .expect(400);
+      await http()
+        .put(url)
+        .set(auth)
+        .send({ ...body, pointOfView: "가".repeat(31) })
+        .expect(400);
+      const other = await signup("AUTHOR");
+      const reader = await signup("READER");
+      await http().put(url).set(bearer(other.accessToken)).send(body).expect(404);
+      await http().put(url).set(bearer(reader.accessToken)).send(body).expect(403);
+    });
+  });
+
   describe("작가 주석", () => {
     it("저장하면 작가에게 남고, 독자 응답에는 나오지 않으며, 글자 수에 넣지 않는다", async () => {
       const author = await signup("AUTHOR");

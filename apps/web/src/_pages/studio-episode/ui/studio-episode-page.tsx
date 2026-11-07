@@ -5,6 +5,7 @@ import { requireUser } from "@/entities/session/index.server";
 import { getStudioEpisode, getStudioWork } from "@/entities/studio/index.server";
 import { ComicEpisodeEditor } from "@/features/comic-editor";
 import { EpisodeEditor, Tool } from "@/features/episode-editor";
+import { EpisodeMeta } from "@/features/episode-meta";
 import { ForeshadowReference } from "@/features/foreshadow-tracker";
 import { EpisodeMemo, NoteReference } from "@/features/work-notes";
 import { Main } from "@/shared/ui";
@@ -24,13 +25,19 @@ async function EditorContent({ params }: { params: Params }) {
     <>
       <h1 className={styles.title}>{work.title}</h1>
       {work.format === "COMIC" ? (
-        <ComicEpisodeEditor key={episode.id} episode={episode} />
+        <>
+          <ComicEpisodeEditor key={episode.id} episode={episode} />
+          <EpisodeMeta episode={episode} showPointOfView={false} />
+        </>
       ) : (
         <EpisodeEditor
           key={episode.id}
           episode={episode}
           tools={
             <>
+              <Tool title="회차 정보">
+                <EpisodeMeta episode={episode} />
+              </Tool>
               <Tool title="설정집 참조">
                 <NoteReference workId={workId} />
               </Tool>

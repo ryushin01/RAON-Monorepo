@@ -23,6 +23,7 @@ export const genreEnum = pgEnum("genre", ["FANTASY", "MARTIAL", "ROMANCE", "MODE
 export const workFormatEnum = pgEnum("work_format", ["COMIC", "NOVEL"]);
 export const workStatusEnum = pgEnum("work_status", ["DRAFT", "ONGOING", "COMPLETED"]);
 export const episodeStatusEnum = pgEnum("episode_status", ["DRAFT", "PUBLISHED"]);
+export const episodeTypeEnum = pgEnum("episode_type", ["REGULAR", "PROLOGUE", "EPILOGUE", "SIDE", "NOTICE"]);
 export const writingStageEnum = pgEnum("writing_stage", ["IDEA", "DRAFTING", "REVISING", "FINISHED"]);
 export const episodeVersionKindEnum = pgEnum("episode_version_kind", ["AUTO", "MANUAL"]);
 export const noteKindEnum = pgEnum("note_kind", ["SETTING", "MEMO"]);
@@ -89,6 +90,8 @@ export const episodes = pgTable(
     isFree: boolean("is_free").notNull().default(false),
     status: episodeStatusEnum("status").notNull().default("DRAFT"),
     writingStage: writingStageEnum("writing_stage").notNull().default("DRAFTING"),
+    episodeType: episodeTypeEnum("episode_type").notNull().default("REGULAR"),
+    pointOfView: text("point_of_view").notNull().default(""),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     /** 값이 있으면 휴지통에 있다. 초안만 옮기므로 독자에게 보이는 회차에는 항상 비어 있다. */
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

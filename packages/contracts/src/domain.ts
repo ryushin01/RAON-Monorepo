@@ -36,6 +36,18 @@ export const EPISODE_STATUSES = ["DRAFT", "PUBLISHED"] as const;
 export const episodeStatusSchema = z.enum(EPISODE_STATUSES);
 export type EpisodeStatus = z.infer<typeof episodeStatusSchema>;
 
+/** 회차의 성격. 독자에게 글자로 보여 준다. 번호와 가격에는 영향이 없다. */
+export const EPISODE_TYPES = ["REGULAR", "PROLOGUE", "EPILOGUE", "SIDE", "NOTICE"] as const;
+export const episodeTypeSchema = z.enum(EPISODE_TYPES);
+export type EpisodeType = z.infer<typeof episodeTypeSchema>;
+export const EPISODE_TYPE_LABEL: Record<EpisodeType, string> = {
+  REGULAR: "본편",
+  PROLOGUE: "프롤로그",
+  EPILOGUE: "에필로그",
+  SIDE: "외전",
+  NOTICE: "공지",
+};
+
 /** 초안이 어디까지 왔는지 작가가 표시한다. 공개 상태나 독자 화면과는 관계가 없다. */
 export const WRITING_STAGES = ["IDEA", "DRAFTING", "REVISING", "FINISHED"] as const;
 export const writingStageSchema = z.enum(WRITING_STAGES);

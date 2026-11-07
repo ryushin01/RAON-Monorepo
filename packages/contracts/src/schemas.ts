@@ -2,6 +2,7 @@ import { z } from "zod";
 import { episodeDocSchema } from "./document.js";
 import {
   COIN_PACKAGES,
+  episodeTypeSchema,
   genreSchema,
   MAX_NOTE_PROPERTIES,
   MAX_TAGS,
@@ -92,6 +93,13 @@ export const comicImageInputSchema = z.object({
   alt: z.string().trim().max(1000, "이미지 설명은 1,000자 이하로 입력해 주세요."),
 });
 export type ComicImageInput = z.infer<typeof comicImageInputSchema>;
+
+export const episodeMetaInputSchema = z.object({
+  episodeType: episodeTypeSchema,
+  /** 작가만 보는 시점 표시. 비우면 쓰지 않는다. */
+  pointOfView: z.string().trim().max(30, "시점은 30자 이하로 입력해 주세요."),
+});
+export type EpisodeMetaInput = z.infer<typeof episodeMetaInputSchema>;
 
 export const writingStageInputSchema = z.object({ stage: writingStageSchema });
 export type WritingStageInput = z.infer<typeof writingStageInputSchema>;
