@@ -10,6 +10,7 @@ import {
   type StudioWorkDetail,
   type WorkExport,
   type WorkInput,
+  type WritingStage,
 } from "@raon/contracts";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { isForeignKeyViolation } from "../common/db-errors.js";
@@ -75,6 +76,7 @@ const toEpisode = (row: typeof episodes.$inferSelect): StudioEpisode => ({
   number: row.number,
   title: row.title,
   status: row.status,
+  writingStage: row.writingStage,
   isFree: row.isFree,
   charCount: row.charCount,
   content: row.content,
@@ -122,11 +124,12 @@ export class StudioService {
       ...toWork(row),
       episodes: list
         .filter((episode) => !episode.deletedAt)
-        .map(({ id, number, title, status, isFree, charCount, updatedAt, publishedAt }) => ({
+        .map(({ id, number, title, status, writingStage, isFree, charCount, updatedAt, publishedAt }) => ({
           id,
           number,
           title,
           status,
+          writingStage,
           isFree,
           charCount,
           updatedAt: updatedAt.toISOString(),
@@ -225,6 +228,18 @@ export class StudioService {
         .returning();
       return toEpisode(row!);
     });
+  }
+
+  /** 원고가 바뀌는 것이 아니므로 버전을 남기지 않고 수정 시각도 그대로 둔다. */
+  async setWritingStage(authorId: string, episodeId: string, stage: WritingStage): Promise<StudioEpisode> {
+    await this.ownedEpisode(authorId, episodeId);
+    const [row] = await this.db
+      .update(episodes)
+      .set({ writingStage: stage })
+      .where(and(eq(episodes.id, episodeId), isNull(episodes.deletedAt)))
+      .returning();
+    if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
+    return toEpisode(row);
   }
 
   /** 덮어쓰기 전의 원고를 남긴다. 빈 원고나 바뀌지 않은 저장은 남기지 않는다. */

@@ -1169,6 +1169,65 @@ describe("RAON API", () => {
     });
   });
 
+  describe("집필 단계", () => {
+    it("초안은 초고로 시작하고, 바꿔도 원고와 수정 시각과 버전이 그대로이며, 독자 응답에 나오지 않는다", async () => {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      const auth = bearer(author.accessToken);
+      const draft = (
+        await http()
+          .post(`/studio/works/${work.id}/episodes`)
+          .set(auth)
+          .send({ title: "새 회차", content: doc, authorNote: null, isFree: false })
+          .expect(201)
+      ).body;
+      expect(draft.writingStage).toBe("DRAFTING");
+
+      const changed = await http()
+        .put(`/studio/episodes/${draft.id}/stage`)
+        .set(auth)
+        .send({ stage: "REVISING" })
+        .expect(200);
+      expect(changed.body).toMatchObject({ writingStage: "REVISING", title: "새 회차", updatedAt: draft.updatedAt });
+      const detail = (await http().get(`/studio/works/${work.id}`).set(auth).expect(200)).body as StudioWorkDetail;
+      expect(detail.episodes.find((episode) => episode.id === draft.id)?.writingStage).toBe("REVISING");
+      const versions = await http().get(`/studio/episodes/${draft.id}/versions`).set(auth).expect(200);
+      expect(versions.body).toEqual([]);
+
+      // 원고를 저장해도 단계는 바뀌지 않는다.
+      const saved = await http()
+        .put(`/studio/episodes/${draft.id}`)
+        .set(auth)
+        .send({ title: "고친 회차", content: doc, authorNote: null, isFree: false })
+        .expect(200);
+      expect(saved.body.writingStage).toBe("REVISING");
+
+      const reader = await http().get(`/works/${work.id}`).expect(200);
+      expect(JSON.stringify(reader.body)).not.toContain("writingStage");
+    });
+
+    it("값을 검사하고, 다른 작가와 독자와 휴지통의 회차는 바꿀 수 없다", async () => {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      const auth = bearer(author.accessToken);
+      const draft = (
+        await http()
+          .post(`/studio/works/${work.id}/episodes`)
+          .set(auth)
+          .send({ title: "새 회차", content: doc, authorNote: null, isFree: false })
+          .expect(201)
+      ).body;
+      const url = `/studio/episodes/${draft.id}/stage`;
+      await http().put(url).set(auth).send({ stage: "NOPE" }).expect(400);
+      const other = await signup("AUTHOR");
+      await http().put(url).set(bearer(other.accessToken)).send({ stage: "IDEA" }).expect(404);
+      const reader = await signup("READER");
+      await http().put(url).set(bearer(reader.accessToken)).send({ stage: "IDEA" }).expect(403);
+      await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(204);
+      await http().put(url).set(auth).send({ stage: "IDEA" }).expect(404);
+    });
+  });
+
   describe("회차 휴지통", () => {
     // 단언이 실패해도 다음 테스트로 대역이 넘어가지 않게 한다.
     afterEach(() => {

@@ -25,8 +25,10 @@ import {
   type PublishInput,
   publishInputSchema,
   type WorkInput,
+  type WritingStageInput,
   workInputSchema,
   workStatusInputSchema,
+  writingStageInputSchema,
 } from "@raon/contracts";
 import { AuthGuard, type AuthUser, CurrentUser, Roles } from "../auth/auth.guard.js";
 import { ZodPipe } from "../common/zod.pipe.js";
@@ -98,6 +100,15 @@ export class StudioController {
     @Body(new ZodPipe(episodeInputSchema)) body: EpisodeInput,
   ) {
     return this.studio.saveEpisode(user.id, episodeId, body);
+  }
+
+  @Put("episodes/:episodeId/stage")
+  writingStage(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Body(new ZodPipe(writingStageInputSchema)) body: WritingStageInput,
+  ) {
+    return this.studio.setWritingStage(user.id, episodeId, body.stage);
   }
 
   @Get("episodes/:episodeId/versions")
