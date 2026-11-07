@@ -85,7 +85,8 @@ export function ForeshadowReference({
           error={titleError}
           onChange={(event) => {
             setTitle(event.target.value);
-            setTitleError(undefined);
+            // 공백만 넣으면 여전히 저장할 수 없으므로 오류를 남긴다.
+            if (event.target.value.trim()) setTitleError(undefined);
           }}
         />
         <div className={styles.actions}>
