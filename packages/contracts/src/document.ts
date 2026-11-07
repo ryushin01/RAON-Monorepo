@@ -27,9 +27,20 @@ const blockquoteSchema = z.strictObject({
   content: z.array(paragraphSchema).min(1),
 });
 
+/** 작가만 보는 주석. 글자 수, 내보내기, 독자 응답에서 모두 뺀다. */
+const authorCommentSchema = z.strictObject({
+  type: z.literal("authorComment"),
+  content: z.array(paragraphSchema).min(1),
+});
+
 const horizontalRuleSchema = z.strictObject({ type: z.literal("horizontalRule") });
 
-const blockSchema = z.discriminatedUnion("type", [paragraphSchema, blockquoteSchema, horizontalRuleSchema]);
+const blockSchema = z.discriminatedUnion("type", [
+  paragraphSchema,
+  blockquoteSchema,
+  authorCommentSchema,
+  horizontalRuleSchema,
+]);
 
 export const episodeDocSchema = z.strictObject({
   type: z.literal("doc"),
@@ -45,7 +56,7 @@ export const EMPTY_DOC: EpisodeDoc = { type: "doc", content: [{ type: "paragraph
 function sumText(doc: EpisodeDoc, measure: (text: string) => number): number {
   let count = 0;
   const visit = (block: EpisodeBlock) => {
-    if (block.type === "horizontalRule") return;
+    if (block.type === "horizontalRule" || block.type === "authorComment") return;
     if (block.type === "blockquote") {
       block.content.forEach(visit);
       return;
@@ -78,11 +89,16 @@ export function countCharsWithoutSymbols(doc: EpisodeDoc): number {
   );
 }
 
-/** 문서의 글자만 뽑는다. 단락 사이는 빈 줄, 줄바꿈은 줄바꿈 한 번이다. 구분선은 뺀다. */
+/** 독자에게 보내기 전에 작가 주석을 뺀다. 화면에서 숨기는 것으로는 응답에 그대로 남는다. */
+export function stripAuthorComments(doc: EpisodeDoc): EpisodeDoc {
+  return { ...doc, content: doc.content.filter((block) => block.type !== "authorComment") };
+}
+
+/** 문서의 글자만 뽑는다. 단락 사이는 빈 줄, 줄바꿈은 줄바꿈 한 번이다. 구분선과 작가 주석은 뺀다. */
 export function docToText(doc: EpisodeDoc): string {
   const paragraphs: string[] = [];
   const visit = (block: EpisodeBlock) => {
-    if (block.type === "horizontalRule") return;
+    if (block.type === "horizontalRule" || block.type === "authorComment") return;
     if (block.type === "blockquote") {
       block.content.forEach(visit);
       return;

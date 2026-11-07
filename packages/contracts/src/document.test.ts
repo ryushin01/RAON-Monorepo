@@ -6,6 +6,7 @@ import {
   docToText,
   EMPTY_DOC,
   episodeDocSchema,
+  stripAuthorComments,
 } from "./document.js";
 
 describe("episodeDocSchema", () => {
@@ -132,5 +133,37 @@ describe("countCharsWithoutSymbols", () => {
     expect(countCharsWithoutSymbols(docFromText("가❤️나"))).toBe(2);
     expect(countCharsWithoutSymbols(docFromText("가👩‍💻나"))).toBe(2);
     expect(countCharsWithoutSymbols(docFromText("가1️⃣나1"))).toBe(3);
+  });
+});
+
+describe("작가 주석", () => {
+  const doc = {
+    type: "doc" as const,
+    content: [
+      { type: "paragraph" as const, content: [{ type: "text" as const, text: "본문" }] },
+      {
+        type: "authorComment" as const,
+        content: [{ type: "paragraph" as const, content: [{ type: "text" as const, text: "비밀 메모" }] }],
+      },
+    ],
+  };
+
+  it("저장할 수 있고, 비어 있으면 거부한다", () => {
+    expect(episodeDocSchema.safeParse(doc).success).toBe(true);
+    expect(episodeDocSchema.safeParse({ type: "doc", content: [{ type: "authorComment", content: [] }] }).success).toBe(
+      false,
+    );
+  });
+
+  it("글자 수와 글자 추출에서 뺀다", () => {
+    expect(countChars(doc)).toBe(2);
+    expect(countCharsWithSpaces(doc)).toBe(2);
+    expect(countCharsWithoutSymbols(doc)).toBe(2);
+    expect(docToText(doc)).toBe("본문");
+  });
+
+  it("독자용 문서에서 뺀다", () => {
+    expect(JSON.stringify(stripAuthorComments(doc))).not.toContain("비밀 메모");
+    expect(stripAuthorComments(doc).content).toHaveLength(1);
   });
 });
