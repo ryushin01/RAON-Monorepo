@@ -1000,6 +1000,39 @@ test("웹툰 회차에 이미지를 올리고 설명을 넣어야 공개하며, 
   await expect(page.getByText(/이미지 1장 · 수정/)).toBeVisible();
 });
 
+test("작가 주석을 달면 에디터에만 보이고 독자에게는 나오지 않으며 글자 수에서 빠진다", async ({ page, browser }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `주석 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+  const url = page.url();
+
+  await editorOf(page).click();
+  await page.waitForTimeout(100);
+  await page.keyboard.type("독자가 읽는 글");
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "주석", exact: true }).click();
+  await expect(page.getByRole("button", { name: "주석", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.type("비밀 복선 메모");
+  await expect(editorOf(page).getByRole("note", { name: "작가 주석" })).toHaveText("비밀 복선 메모");
+  await expect(page.getByText(/공백 포함 8자 · 공백 제외 6자/)).toBeVisible();
+
+  await page.getByRole("button", { name: "공개하기" }).click();
+  await expect(page.getByText(/1화 · 공개 중/)).toBeVisible();
+
+  // 다시 열어도 주석이 남고, 독자에게는 보이지 않는다.
+  await page.goto(url);
+  await expect(editorOf(page).getByRole("note", { name: "작가 주석" })).toHaveText("비밀 복선 메모");
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  const workId = page.url().split("/").at(-1);
+  const reader = await (await browser.newContext()).newPage();
+  const response = await reader.goto(`/works/${workId}/episodes/1`);
+  await expect(reader.getByText("독자가 읽는 글")).toBeVisible();
+  await expect(reader.getByText("비밀 복선 메모")).toHaveCount(0);
+  expect(await response?.text()).not.toContain("비밀 복선 메모");
+  await reader.context().close();
+});
+
 test("괄호를 자동으로 닫고, 사용자 규칙으로 바꾸며, 특수문자를 뺀 글자 수를 보여 준다", async ({ page }) => {
   await login(page, AUTHOR, "작가");
   await createWork(page, `입력 보조 ${Date.now()}`);

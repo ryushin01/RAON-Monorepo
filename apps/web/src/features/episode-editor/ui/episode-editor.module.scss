@@ -141,6 +141,23 @@
       border-left: 3px solid currentcolor;
     }
 
+    /* 내보내거나 공개되지 않는 글임을 글자로 함께 알린다(KWCAG 5.4.1). */
+    [data-author-comment] {
+      display: grid;
+      gap: 0.5em;
+      padding: 0.75em 1em;
+      border: 1px dashed currentcolor;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 0.9375rem;
+
+      &::before {
+        content: "작가 주석 · 독자에게 보이지 않습니다";
+        font-size: 0.8125rem;
+        font-weight: 600;
+      }
+    }
+
     hr {
       width: 4rem;
       margin: 1em auto;

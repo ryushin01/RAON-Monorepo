@@ -31,6 +31,7 @@ function docxRun(node: EpisodeInline): string {
 }
 
 function docxBlock(block: EpisodeBlock, quoted = false): string {
+  if (block.type === "authorComment") return "";
   if (block.type === "horizontalRule")
     return '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>* * *</w:t></w:r></w:p>';
   if (block.type === "blockquote") return block.content.map((child) => docxBlock(child, true)).join("");
