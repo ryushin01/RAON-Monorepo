@@ -5,6 +5,14 @@ import { type Editor, useEditorState } from "@tiptap/react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { PHRASES_KEY } from "@/shared/config";
 import { Button, TextField } from "@/shared/ui";
+import {
+  MAX_REPLACE_RULES,
+  MAX_RULE_LENGTH,
+  type ReplaceRule,
+  readReplaceRules,
+  subscribeReplaceRules,
+  writeReplaceRules,
+} from "../model/replace-rules";
 import { analyzeParagraphs, findRepetitions, type Repetition } from "../model/text-analysis";
 import styles from "./writing-tools.module.scss";
 
@@ -190,6 +198,83 @@ function subscribePhrases(listener: () => void) {
   };
 }
 
+const NO_REPLACE_RULES: ReplaceRule[] = [];
+
+/** 입력하면 바로 바꾸는 규칙을 관리한다. 고른 뒤 실행 취소로 되돌릴 수 있다. */
+function ReplaceRules() {
+  const rules = useSyncExternalStore(subscribeReplaceRules, readReplaceRules, () => NO_REPLACE_RULES);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [error, setError] = useState<string>();
+  const fromRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <>
+      <form
+        className={styles.phraseForm}
+        onSubmit={(event) => {
+          event.preventDefault();
+          const text = from.trim();
+          const fail = (message: string) => {
+            setError(message);
+            fromRef.current?.focus();
+          };
+          if (!text) return fail("바꿀 글자를 입력해 주세요.");
+          if (rules.some((rule) => rule.from === text)) return fail("이미 등록한 규칙입니다.");
+          if (rules.length >= MAX_REPLACE_RULES) return fail(`규칙은 ${MAX_REPLACE_RULES}개까지 등록할 수 있습니다.`);
+          if (!writeReplaceRules([...rules, { from: text, to }])) return fail(SAVE_FAILED);
+          setFrom("");
+          setTo("");
+          setError(undefined);
+          fromRef.current?.focus();
+        }}
+      >
+        <TextField
+          ref={fromRef}
+          label="입력하는 글자"
+          value={from}
+          maxLength={MAX_RULE_LENGTH}
+          error={error}
+          hint="예: -> . 한글 조합 중에는 바뀌지 않을 수 있어 기호나 영문 줄임말에 알맞습니다."
+          onChange={(event) => setFrom(event.target.value)}
+        />
+        <TextField
+          label="바뀌는 글자"
+          value={to}
+          maxLength={MAX_RULE_LENGTH}
+          hint="이 브라우저에 저장합니다."
+          onChange={(event) => setTo(event.target.value)}
+        />
+        <Button variant="secondary" small type="submit">
+          규칙 등록
+        </Button>
+      </form>
+      {rules.length > 0 && (
+        <ul className={styles.phraseList}>
+          {rules.map((rule) => (
+            <li key={rule.from}>
+              <span className={styles.phraseText}>
+                {rule.from} → {rule.to}
+              </span>
+              <Button
+                variant="ghost"
+                small
+                type="button"
+                aria-label={`규칙 삭제: ${rule.from}`}
+                onClick={() =>
+                  setError(writeReplaceRules(rules.filter((item) => item !== rule)) ? undefined : SAVE_FAILED)
+                }
+              >
+                삭제
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 function Phrases({ editor }: { editor: Editor }) {
   const phrases = useSyncExternalStore(subscribePhrases, readPhrases, () => NO_PHRASES);
   const [draft, setDraft] = useState("");
@@ -309,6 +394,9 @@ export function WritingTools({
       </Tool>
       <Tool title="상용구와 특수문자">
         <Phrases editor={editor} />
+      </Tool>
+      <Tool title="자동 대치">
+        <ReplaceRules />
       </Tool>
       {children}
     </section>

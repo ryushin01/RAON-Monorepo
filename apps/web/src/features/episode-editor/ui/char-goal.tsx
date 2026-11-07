@@ -21,10 +21,13 @@ const format = (value: number) => value.toLocaleString("ko-KR");
 export function CharGoal({
   withSpaces,
   withoutSpaces,
+  withoutSymbols,
   compact = false,
 }: {
   withSpaces: number;
   withoutSpaces: number;
+  /** 공백과 문장 부호, 기호를 뺀 글자 수. 연재처마다 분량 기준이 다르다. */
+  withoutSymbols: number;
   /** 집중 모드에서는 입력 칸을 숨기고 분량과 진행만 보여 준다. */
   compact?: boolean;
 }) {
@@ -37,7 +40,8 @@ export function CharGoal({
   return (
     <div className={styles.goal}>
       <p className={styles.count}>
-        공백 포함 {format(withSpaces)}자 · 공백 제외 {format(withoutSpaces)}자
+        공백 포함 {format(withSpaces)}자 · 공백 제외 {format(withoutSpaces)}자 · 특수문자 제외 {format(withoutSymbols)}
+        자
       </p>
       <div className={styles.setting}>
         <div hidden={compact}>

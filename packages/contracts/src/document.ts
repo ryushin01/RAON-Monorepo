@@ -68,6 +68,14 @@ export function countCharsWithSpaces(doc: EpisodeDoc): number {
   return sumText(doc, (text) => text.length);
 }
 
+/** 공백과 문장 부호, 기호를 뺀 글자 수. 연재처마다 분량 기준이 달라 함께 보여 준다. */
+export function countCharsWithoutSymbols(doc: EpisodeDoc): number {
+  return sumText(
+    doc,
+    (text) => text.replace(/\s|\p{P}|\p{S}|\u200D|\uFE0E|\uFE0F|\u20E3|[\u{E0020}-\u{E007F}]/gu, "").length,
+  );
+}
+
 /** 문서의 글자만 뽑는다. 단락 사이는 빈 줄, 줄바꿈은 줄바꿈 한 번이다. 구분선은 뺀다. */
 export function docToText(doc: EpisodeDoc): string {
   const paragraphs: string[] = [];

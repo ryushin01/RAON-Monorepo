@@ -988,6 +988,34 @@ test("웹툰 회차에 이미지를 올리고 설명을 넣어야 공개하며, 
   await expect(page.getByText(/이미지 1장 · 수정/)).toBeVisible();
 });
 
+test("괄호를 자동으로 닫고, 사용자 규칙으로 바꾸며, 특수문자를 뺀 글자 수를 보여 준다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `입력 보조 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+
+  await page.getByText("자동 대치", { exact: true }).click();
+  await page.getByRole("textbox", { name: "입력하는 글자" }).fill("->");
+  await page.getByRole("textbox", { name: "바뀌는 글자" }).fill("→");
+  await page.getByRole("button", { name: "규칙 등록" }).click();
+  await expect(page.getByText("-> → →")).toBeVisible();
+
+  await editorOf(page).click();
+  await page.waitForTimeout(100);
+  await page.keyboard.type("(등대)");
+  await expect(editorOf(page)).toHaveText("(등대)");
+  await page.keyboard.type(" 길->끝!");
+  await expect(editorOf(page)).toHaveText("(등대) 길→끝!");
+  await expect(page.getByText(/공백 포함 9자 · 공백 제외 8자 · 특수문자 제외 4자/)).toBeVisible();
+
+  await page.getByRole("button", { name: "자동 괄호" }).click();
+  await editorOf(page).click();
+  await page.waitForTimeout(100);
+  await page.keyboard.press("End");
+  await page.keyboard.type("(");
+  await expect(editorOf(page)).toHaveText("(등대) 길→끝!(");
+});
+
 test("본문의 설정 이름에 표시하고, 커서가 놓이면 내용을 보여 주며, 저장되는 원고에는 남기지 않는다", async ({
   page,
 }) => {

@@ -1,7 +1,8 @@
 import { Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { type EditorState, Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
+import { type EditorState, Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { matchReplaceRule, type ReplaceRule } from "../model/replace-rules";
 
 export interface TextRange {
   from: number;
@@ -240,15 +241,30 @@ export const CurrentBlock = Extension.create({
 
 declare module "@tiptap/core" {
   interface Storage {
-    smartInput: { enabled: boolean };
+    smartInput: { enabled: boolean; autoBracket: boolean; rules: ReplaceRule[] };
   }
 }
+
+const BRACKETS: Record<string, string> = {
+  "(": ")",
+  "[": "]",
+  "{": "}",
+  "「": "」",
+  "『": "』",
+  "《": "》",
+  "〈": "〉",
+  "“": "”",
+  "‘": "’",
+};
+/** 곧은 따옴표에서 바뀌는 굽은 따옴표는 키보드로 직접 칠 일이 드물어 닫는 쪽을 덧쓰는 데만 쓴다. */
+const OPEN_ON_TYPE = new Set(["(", "[", "{", "「", "『", "《", "〈"]);
+const CLOSERS = new Set(Object.values(BRACKETS));
 
 /** 입력하는 곧은 따옴표와 점 세 개를 표준 기호로 바꾼다. 실행 취소로 바로 되돌릴 수 있다. */
 export const SmartInput = Extension.create({
   name: "smartInput",
   addStorage() {
-    return { enabled: true };
+    return { enabled: true, autoBracket: true, rules: [] as ReplaceRule[] };
   },
   addProseMirrorPlugins() {
     const storage = this.storage;
@@ -257,6 +273,35 @@ export const SmartInput = Extension.create({
         key: new PluginKey("raonSmartInput"),
         props: {
           handleTextInput(view, from, to, text) {
+            const { state } = view;
+            // 작가가 직접 정한 규칙을 내장 입력 보조보다 먼저 적용한다.
+            if (storage.rules.length > 0 && from === to) {
+              const parentStart = from - state.doc.resolve(from).parentOffset;
+              const typed = state.doc.textBetween(parentStart, from, "\n", "\n") + text;
+              const rule = matchReplaceRule(storage.rules, typed);
+              if (rule) {
+                // 규칙이 입력한 글자 안에서 끝나면 그 앞의 글자는 그대로 넣고, 넘어가면 이미 쓴 글자까지 바꾼다.
+                const start = from - Math.max(rule.from.length - text.length, 0);
+                const kept = text.slice(0, Math.max(text.length - rule.from.length, 0));
+                view.dispatch(state.tr.insertText(kept + rule.to, start, from));
+                return true;
+              }
+            }
+            // 닫는 괄호는 바로 뒤에 있으면 새로 넣지 않고 지나간다.
+            if (storage.autoBracket && from === to && CLOSERS.has(text) && state.doc.textBetween(to, to + 1) === text) {
+              view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, to + 1)));
+              return true;
+            }
+            if (storage.autoBracket && OPEN_ON_TYPE.has(text)) {
+              const closer = BRACKETS[text] as string;
+              const selected = state.doc.textBetween(from, to, "\n", "\n");
+              // 줄을 넘는 선택은 묶지 않고 평소처럼 바꾼다.
+              if (!selected.includes("\n")) {
+                const tr = state.tr.insertText(`${text}${selected}${closer}`, from, to);
+                view.dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 1, from + 1 + selected.length)));
+                return true;
+              }
+            }
             if (!storage.enabled) return false;
             const before = view.state.doc.textBetween(Math.max(from - 2, 0), from, "\n", "\n");
             const atStart = view.state.doc.resolve(from).parentOffset === 0;
