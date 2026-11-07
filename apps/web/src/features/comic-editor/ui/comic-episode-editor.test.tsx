@@ -18,6 +18,7 @@ jest.mock("../api/actions", () => ({
   deleteImage: jest.fn(),
   listImages: jest.fn(),
   moveImage: jest.fn(),
+  reorderImages: jest.fn(),
   saveComicEpisode: jest.fn(),
   setComicPublished: jest.fn(),
   updateImageAlt: jest.fn(),

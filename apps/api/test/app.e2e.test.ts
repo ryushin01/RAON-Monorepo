@@ -583,6 +583,59 @@ describe("RAON API", () => {
     });
   });
 
+  describe("끌어 놓아 순서 바꾸기", () => {
+    it("회차를 새 순서로 다시 매기고, 휴지통의 번호와 겹치지 않으며, 낡은 목록은 거부한다", async () => {
+      const author = await signup("AUTHOR");
+      const auth = bearer(author.accessToken);
+      const work = await publishWork(author.accessToken);
+      const draft = (
+        await http()
+          .post(`/studio/works/${work.id}/episodes`)
+          .set(auth)
+          .send({ title: "휴지통", content: doc, authorNote: null, isFree: false })
+          .expect(201)
+      ).body;
+      await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(204);
+      const [one, two, three] = work.episodes.map((episode) => episode.id) as [string, string, string];
+      const url = `/studio/works/${work.id}/episode-order`;
+
+      await http()
+        .put(url)
+        .set(auth)
+        .send({ ids: [three, one, two] })
+        .expect(204);
+      const detail = (await http().get(`/studio/works/${work.id}`).set(auth).expect(200)).body as StudioWorkDetail;
+      expect(detail.episodes.map((episode) => [episode.id, episode.number])).toEqual([
+        [three, 1],
+        [one, 2],
+        [two, 3],
+      ]);
+      expect(detail.trash[0]?.number).toBe(4);
+
+      await http()
+        .put(url)
+        .set(auth)
+        .send({ ids: [one, two] })
+        .expect(409);
+      await http()
+        .put(url)
+        .set(auth)
+        .send({ ids: [one, two, draft.id] })
+        .expect(409);
+      await http()
+        .put(url)
+        .set(auth)
+        .send({ ids: [one, one, two] })
+        .expect(400);
+      const other = await signup("AUTHOR");
+      await http()
+        .put(url)
+        .set(bearer(other.accessToken))
+        .send({ ids: [one, two, three] })
+        .expect(404);
+    });
+  });
+
   describe("답글과 공감", () => {
     async function setup() {
       const author = await signup("AUTHOR");
@@ -1751,6 +1804,29 @@ describe("RAON API", () => {
       const novel = await publishWork(author.accessToken);
       const view = (await http().get(`/works/${novel.id}/episodes/1`).expect(200)).body as EpisodeView;
       expect(view).toMatchObject({ format: "NOVEL", images: null });
+    });
+
+    it("이미지를 새 순서로 다시 매기고, 낡은 목록은 거부한다", async () => {
+      const { auth, url, upload } = await setup();
+      const a = (await upload("가").expect(201)).body;
+      const b = (await upload("나").expect(201)).body;
+      const c = (await upload("다").expect(201)).body;
+      await http()
+        .put(`${url}/order`)
+        .set(auth)
+        .send({ ids: [c.id, a.id, b.id] })
+        .expect(204);
+      const list = (await http().get(url).set(auth).expect(200)).body as { id: string; position: number }[];
+      expect(list.map((image) => [image.id, image.position])).toEqual([
+        [c.id, 1],
+        [a.id, 2],
+        [b.id, 3],
+      ]);
+      await http()
+        .put(`${url}/order`)
+        .set(auth)
+        .send({ ids: [a.id, b.id] })
+        .expect(409);
     });
 
     it("다른 작가와 독자는 다룰 수 없고, 웹소설 회차에는 올릴 수 없다", async () => {

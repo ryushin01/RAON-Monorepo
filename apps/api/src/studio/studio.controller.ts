@@ -26,6 +26,8 @@ import {
   moveEpisodeSchema,
   type PublishInput,
   publishInputSchema,
+  type ReorderInput,
+  reorderInputSchema,
   type WorkInput,
   type WritingStageInput,
   workInputSchema,
@@ -178,6 +180,16 @@ export class StudioController {
     @Body(new ZodPipe(publishInputSchema)) body: PublishInput,
   ) {
     return this.studio.publishEpisode(user.id, episodeId, body.publishAt);
+  }
+
+  @Put("works/:workId/episode-order")
+  @HttpCode(204)
+  async reorder(
+    @CurrentUser() user: AuthUser,
+    @Param("workId", ParseUUIDPipe) workId: string,
+    @Body(new ZodPipe(reorderInputSchema)) body: ReorderInput,
+  ) {
+    await this.studio.reorderEpisodes(user.id, workId, body.ids);
   }
 
   @Post("episodes/:episodeId/move")

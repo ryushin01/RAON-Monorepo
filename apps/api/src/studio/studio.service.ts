@@ -458,6 +458,41 @@ export class StudioService {
     });
   }
 
+  /**
+   * 끌어 놓아 정한 순서로 회차 번호를 다시 매긴다. 지금 쓰는 번호를 그대로 나눠 주므로
+   * 휴지통의 회차 번호와 겹치지 않고, 구매와 댓글은 회차 id에 묶여 있어 그대로다.
+   */
+  async reorderEpisodes(authorId: string, workId: string, ids: string[]): Promise<void> {
+    await this.assertOwner(authorId, workId);
+    await this.db.transaction(async (tx) => {
+      await tx.select({ id: works.id }).from(works).where(eq(works.id, workId)).for("update");
+      const current = await tx
+        .select({ id: episodes.id, number: episodes.number })
+        .from(episodes)
+        .where(and(eq(episodes.workId, workId), isNull(episodes.deletedAt)))
+        .orderBy(asc(episodes.number));
+      // 그사이 회차가 늘거나 줄었으면 화면이 낡은 것이므로 다시 받게 한다.
+      const known = new Set(current.map((row) => row.id));
+      if (ids.length !== current.length || ids.some((id) => !known.has(id))) {
+        throw new ConflictException("회차 목록이 바뀌었습니다. 새로 고친 뒤 다시 옮겨 주세요.");
+      }
+      const numbers = current.map((row) => row.number);
+      // 휴지통으로 옮기기는 작품 행을 잠그지 않으므로, 그사이 휴지통에 간 회차는 번호를 바꾸지 않고 되돌린다.
+      // 복원하면 원래 번호로 돌아와야 하기 때문이다.
+      const renumber = async (id: string, number: number) => {
+        const [row] = await tx
+          .update(episodes)
+          .set({ number })
+          .where(and(eq(episodes.id, id), isNull(episodes.deletedAt)))
+          .returning({ id: episodes.id });
+        if (!row) throw new ConflictException("회차 목록이 바뀌었습니다. 새로 고친 뒤 다시 옮겨 주세요.");
+      };
+      // (작품, 번호) 유일 제약이 있어 음수 임시 번호를 거쳐 바꾼다.
+      for (const [index, id] of ids.entries()) await renumber(id, -(index + 1));
+      for (const [index, id] of ids.entries()) await renumber(id, numbers[index] as number);
+    });
+  }
+
   /** 바로 앞이나 뒤의 회차와 번호를 맞바꾼다. 구매와 댓글은 회차 id에 묶여 있어 그대로 유지된다. */
   async moveEpisode(authorId: string, episodeId: string, direction: "up" | "down"): Promise<void> {
     const { workId } = await this.ownedEpisode(authorId, episodeId);
