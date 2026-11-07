@@ -102,7 +102,22 @@ export class StudioService {
       .from(works)
       .where(and(eq(works.id, workId), eq(works.authorId, authorId)));
     if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
-    const list = await this.db.select().from(episodes).where(eq(episodes.workId, workId)).orderBy(asc(episodes.number));
+    // 응답에 쓰지 않는 본문은 읽지 않는다.
+    const list = await this.db
+      .select({
+        id: episodes.id,
+        number: episodes.number,
+        title: episodes.title,
+        status: episodes.status,
+        isFree: episodes.isFree,
+        charCount: episodes.charCount,
+        updatedAt: episodes.updatedAt,
+        publishedAt: episodes.publishedAt,
+        deletedAt: episodes.deletedAt,
+      })
+      .from(episodes)
+      .where(eq(episodes.workId, workId))
+      .orderBy(asc(episodes.number));
     return {
       ...toWork(row),
       episodes: list
@@ -479,16 +494,29 @@ export class StudioService {
     const [row] = await this.db
       .update(episodes)
       .set({ deletedAt: null, updatedAt: new Date() })
-      .where(eq(episodes.id, episodeId))
+      // 확인한 뒤에 다른 요청이 복원했거나 완전히 지웠을 수 있다.
+      .where(and(eq(episodes.id, episodeId), isNotNull(episodes.deletedAt)))
       .returning();
-    return toEpisode(row!);
+    if (!row) throw new NotFoundException("휴지통에서 회차를 찾을 수 없습니다.");
+    return toEpisode(row);
   }
 
   /** 휴지통에 있는 회차만 완전히 지운다. 버전과 회차 메모도 함께 사라진다. */
   async purgeEpisode(authorId: string, episodeId: string): Promise<void> {
     const current = await this.trashedEpisode(authorId, episodeId);
     await this.assertNotSold(current);
-    await this.db.delete(episodes).where(eq(episodes.id, episodeId));
+    try {
+      const [row] = await this.db
+        .delete(episodes)
+        // 확인한 뒤에 복원했다면 지우지 않는다.
+        .where(and(eq(episodes.id, episodeId), isNotNull(episodes.deletedAt)))
+        .returning({ id: episodes.id });
+      if (!row) throw new NotFoundException("휴지통에서 회차를 찾을 수 없습니다.");
+    } catch (error) {
+      // 확인과 삭제 사이에 결제가 끝나면 주문의 외래 키가 막는다.
+      if (isForeignKeyViolation(error)) throw new ConflictException("이미 판매한 회차는 지울 수 없습니다.");
+      throw error;
+    }
   }
 
   private async assertNotSold(episode: typeof episodes.$inferSelect) {

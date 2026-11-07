@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
+import { jest } from "@jest/globals";
 import type { INestApplication } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
@@ -20,6 +21,7 @@ import { type Database, type DatabaseHandle, openDatabase } from "../src/db/data
 import { DATABASE_HANDLE } from "../src/db/database.module.js";
 import {
   comments as commentsTable,
+  episodes as episodesTable,
   episodeVersions as episodeVersionsTable,
   favorites as favoritesTable,
   orderItems as orderItemsTable,
@@ -31,6 +33,7 @@ import {
 } from "../src/db/schema.js";
 import { seedDemoData } from "../src/db/seed.js";
 import { DEMO_COMMENTS, DEMO_FAVORITES, DEMO_PURCHASES, DEMO_USERS } from "../src/db/seed-data.js";
+import { StudioService } from "../src/studio/studio.service.js";
 
 const doc = docFromText("본문 첫 문단입니다.\n\n둘째 문단입니다.");
 const PAID_MARKER = "둘째 문단입니다.";
@@ -1273,6 +1276,54 @@ describe("RAON API", () => {
         price: workRow!.wholePrice ?? 0,
       });
       await http().delete(`/studio/episodes/${published.id}/permanent`).set(auth).expect(409);
+
+      // 판매 확인을 지나 삭제 직전에 회차 구매가 끝나면 외래 키가 막는다.
+      // 전체 구매가 있으면 앞 단계에서 막히므로 먼저 지운다.
+      await db.delete(orderItemsTable).where(eq(orderItemsTable.workId, work.id));
+      const raced = await create("겹친 결제");
+      await http().post(`/studio/episodes/${raced.id}/publish`).set(auth).expect(200);
+      await http().post(`/studio/episodes/${raced.id}/unpublish`).set(auth).expect(200);
+      await http().delete(`/studio/episodes/${raced.id}`).set(auth).expect(204);
+      const service = app.get(StudioService) as unknown as { assertNotSold: () => Promise<void> };
+      const check = jest.spyOn(service, "assertNotSold").mockImplementation(async () => {
+        await db.insert(orderItemsTable).values({
+          orderId: order!.id,
+          userId: buyer.user.id,
+          workId: work.id,
+          episodeId: raced.id,
+          price: 100,
+        });
+      });
+      await http().delete(`/studio/episodes/${raced.id}/permanent`).set(auth).expect(409);
+      check.mockRestore();
+    });
+
+    it("확인과 처리 사이에 상태가 바뀌어도 복원한 회차를 지우거나 없는 회차로 500을 내지 않는다", async () => {
+      const { auth, create, detail } = await setup();
+      const draft = await create("겹친 요청");
+      await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(204);
+      const service = app.get(StudioService) as unknown as { trashedEpisode: () => Promise<unknown> };
+      const original = service.trashedEpisode.bind(service);
+
+      // 완전히 지우기가 확인을 지난 뒤에 복원된 경우
+      const purge = jest.spyOn(service, "trashedEpisode").mockImplementationOnce(async (...args: []) => {
+        const row = await original(...args);
+        await db.update(episodesTable).set({ deletedAt: null }).where(eq(episodesTable.id, draft.id));
+        return row;
+      });
+      await http().delete(`/studio/episodes/${draft.id}/permanent`).set(auth).expect(404);
+      purge.mockRestore();
+      expect((await detail()).episodes.map((episode) => episode.id)).toContain(draft.id);
+
+      // 복원이 확인을 지난 뒤에 다른 요청이 복원한 경우
+      await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(204);
+      const restore = jest.spyOn(service, "trashedEpisode").mockImplementationOnce(async (...args: []) => {
+        const row = await original(...args);
+        await db.update(episodesTable).set({ deletedAt: null }).where(eq(episodesTable.id, draft.id));
+        return row;
+      });
+      await http().post(`/studio/episodes/${draft.id}/restore`).set(auth).expect(404);
+      restore.mockRestore();
     });
   });
 
