@@ -80,6 +80,8 @@ export const episodes = pgTable(
     isFree: boolean("is_free").notNull().default(false),
     status: episodeStatusEnum("status").notNull().default("DRAFT"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    /** 값이 있으면 휴지통에 있다. 초안만 옮기므로 독자에게 보이는 회차에는 항상 비어 있다. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [uniqueIndex("episodes_work_number_uq").on(t.workId, t.number)],

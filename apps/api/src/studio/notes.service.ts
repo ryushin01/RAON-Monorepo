@@ -6,7 +6,7 @@ import {
   type WorkSearchHit,
   type WorkSearchResult,
 } from "@raon/contracts";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { z } from "zod";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
@@ -121,7 +121,7 @@ export class NotesService {
       this.db
         .select({ id: episodes.id, number: episodes.number, title: episodes.title, content: episodes.content })
         .from(episodes)
-        .where(eq(episodes.workId, workId))
+        .where(and(eq(episodes.workId, workId), isNull(episodes.deletedAt)))
         .orderBy(asc(episodes.number)),
       this.db.select().from(workNotes).where(eq(workNotes.workId, workId)).orderBy(asc(workNotes.title)),
     ]);
@@ -144,7 +144,7 @@ export class NotesService {
     const [row] = await this.db
       .select({ id: episodes.id })
       .from(episodes)
-      .where(and(eq(episodes.id, input.episodeId), eq(episodes.workId, workId)));
+      .where(and(eq(episodes.id, input.episodeId), eq(episodes.workId, workId), isNull(episodes.deletedAt)));
     if (!row) throw new BadRequestException("이 작품의 회차가 아닙니다.");
   }
 

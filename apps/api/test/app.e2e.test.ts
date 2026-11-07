@@ -23,6 +23,7 @@ import {
   episodeVersions as episodeVersionsTable,
   favorites as favoritesTable,
   orderItems as orderItemsTable,
+  orders as ordersTable,
   users,
   users as usersTable,
   workNotes as workNotesTable,
@@ -1165,6 +1166,116 @@ describe("RAON API", () => {
     });
   });
 
+  describe("회차 휴지통", () => {
+    async function setup() {
+      const author = await signup("AUTHOR");
+      const work = await publishWork(author.accessToken);
+      const auth = bearer(author.accessToken);
+      const create = async (title: string) =>
+        (
+          await http()
+            .post(`/studio/works/${work.id}/episodes`)
+            .set(auth)
+            .send({ title, content: doc, authorNote: null, isFree: false })
+            .expect(201)
+        ).body as { id: string; number: number };
+      const detail = async () =>
+        (await http().get(`/studio/works/${work.id}`).set(auth).expect(200)).body as StudioWorkDetail;
+      return { auth, work, create, detail };
+    }
+
+    it("지운 초안은 목록과 수치, 내보내기, 검색에서 빠지고 다룰 수 없으며, 복원하면 원래 번호로 돌아온다", async () => {
+      const { auth, work, create, detail } = await setup();
+      const draft = await create("휴지통 초안");
+      expect((await detail()).draftEpisodeCount).toBe(1);
+
+      await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(204);
+      const trashed = await detail();
+      expect(trashed.episodes.map((episode) => episode.id)).not.toContain(draft.id);
+      expect(trashed.trash).toEqual([expect.objectContaining({ id: draft.id, number: 4, title: "휴지통 초안" })]);
+      expect(trashed.draftEpisodeCount).toBe(0);
+
+      const exported = await http().get(`/studio/works/${work.id}/export`).set(auth).expect(200);
+      expect(exported.body.episodes.map((episode: { title: string }) => episode.title)).not.toContain("휴지통 초안");
+      const found = await http()
+        .get(`/studio/works/${work.id}/search`)
+        .query({ q: "휴지통 초안" })
+        .set(auth)
+        .expect(200);
+      expect(found.body.episodes).toEqual([]);
+
+      // 휴지통에 있는 동안은 원고를 고치거나 공개할 수 없다.
+      await http().get(`/studio/episodes/${draft.id}`).set(auth).expect(404);
+      await http()
+        .put(`/studio/episodes/${draft.id}`)
+        .set(auth)
+        .send({ title: "수정", content: doc, authorNote: null, isFree: false })
+        .expect(404);
+      await http().post(`/studio/episodes/${draft.id}/publish`).set(auth).expect(404);
+      await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(404);
+
+      // 번호를 다른 회차가 가져가지 않으므로 복원해도 겹치지 않는다.
+      const next = await create("다음 초안");
+      expect(next.number).toBe(5);
+      const restored = await http().post(`/studio/episodes/${draft.id}/restore`).set(auth).expect(200);
+      expect(restored.body).toMatchObject({ number: 4, status: "DRAFT", title: "휴지통 초안" });
+      const after = await detail();
+      expect(after.trash).toEqual([]);
+      expect(after.episodes.map((episode) => episode.number)).toEqual([1, 2, 3, 4, 5]);
+      await http().post(`/studio/episodes/${draft.id}/restore`).set(auth).expect(404);
+    });
+
+    it("회차를 옮길 때 휴지통의 회차를 건너뛴다", async () => {
+      const { auth, create, detail } = await setup();
+      const first = await create("넷째");
+      const second = await create("다섯째");
+      const third = await create("여섯째");
+      await http().delete(`/studio/episodes/${second.id}`).set(auth).expect(204);
+
+      await http().post(`/studio/episodes/${third.id}/move`).set(auth).send({ direction: "up" }).expect(204);
+      const moved = await detail();
+      expect(moved.episodes.slice(-2).map(({ id, number }) => [id, number])).toEqual([
+        [third.id, 4],
+        [first.id, 6],
+      ]);
+      expect(moved.trash[0]?.number).toBe(5);
+    });
+
+    it("완전히 지우기는 휴지통에 있는 회차만 되고, 그사이 판매했다면 지울 수 없다", async () => {
+      const { auth, work, create, detail } = await setup();
+      const draft = await create("지울 초안");
+      await http().delete(`/studio/episodes/${draft.id}/permanent`).set(auth).expect(404);
+      await http().delete(`/studio/episodes/${draft.id}`).set(auth).expect(204);
+
+      const stranger = await signup("AUTHOR");
+      await http().delete(`/studio/episodes/${draft.id}/permanent`).set(bearer(stranger.accessToken)).expect(404);
+      await http().post(`/studio/episodes/${draft.id}/restore`).set(bearer(stranger.accessToken)).expect(404);
+
+      await http().delete(`/studio/episodes/${draft.id}/permanent`).set(auth).expect(204);
+      expect((await detail()).trash).toEqual([]);
+
+      // 공개했던 회차가 휴지통에 있는 동안 작품 전체가 팔린 경우다.
+      const published = await create("공개했던 회차");
+      await http().post(`/studio/episodes/${published.id}/publish`).set(auth).expect(200);
+      await http().post(`/studio/episodes/${published.id}/unpublish`).set(auth).expect(200);
+      await http().delete(`/studio/episodes/${published.id}`).set(auth).expect(204);
+      const buyer = await signup("READER");
+      const [workRow] = await db.select().from(worksTable).where(eq(worksTable.id, work.id));
+      const [order] = await db
+        .insert(ordersTable)
+        .values({ userId: buyer.user.id, idempotencyKey: randomUUID(), total: 0 })
+        .returning();
+      await db.insert(orderItemsTable).values({
+        orderId: order!.id,
+        userId: buyer.user.id,
+        workId: work.id,
+        episodeId: null,
+        price: workRow!.wholePrice ?? 0,
+      });
+      await http().delete(`/studio/episodes/${published.id}/permanent`).set(auth).expect(409);
+    });
+  });
+
   describe("긴 회차", () => {
     it("기본 한도(100KB)를 넘는 본문도 저장하고, 지나치게 큰 요청은 거부한다", async () => {
       const author = await signup("AUTHOR");
@@ -1295,6 +1406,10 @@ describe("RAON API", () => {
         .send(note({ kind: "MEMO", title: "초안 메모", episodeId: draft.body.id }))
         .expect(201);
       await http().delete(`/studio/episodes/${draft.body.id}`).set(bearer(token)).expect(204);
+      // 휴지통에 있는 동안은 메모도 남아 있고, 완전히 지워야 함께 사라진다.
+      const kept = await http().get(`/studio/works/${work.id}/notes`).set(bearer(token)).expect(200);
+      expect(kept.body).toHaveLength(2);
+      await http().delete(`/studio/episodes/${draft.body.id}/permanent`).set(bearer(token)).expect(204);
       const list = await http().get(`/studio/works/${work.id}/notes`).set(bearer(token)).expect(200);
       expect(list.body.map((item: { title: string }) => item.title)).toEqual(["이안"]);
     });

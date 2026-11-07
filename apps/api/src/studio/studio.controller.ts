@@ -187,8 +187,20 @@ export class StudioController {
 
   @Delete("episodes/:episodeId")
   @HttpCode(204)
-  async deleteEpisode(@CurrentUser() user: AuthUser, @Param("episodeId", ParseUUIDPipe) episodeId: string) {
-    await this.studio.deleteEpisode(user.id, episodeId);
+  async trashEpisode(@CurrentUser() user: AuthUser, @Param("episodeId", ParseUUIDPipe) episodeId: string) {
+    await this.studio.trashEpisode(user.id, episodeId);
+  }
+
+  @Post("episodes/:episodeId/restore")
+  @HttpCode(200)
+  restoreEpisode(@CurrentUser() user: AuthUser, @Param("episodeId", ParseUUIDPipe) episodeId: string) {
+    return this.studio.restoreEpisode(user.id, episodeId);
+  }
+
+  @Delete("episodes/:episodeId/permanent")
+  @HttpCode(204)
+  async purgeEpisode(@CurrentUser() user: AuthUser, @Param("episodeId", ParseUUIDPipe) episodeId: string) {
+    await this.studio.purgeEpisode(user.id, episodeId);
   }
 
   @Delete("works/:workId")
