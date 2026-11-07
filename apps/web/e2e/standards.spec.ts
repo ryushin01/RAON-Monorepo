@@ -288,6 +288,7 @@ test.describe("KWCAG 운용", () => {
       "버전 기록",
       "이 회차 내보내기",
       "설정집 참조",
+      "복선",
       "회차 메모",
     ]) {
       await page.keyboard.press("Tab");
