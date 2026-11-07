@@ -29,6 +29,7 @@ import {
   orders as ordersTable,
   users,
   users as usersTable,
+  workCovers as workCoversTable,
   workNotes as workNotesTable,
   works as worksTable,
 } from "../src/db/schema.js";
@@ -1363,9 +1364,15 @@ describe("RAON API", () => {
           .expect(201)
       ).body;
 
+      await db
+        .insert(workCoversTable)
+        .values({ workId: work.id, mimeType: "image/png", data: new Uint8Array([1, 2, 3]) });
+      await http().get(`/works/${work.id}/cover`).expect(200);
+
       await http().delete(`/studio/works/${work.id}`).set(auth).expect(204);
 
       // 독자에게는 없는 작품이다.
+      await http().get(`/works/${work.id}/cover`).expect(404);
       await http().get(`/works/${work.id}`).expect(404);
       await http().get(`/works/${work.id}/episodes/1`).expect(404);
       await http().get(`/episodes/${episode.id}/comments`).expect(404);
@@ -1408,6 +1415,14 @@ describe("RAON API", () => {
       await http().post(`/studio/works/${work.id}/restore`).set(bearer(other.accessToken)).expect(404);
       await http().delete(`/studio/works/${work.id}/permanent`).set(bearer(other.accessToken)).expect(404);
       await http().get("/studio/trash/works").set(readerAuth).expect(403);
+
+      // 옮기기 확인을 지난 뒤에 다른 요청이 먼저 옮겼다면 옮긴 날짜를 다시 쓰지 않는다.
+      const [before] = await db.select().from(worksTable).where(eq(worksTable.id, work.id));
+      const service = app.get(StudioService) as unknown as { assertOwner: () => Promise<void> };
+      jest.spyOn(service, "assertOwner").mockResolvedValueOnce(undefined);
+      await http().delete(`/studio/works/${work.id}`).set(auth).expect(404);
+      const [after] = await db.select().from(worksTable).where(eq(worksTable.id, work.id));
+      expect(after?.deletedAt).toEqual(before?.deletedAt);
 
       await http().post(`/studio/works/${work.id}/restore`).set(auth).expect(204);
       await http().post(`/studio/works/${work.id}/restore`).set(auth).expect(404);

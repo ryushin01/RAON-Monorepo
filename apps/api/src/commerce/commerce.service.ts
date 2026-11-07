@@ -50,6 +50,7 @@ export class CommerceService {
         throw new BadRequestException("이 작품은 전체 구매를 지원하지 않습니다.");
       }
       await this.db.transaction(async (tx) => {
+        await this.lockBuyer(tx, userId);
         // 작품 전체에는 모든 회차가 포함되므로 같은 작품의 회차 항목은 뺀다.
         await tx.delete(cartItems).where(and(eq(cartItems.userId, userId), eq(cartItems.workId, input.workId)));
         await tx.insert(cartItems).values({ userId, workId: input.workId, episodeId: null });
@@ -78,10 +79,13 @@ export class CommerceService {
     const targets = buyable.filter((e) => !e.isFree && !ownedIds.has(e.id));
     if (targets.length === 0) throw new BadRequestException("담을 수 있는 유료 회차가 없습니다.");
 
-    await this.db
-      .insert(cartItems)
-      .values(targets.map((e) => ({ userId, workId: input.workId, episodeId: e.id })))
-      .onConflictDoNothing();
+    await this.db.transaction(async (tx) => {
+      await this.lockBuyer(tx, userId);
+      await tx
+        .insert(cartItems)
+        .values(targets.map((e) => ({ userId, workId: input.workId, episodeId: e.id })))
+        .onConflictDoNothing();
+    });
     return this.getCart(userId);
   }
 
@@ -213,6 +217,11 @@ export class CommerceService {
       price: row.price,
       purchasedAt: row.createdAt.toISOString(),
     }));
+  }
+
+  /** 결제가 사용자 행을 잠근 동안 장바구니에 새 작품이 들어와 작품 잠금을 피해 가지 못하게 한다. */
+  private async lockBuyer(tx: Transaction, userId: string) {
+    await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
   }
 
   private async readCart(db: Database | Transaction, userId: string): Promise<Cart> {

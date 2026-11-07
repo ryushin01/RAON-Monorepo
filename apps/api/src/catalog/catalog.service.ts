@@ -323,7 +323,13 @@ export class CatalogService {
   }
 
   async getCover(workId: string) {
-    const [cover] = await this.db.select().from(workCovers).where(eq(workCovers.workId, workId));
+    // 작가가 공개 전에 표지를 확인하므로 초안은 막지 않고, 휴지통의 작품만 뺀다.
+    const [row] = await this.db
+      .select({ cover: workCovers })
+      .from(workCovers)
+      .innerJoin(works, eq(workCovers.workId, works.id))
+      .where(and(eq(workCovers.workId, workId), isNull(works.deletedAt)));
+    const cover = row?.cover;
     if (!cover) throw new NotFoundException("표지가 없습니다.");
     return cover;
   }

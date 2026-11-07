@@ -570,7 +570,13 @@ export class StudioService {
   async trashWork(authorId: string, workId: string): Promise<void> {
     await this.assertOwner(authorId, workId);
     await this.db.transaction(async (tx) => {
-      await tx.select({ id: works.id }).from(works).where(eq(works.id, workId)).for("update");
+      // 기다리는 사이에 다른 요청이 옮겼거나 지웠다면 옮긴 날짜를 다시 쓰지 않는다.
+      const [locked] = await tx
+        .select({ id: works.id })
+        .from(works)
+        .where(and(eq(works.id, workId), isNull(works.deletedAt)))
+        .for("update");
+      if (!locked) throw new NotFoundException("작품을 찾을 수 없습니다.");
       const [sold] = await tx
         .select({ id: orderItems.id })
         .from(orderItems)
