@@ -120,6 +120,18 @@ export class CatalogController {
     return this.catalog.listReading(user);
   }
 
+  @Get("episodes/:episodeId/images/:imageId")
+  @OptionalAuth()
+  @UseGuards(AuthGuard)
+  async episodeImage(
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Param("imageId", ParseUUIDPipe) imageId: string,
+    @CurrentUser() user: AuthUser | undefined,
+  ) {
+    const image = await this.catalog.getEpisodeImage(episodeId, imageId, user);
+    return new StreamableFile(Buffer.from(image.data), { type: image.mimeType });
+  }
+
   @Get("episodes/:episodeId/comments")
   @OptionalAuth()
   @UseGuards(AuthGuard)

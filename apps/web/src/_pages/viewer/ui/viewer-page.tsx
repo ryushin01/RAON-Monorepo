@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { EpisodeContent } from "@/entities/episode";
+import { ComicContent, EpisodeContent } from "@/entities/episode";
 import { getComments, getEpisode } from "@/entities/episode/index.server";
 import { getCurrentUser, getSessionToken } from "@/entities/session/index.server";
 import { getWork } from "@/entities/work/index.server";
 import { AddEpisodeButton } from "@/features/cart";
+import { ComicAutoScroll } from "@/features/comic-autoscroll";
 import { EpisodeComments } from "@/features/episode-comments";
 import { ViewTracker } from "@/features/episode-view";
 import { ViewerSettingsToggle } from "@/features/viewer-settings";
@@ -67,7 +68,10 @@ async function ViewerContent({ params }: { params: Params }) {
           <Link href={`/works/${workId}`} className={styles.back} aria-label={`${episode.workTitle} 회차 목록으로`}>
             ← {episode.workTitle}
           </Link>
-          <ViewerSettingsToggle buttonClassName={styles.settingsButton} panelClassName={styles.settingsPanel} />
+          {/* 글꼴과 줄 간격은 글자 본문에만 쓴다. */}
+          {episode.format === "NOVEL" && (
+            <ViewerSettingsToggle buttonClassName={styles.settingsButton} panelClassName={styles.settingsPanel} />
+          )}
         </div>
       </header>
 
@@ -81,7 +85,9 @@ async function ViewerContent({ params }: { params: Params }) {
               {episode.number}화. {episode.title}
             </h1>
           </header>
-          {episode.accessible && episode.content ? (
+          {episode.accessible && episode.images ? (
+            <ComicContent episodeId={episode.id} images={episode.images} />
+          ) : episode.accessible && episode.content ? (
             <div className={styles.text}>
               <EpisodeContent doc={episode.content} />
             </div>
@@ -113,27 +119,55 @@ async function ViewerContent({ params }: { params: Params }) {
         </article>
       </Main>
 
-      <nav className={styles.footer} aria-label="회차 이동">
-        {episode.prev ? (
-          <Link href={`${base}/${episode.prev.number}`}>
-            <small>이전 화</small>
-            {episode.prev.number}화. {episode.prev.title}
+      {episode.format === "COMIC" ? (
+        // 긴 세로 화면에서도 바로 옮길 수 있게 아래에 붙여 둔다. 숨기지 않아 키보드로도 언제나 닿는다.
+        <nav className={styles.comicBar} aria-label="회차 이동">
+          {episode.prev ? (
+            <Link
+              href={`${base}/${episode.prev.number}`}
+              aria-label={`이전 화: ${episode.prev.number}화. ${episode.prev.title}`}
+            >
+              이전 화
+            </Link>
+          ) : (
+            <span>첫 회차</span>
+          )}
+          <Link href={`/works/${workId}`}>회차 목록</Link>
+          {episode.next ? (
+            <Link
+              href={`${base}/${episode.next.number}`}
+              aria-label={`다음 화: ${episode.next.number}화. ${episode.next.title}`}
+            >
+              다음 화
+            </Link>
+          ) : (
+            <span>마지막 회차</span>
+          )}
+          {episode.accessible && <ComicAutoScroll />}
+        </nav>
+      ) : (
+        <nav className={styles.footer} aria-label="회차 이동">
+          {episode.prev ? (
+            <Link href={`${base}/${episode.prev.number}`}>
+              <small>이전 화</small>
+              {episode.prev.number}화. {episode.prev.title}
+            </Link>
+          ) : (
+            <span>첫 회차입니다</span>
+          )}
+          {episode.next ? (
+            <Link href={`${base}/${episode.next.number}`} className={styles.next}>
+              <small>다음 화</small>
+              {episode.next.number}화. {episode.next.title}
+            </Link>
+          ) : (
+            <span className={styles.next}>마지막 회차입니다</span>
+          )}
+          <Link href={`/works/${workId}`} className={styles.toList}>
+            회차 목록
           </Link>
-        ) : (
-          <span>첫 회차입니다</span>
-        )}
-        {episode.next ? (
-          <Link href={`${base}/${episode.next.number}`} className={styles.next}>
-            <small>다음 화</small>
-            {episode.next.number}화. {episode.next.title}
-          </Link>
-        ) : (
-          <span className={styles.next}>마지막 회차입니다</span>
-        )}
-        <Link href={`/works/${workId}`} className={styles.toList}>
-          회차 목록
-        </Link>
-      </nav>
+        </nav>
+      )}
     </>
   );
 }

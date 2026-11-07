@@ -1459,6 +1459,66 @@ describe("RAON API", () => {
       expect(detail.episodes[0]?.imageCount).toBe(1);
     });
 
+    it("무료 회차는 누구나 보고, 유료 회차의 이미지는 산 사람만 받으며 주소도 내려주지 않는다", async () => {
+      const { auth, work, episode, upload } = await setup();
+      const free = (await upload("무료 장면").expect(201)).body;
+      await http().post(`/studio/episodes/${episode.id}/publish`).set(auth).expect(200);
+      const paid = (
+        await http()
+          .post(`/studio/works/${work.id}/episodes`)
+          .set(auth)
+          .send({ title: "2화", content: doc, authorNote: null, isFree: false })
+          .expect(201)
+      ).body as { id: string };
+      const paidImage = (
+        await http()
+          .post(`/studio/episodes/${paid.id}/images`)
+          .set(auth)
+          .field("alt", "유료 장면")
+          .attach("file", png(), "image.png")
+          .expect(201)
+      ).body;
+      const imageUrl = `/episodes/${paid.id}/images/${paidImage.id}`;
+      // 공개 전에는 작가도 독자용 주소로 받을 수 없다.
+      await http().get(imageUrl).set(auth).expect(404);
+      await http().post(`/studio/episodes/${paid.id}/publish`).set(auth).expect(200);
+
+      const anonymous = (await http().get(`/works/${work.id}/episodes/1`).expect(200)).body as EpisodeView;
+      expect(anonymous.format).toBe("COMIC");
+      expect(anonymous.images).toEqual([expect.objectContaining({ id: free.id, alt: "무료 장면" })]);
+      const freeImage = await http().get(`/episodes/${episode.id}/images/${free.id}`).expect(200);
+      expect(freeImage.headers["content-type"]).toContain("image/png");
+
+      const locked = (await http().get(`/works/${work.id}/episodes/2`).expect(200)).body as EpisodeView;
+      expect(locked.accessible).toBe(false);
+      expect(locked.images).toBeNull();
+      expect(JSON.stringify(locked)).not.toContain(paidImage.id);
+      await http().get(imageUrl).expect(403);
+      // 다른 회차의 이미지를 무료 회차 주소로 받을 수 없다.
+      await http().get(`/episodes/${episode.id}/images/${paidImage.id}`).expect(404);
+
+      const buyer = await signup("READER", 1000);
+      const buyerAuth = bearer(buyer.accessToken);
+      await http().get(imageUrl).set(buyerAuth).expect(403);
+      await http()
+        .post("/cart/items")
+        .set(buyerAuth)
+        .send({ kind: "EPISODES", workId: work.id, episodeIds: [paid.id] })
+        .expect(201);
+      await http().post("/orders").set(buyerAuth).send({ idempotencyKey: randomUUID() }).expect(200);
+      await http().get(imageUrl).set(buyerAuth).expect(200);
+      const bought = (await http().get(`/works/${work.id}/episodes/2`).set(buyerAuth).expect(200)).body as EpisodeView;
+      expect(bought.images).toHaveLength(1);
+      await http().get(imageUrl).set(auth).expect(200);
+    });
+
+    it("웹소설 회차의 응답에는 이미지가 없다", async () => {
+      const author = await signup("AUTHOR");
+      const novel = await publishWork(author.accessToken);
+      const view = (await http().get(`/works/${novel.id}/episodes/1`).expect(200)).body as EpisodeView;
+      expect(view).toMatchObject({ format: "NOVEL", images: null });
+    });
+
     it("다른 작가와 독자는 다룰 수 없고, 웹소설 회차에는 올릴 수 없다", async () => {
       const { url, upload } = await setup();
       const image = (await upload("하나").expect(201)).body;

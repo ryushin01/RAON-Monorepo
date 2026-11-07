@@ -179,12 +179,12 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
   };
 
   const upload = useMutation({
-    mutationFn: async (files: File[]) => {
+    mutationFn: async ({ files, alt }: { files: File[]; alt: string }) => {
       // 순서를 지키려고 한 장씩 차례로 올린다. 실패하면 앞서 올린 장은 남기고 멈춘다.
       for (const [index, file] of files.entries()) {
         setMessage(`${files.length}장 중 ${index + 1}번째를 올리는 중입니다.`);
         const data = new FormData();
-        data.append("alt", newAlt.trim());
+        data.append("alt", alt);
         data.append("file", file);
         const result = await uploadImage(initial.id, data);
         if (!result.ok) throw new Error(`${file.name}: ${result.message}`);
@@ -245,7 +245,7 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
       event.currentTarget.querySelector<HTMLElement>("textarea")?.focus();
       return;
     }
-    upload.mutate(files);
+    upload.mutate({ files, alt: newAlt.trim() });
   };
 
   const list = images.data ?? [];

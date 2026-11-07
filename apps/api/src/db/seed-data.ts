@@ -9,6 +9,8 @@ export const DEMO_USERS = [
   { email: "author@raon.test", nickname: "윤슬", role: "AUTHOR", coinBalance: 0 },
   { email: "author2@raon.test", nickname: "한서린", role: "AUTHOR", coinBalance: 0 },
   { email: "author3@raon.test", nickname: "묵향재", role: "AUTHOR", coinBalance: 0 },
+  { email: "author4@raon.test", nickname: "서담", role: "AUTHOR", coinBalance: 0 },
+  { email: "author5@raon.test", nickname: "도하린", role: "AUTHOR", coinBalance: 0 },
 ] as const;
 
 export interface DemoWork {
@@ -369,3 +371,85 @@ export const DEMO_SCHEDULED = {
   body: "통로 끝의 호출은 점점 또렷해졌다. 나는 수신기를 들고 어둠 속으로 한 걸음 더 들어갔다.\n\n그리고 처음으로, 답신 버튼에 손을 올렸다.",
   inDays: 3,
 };
+
+export interface DemoComic extends Omit<DemoWork, "episodes"> {
+  episodes: { title: string; panels: string[] }[];
+}
+
+/** 웹툰 가상 데이터. 이미지는 seed-images.ts가 수식으로 그리고, 글은 그 장면의 대체 텍스트다. */
+export const DEMO_COMICS: DemoComic[] = [
+  {
+    author: "author4@raon.test",
+    title: "밤바다 우체국",
+    genre: "MODERN",
+    status: "ONGOING",
+    synopsis: "부치지 못한 편지만 배달하는 밤의 우체국. 새로 온 집배원이 첫 편지의 수신인을 찾아 능선을 넘는다.",
+    episodePrice: 100,
+    wholePrice: null,
+    viewCount: 52340,
+    freeCount: 1,
+    episodes: [
+      {
+        title: "수신인 불명",
+        panels: [
+          "달이 뜬 밤, 능선 아래로 불 꺼진 마을이 보인다. 내레이션: 이 우체국은 해가 지면 문을 연다.",
+          "낮은 언덕 위 우체국. 새 집배원 ‘해온’이 낡은 가방을 받아 든다. 해온: 이 편지들, 전부 받는 사람이 없는데요?",
+          "달빛 아래 능선을 걷는 해온의 뒷모습. 내레이션: 첫 편지의 주소는 지도에 없는 마을이었다.",
+        ],
+      },
+      {
+        title: "지도에 없는 마을",
+        panels: [
+          "겹겹이 이어진 능선 너머로 달이 기운다. 해온: 분명 이쯤인데.",
+          "안개 낀 언덕에 작은 빛이 하나 보인다. 해온이 숨을 고르며 멈춰 선다.",
+          "빛 쪽으로 난 좁은 길. 내레이션: 편지가 먼저 길을 알고 있는 것 같았다.",
+        ],
+      },
+      {
+        title: "답장",
+        panels: [
+          "언덕 끝의 빈집 앞에서 해온이 편지를 내려놓는다. 해온: 오래 기다리셨습니다.",
+          "달이 구름에서 나오고 능선이 환해진다. 내레이션: 그때 가방 안에서 종이 스치는 소리가 났다.",
+          "가방 속에 없던 봉투가 하나 들어 있다. 봉투에는 해온의 이름이 적혀 있다.",
+        ],
+      },
+    ],
+  },
+  {
+    author: "author5@raon.test",
+    title: "철길 너머 검객",
+    genre: "MARTIAL",
+    status: "COMPLETED",
+    synopsis: "기차가 끊긴 산골 역에 칼을 든 역장이 있다. 마지막 열차를 기다리는 사람들을 지키는 짧은 활극.",
+    episodePrice: 100,
+    wholePrice: 200,
+    viewCount: 31870,
+    freeCount: 1,
+    episodes: [
+      {
+        title: "폐역의 역장",
+        panels: [
+          "달 아래 산맥이 검게 이어진다. 내레이션: 이 산골 역에 기차가 서지 않은 지 십 년이 지났다.",
+          "낡은 승강장에 칼을 찬 역장 ‘무연’이 서 있다. 무연: 표 없는 사람은 못 지나갑니다.",
+          "능선 위로 말을 탄 그림자 셋이 나타난다. 무연이 칼자루에 손을 올린다.",
+        ],
+      },
+      {
+        title: "마지막 열차",
+        panels: [
+          "산 너머에서 희미한 기적 소리가 들린다. 승객들이 고개를 든다.",
+          "무연과 그림자들이 달빛 아래 맞선다. 칼끝이 부딪치는 소리만 크게 적혀 있다.",
+          "승객들이 승강장 끝으로 달려간다. 무연: 뒤돌아보지 말고 타십시오.",
+        ],
+      },
+      {
+        title: "돌아오지 않는 표",
+        panels: [
+          "기차가 능선을 돌아 멀어진다. 무연은 승강장에 혼자 남아 있다.",
+          "달이 산 뒤로 넘어가고 하늘이 밝아 온다. 무연이 칼을 내려놓는다.",
+          "빈 승강장의 표지판만 남은 장면. 내레이션: 그 역에는 지금도 불이 켜진다고 한다.",
+        ],
+      },
+    ],
+  },
+];

@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { countChars, docFromText } from "@raon/contracts";
+import { countChars, docFromText, EMPTY_DOC } from "@raon/contracts";
 import { and, eq, sql } from "drizzle-orm";
 import { hashPassword } from "../auth/password.js";
 import type { Database } from "./database.js";
 import {
   coinLedger,
   comments,
+  episodeImages,
   episodes,
   favorites,
   orderItems,
@@ -16,6 +17,7 @@ import {
   works,
 } from "./schema.js";
 import {
+  DEMO_COMICS,
   DEMO_COMMENTS,
   DEMO_FAVORITES,
   DEMO_PASSWORD,
@@ -27,6 +29,7 @@ import {
   DEMO_USERS,
   DEMO_WORKS,
 } from "./seed-data.js";
+import { drawDemoPanel } from "./seed-images.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -68,6 +71,39 @@ export async function seedDemoData(db: Database, now = new Date()): Promise<void
           };
         }),
       );
+    }
+
+    for (const [workIndex, demo] of DEMO_COMICS.entries()) {
+      const { author, freeCount, episodes: demoEpisodes, ...fields } = demo;
+      const [work] = await tx
+        .insert(works)
+        .values({ ...fields, format: "COMIC", authorId: userId(author) })
+        .returning({ id: works.id });
+      for (const [index, episode] of demoEpisodes.entries()) {
+        const [created] = await tx
+          .insert(episodes)
+          .values({
+            workId: work!.id,
+            number: index + 1,
+            title: episode.title,
+            content: EMPTY_DOC,
+            isFree: index < freeCount,
+            status: "PUBLISHED",
+            publishedAt: new Date(now.getTime() - (workIndex + (demoEpisodes.length - index) * 2) * DAY),
+          })
+          .returning({ id: episodes.id });
+        await tx.insert(episodeImages).values(
+          episode.panels.map((alt, position) => ({
+            episodeId: created!.id,
+            position: position + 1,
+            mimeType: "image/png",
+            data: drawDemoPanel(workIndex * 11 + index * 5 + position + 1),
+            width: 480,
+            height: 640,
+            alt,
+          })),
+        );
+      }
     }
 
     const workId = (title: string) => workIds.get(title)!;

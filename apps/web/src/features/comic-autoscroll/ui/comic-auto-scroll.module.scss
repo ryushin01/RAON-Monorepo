@@ -1,0 +1,26 @@
+.control {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.toggle,
+.speed {
+  min-height: 2.75rem;
+  padding-inline: 0.5rem;
+  border: 1px solid currentcolor;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+}
+
+.toggle {
+  cursor: pointer;
+
+  &[aria-pressed="true"] {
+    background: var(--fg);
+    color: var(--bg);
+    font-weight: 700;
+  }
+}

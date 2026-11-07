@@ -20,6 +20,7 @@ import { DB } from "../db/database.module.js";
 import {
   cartItems,
   comments,
+  episodeImages,
   episodes,
   favorites,
   orderItems,
@@ -236,6 +237,7 @@ export class CatalogService {
       .select({
         episode: episodes,
         workTitle: works.title,
+        format: works.format,
         authorId: works.authorId,
         authorName: users.nickname,
         price: works.episodePrice,
@@ -262,9 +264,27 @@ export class CatalogService {
       .from(episodes)
       .where(and(eq(episodes.workId, workId), visibleEpisode(), inArray(episodes.number, [number - 1, number + 1])));
 
+    // 이미지 주소가 곧 본문이므로 볼 수 있는 사람에게만 내려보낸다.
+    const images =
+      accessible && row.format === "COMIC"
+        ? await this.db
+            .select({
+              id: episodeImages.id,
+              position: episodeImages.position,
+              alt: episodeImages.alt,
+              width: episodeImages.width,
+              height: episodeImages.height,
+            })
+            .from(episodeImages)
+            .where(eq(episodeImages.episodeId, row.episode.id))
+            .orderBy(asc(episodeImages.position))
+        : null;
+
     return {
       id: row.episode.id,
       workId,
+      format: row.format,
+      images,
       workTitle: row.workTitle,
       authorName: row.authorName,
       number,
@@ -404,6 +424,17 @@ export class CatalogService {
         canDelete: Boolean(user && (user.id === row.userId || user.id === target.authorId)),
       })),
     };
+  }
+
+  /** 유료 회차의 이미지는 주소를 알아도 산 사람만 받는다. 요청마다 권한을 확인한다. */
+  async getEpisodeImage(episodeId: string, imageId: string, user: AuthUser | undefined) {
+    await this.readableEpisode(episodeId, user);
+    const [image] = await this.db
+      .select({ mimeType: episodeImages.mimeType, data: episodeImages.data })
+      .from(episodeImages)
+      .where(and(eq(episodeImages.id, imageId), eq(episodeImages.episodeId, episodeId)));
+    if (!image) throw new NotFoundException("이미지를 찾을 수 없습니다.");
+    return image;
   }
 
   /** 본문을 읽을 수 있는 사람만 댓글을 보고 쓴다. 유료 회차의 내용이 댓글로 새지 않게 하기 위해서다. */
