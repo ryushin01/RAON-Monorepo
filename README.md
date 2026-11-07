@@ -62,7 +62,7 @@
 
 ## 기술 스택
 
-![Next.js, React, TypeScript, Sass, NestJS, PostgreSQL, Yarn, Jest, Storybook, GitHub Actions](https://skillicons.dev/icons?i=nextjs,react,ts,sass,nestjs,postgres,yarn,jest,storybook,githubactions)
+![Next.js, React, TypeScript, Sass, NestJS, PostgreSQL, Yarn, Jest, Storybook, GitHub Actions](docs/images/tech-stack.svg)
 
 | 구분             | 사용 기술                                                                                                                     |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
