@@ -23,10 +23,22 @@ it("새 목록을 받으면 그 순서를 따른다", () => {
 
 it("순서 바꾸기가 실패해도 요청하는 사이 받은 새 목록은 지킨다", async () => {
   // jsdom은 배치를 계산하지 않으므로 항목마다 세로로 쌓인 위치를 준다.
-  const rect = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+  const rect = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
     const item = this.closest("li");
     const index = item ? Array.from(item.parentElement?.children ?? []).indexOf(item) : 0;
-    return { x: 0, y: index * 50, top: index * 50, left: 0, bottom: index * 50 + 40, right: 300, width: 300, height: 40, toJSON: () => ({}) };
+    return {
+      x: 0,
+      y: index * 50,
+      top: index * 50,
+      left: 0,
+      bottom: index * 50 + 40,
+      right: 300,
+      width: 300,
+      height: 40,
+      toJSON: () => ({}),
+    };
   });
   let fail: (reason: Error) => void = () => {};
   const onReorder = jest.fn(() => new Promise<void>((_, reject) => (fail = reject)));
@@ -47,6 +59,10 @@ it("순서 바꾸기가 실패해도 요청하는 사이 받은 새 목록은 �
   await act(async () => fail(new Error("순서를 바꾸지 못했습니다.")));
 
   expect(await screen.findByText("순서를 바꾸지 못했습니다.")).toBeInTheDocument();
-  expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual(["⠿첫 회차", "⠿둘째 회차", "⠿새 회차"]);
+  expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+    "⠿첫 회차",
+    "⠿둘째 회차",
+    "⠿새 회차",
+  ]);
   rect.mockRestore();
 });
