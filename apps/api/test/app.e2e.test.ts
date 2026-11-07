@@ -2050,13 +2050,24 @@ describe("RAON API", () => {
         .set(bearer(token))
         .send(note({ properties: Array.from({ length: 31 }, (_, index) => ({ name: `속성${index}`, value: "값" })) }))
         .expect(400);
-      // 예전 요청처럼 속성을 보내지 않아도 저장한다.
+      // 속성을 보내지 않으면 만들 때는 비우고, 고칠 때는 기존 값을 지키며, 빈 배열은 지운다.
       const plain = await http()
         .post(url)
         .set(bearer(token))
         .send(note({ title: "속성 없음" }))
         .expect(201);
       expect(plain.body.properties).toEqual([]);
+      const kept = await http()
+        .post(url)
+        .set(bearer(token))
+        .send(note({ title: "속성 유지", properties: [{ name: "나이", value: "열" }] }))
+        .expect(201);
+      const omitted = await http()
+        .put(`/studio/notes/${kept.body.id}`)
+        .set(bearer(token))
+        .send(note({ title: "제목만 고침" }))
+        .expect(200);
+      expect(omitted.body).toMatchObject({ title: "제목만 고침", properties: [{ name: "나이", value: "열" }] });
     });
 
     it("입력을 검사한다", async () => {
