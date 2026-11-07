@@ -111,6 +111,16 @@ export const noteInputSchema = z.object({
     .array(z.string().trim().min(1).max(30, "다른 이름은 30자 이하로 입력해 주세요."))
     .max(10, "다른 이름은 10개까지 입력할 수 있습니다.")
     .transform((aliases) => [...new Set(aliases)]),
+  /** 나이, 소속처럼 이름과 값으로 정리하는 속성. 빠른 참조에 쓴다. */
+  properties: z
+    .array(
+      z.strictObject({
+        name: z.string().trim().min(1, "속성 이름을 입력해 주세요.").max(20, "속성 이름은 20자 이하로 입력해 주세요."),
+        value: z.string().trim().max(200, "속성 값은 200자 이하로 입력해 주세요."),
+      }),
+    )
+    .max(30, "속성은 30개까지 입력할 수 있습니다.")
+    .default([]),
   body: z.string().max(20_000, "내용은 20,000자 이하로 입력해 주세요."),
   /** 회차별 메모일 때만 값이 있다. */
   episodeId: z.uuid().nullable(),

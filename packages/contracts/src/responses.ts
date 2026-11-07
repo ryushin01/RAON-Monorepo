@@ -261,6 +261,11 @@ export interface EpisodeVersion extends EpisodeVersionSummary {
   authorNote: string | null;
 }
 
+export interface NoteProperty {
+  name: string;
+  value: string;
+}
+
 export interface WorkNote {
   id: string;
   workId: string;
@@ -269,6 +274,7 @@ export interface WorkNote {
   category: string;
   title: string;
   aliases: string[];
+  properties: NoteProperty[];
   body: string;
   updatedAt: string;
 }
