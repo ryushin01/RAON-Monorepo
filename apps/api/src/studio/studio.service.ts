@@ -11,7 +11,7 @@ import {
   type WorkExport,
   type WorkInput,
 } from "@raon/contracts";
-import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { isForeignKeyViolation } from "../common/db-errors.js";
 import { detectImageType } from "../common/image.js";
 import type { Database } from "../db/database.js";
@@ -36,7 +36,7 @@ const toVersionSummary = (row: Omit<VersionRow, "content" | "authorNote" | "epis
 
 const countOf = (status: "PUBLISHED" | "DRAFT") =>
   // 단일 테이블 조회에서 Drizzle은 컬럼을 테이블 없이 출력하므로, 서브쿼리에서는 테이블명을 직접 적는다.
-  sql<number>`(select count(*)::int from "episodes" e where e."work_id" = "works"."id" and e."status" = ${status})`;
+  sql<number>`(select count(*)::int from "episodes" e where e."work_id" = "works"."id" and e."status" = ${status} and e."deleted_at" is null)`;
 
 const workColumns = {
   id: works.id,
@@ -102,19 +102,39 @@ export class StudioService {
       .from(works)
       .where(and(eq(works.id, workId), eq(works.authorId, authorId)));
     if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
-    const list = await this.db.select().from(episodes).where(eq(episodes.workId, workId)).orderBy(asc(episodes.number));
+    // 응답에 쓰지 않는 본문은 읽지 않는다.
+    const list = await this.db
+      .select({
+        id: episodes.id,
+        number: episodes.number,
+        title: episodes.title,
+        status: episodes.status,
+        isFree: episodes.isFree,
+        charCount: episodes.charCount,
+        updatedAt: episodes.updatedAt,
+        publishedAt: episodes.publishedAt,
+        deletedAt: episodes.deletedAt,
+      })
+      .from(episodes)
+      .where(eq(episodes.workId, workId))
+      .orderBy(asc(episodes.number));
     return {
       ...toWork(row),
-      episodes: list.map(({ id, number, title, status, isFree, charCount, updatedAt, publishedAt }) => ({
-        id,
-        number,
-        title,
-        status,
-        isFree,
-        charCount,
-        updatedAt: updatedAt.toISOString(),
-        publishedAt: publishedAt?.toISOString() ?? null,
-      })),
+      episodes: list
+        .filter((episode) => !episode.deletedAt)
+        .map(({ id, number, title, status, isFree, charCount, updatedAt, publishedAt }) => ({
+          id,
+          number,
+          title,
+          status,
+          isFree,
+          charCount,
+          updatedAt: updatedAt.toISOString(),
+          publishedAt: publishedAt?.toISOString() ?? null,
+        })),
+      trash: list.flatMap(({ id, number, title, charCount, deletedAt }) =>
+        deletedAt ? [{ id, number, title, charCount, deletedAt: deletedAt.toISOString() }] : [],
+      ),
     };
   }
 
@@ -133,7 +153,7 @@ export class StudioService {
         authorNote: episodes.authorNote,
       })
       .from(episodes)
-      .where(eq(episodes.workId, workId))
+      .where(and(eq(episodes.workId, workId), isNull(episodes.deletedAt)))
       .orderBy(asc(episodes.number));
     return { title: work.title, episodes: rows };
   }
@@ -369,8 +389,10 @@ export class StudioService {
       const [row] = await tx
         .update(episodes)
         .set({ status: "PUBLISHED", publishedAt, updatedAt: now })
-        .where(eq(episodes.id, episodeId))
+        // 확인한 뒤에 휴지통으로 옮겼다면 공개하지 않는다.
+        .where(and(eq(episodes.id, episodeId), isNull(episodes.deletedAt)))
         .returning();
+      if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
       // 첫 회차를 공개하면 작품도 목록에 나온다.
       await tx
         .update(works)
@@ -392,7 +414,7 @@ export class StudioService {
       const [current] = await tx
         .select({ id: episodes.id, number: episodes.number })
         .from(episodes)
-        .where(eq(episodes.id, episodeId));
+        .where(and(eq(episodes.id, episodeId), isNull(episodes.deletedAt)));
       if (!current) throw new NotFoundException("회차를 찾을 수 없습니다.");
       const [neighbor] = await tx
         .select({ id: episodes.id, number: episodes.number })
@@ -400,6 +422,7 @@ export class StudioService {
         .where(
           and(
             eq(episodes.workId, workId),
+            isNull(episodes.deletedAt),
             direction === "up" ? lt(episodes.number, current.number) : gt(episodes.number, current.number),
           ),
         )
@@ -450,15 +473,56 @@ export class StudioService {
     return toEpisode(row!);
   }
 
-  /** 쓰다 만 초안을 지운다. 공개한 적 없는 내용이므로 번호에 빈자리가 생겨도 독자에게 영향이 없다. */
-  async deleteEpisode(authorId: string, episodeId: string): Promise<void> {
+  /** 초안을 휴지통으로 옮긴다. 공개한 적 없는 내용이므로 번호에 빈자리가 생겨도 독자에게 영향이 없다. */
+  async trashEpisode(authorId: string, episodeId: string): Promise<void> {
     const current = await this.ownedEpisode(authorId, episodeId);
     if (current.status === "PUBLISHED")
       throw new ConflictException("공개 중인 회차는 비공개로 바꾼 뒤 지울 수 있습니다.");
-    if (current.publishedAt && (await this.isSold(current.workId, episodeId))) {
+    await this.assertNotSold(current);
+    const [row] = await this.db
+      .update(episodes)
+      .set({ deletedAt: new Date() })
+      // 확인한 뒤에 공개했다면 옮기지 않는다.
+      .where(and(eq(episodes.id, episodeId), eq(episodes.status, "DRAFT")))
+      .returning({ id: episodes.id });
+    if (!row) throw new ConflictException("공개 중인 회차는 비공개로 바꾼 뒤 지울 수 있습니다.");
+  }
+
+  /** 원래 번호로 돌아온다. 번호는 휴지통에 있는 동안에도 다른 회차가 가져가지 않는다. */
+  async restoreEpisode(authorId: string, episodeId: string): Promise<StudioEpisode> {
+    await this.trashedEpisode(authorId, episodeId);
+    const [row] = await this.db
+      .update(episodes)
+      .set({ deletedAt: null, updatedAt: new Date() })
+      // 확인한 뒤에 다른 요청이 복원했거나 완전히 지웠을 수 있다.
+      .where(and(eq(episodes.id, episodeId), isNotNull(episodes.deletedAt)))
+      .returning();
+    if (!row) throw new NotFoundException("휴지통에서 회차를 찾을 수 없습니다.");
+    return toEpisode(row);
+  }
+
+  /** 휴지통에 있는 회차만 완전히 지운다. 버전과 회차 메모도 함께 사라진다. */
+  async purgeEpisode(authorId: string, episodeId: string): Promise<void> {
+    const current = await this.trashedEpisode(authorId, episodeId);
+    await this.assertNotSold(current);
+    try {
+      const [row] = await this.db
+        .delete(episodes)
+        // 확인한 뒤에 복원했다면 지우지 않는다.
+        .where(and(eq(episodes.id, episodeId), isNotNull(episodes.deletedAt)))
+        .returning({ id: episodes.id });
+      if (!row) throw new NotFoundException("휴지통에서 회차를 찾을 수 없습니다.");
+    } catch (error) {
+      // 확인과 삭제 사이에 결제가 끝나면 주문의 외래 키가 막는다.
+      if (isForeignKeyViolation(error)) throw new ConflictException("이미 판매한 회차는 지울 수 없습니다.");
+      throw error;
+    }
+  }
+
+  private async assertNotSold(episode: typeof episodes.$inferSelect) {
+    if (episode.publishedAt && (await this.isSold(episode.workId, episode.id))) {
       throw new ConflictException("이미 판매한 회차는 지울 수 없습니다.");
     }
-    await this.db.delete(episodes).where(eq(episodes.id, episodeId));
   }
 
   /** 판매 기록은 구매자의 권리이므로 판매한 작품은 지우지 않는다. */
@@ -506,8 +570,18 @@ export class StudioService {
       .select({ episode: episodes })
       .from(episodes)
       .innerJoin(works, eq(episodes.workId, works.id))
-      .where(and(eq(episodes.id, episodeId), eq(works.authorId, authorId)));
+      .where(and(eq(episodes.id, episodeId), eq(works.authorId, authorId), isNull(episodes.deletedAt)));
     if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
+    return row.episode;
+  }
+
+  private async trashedEpisode(authorId: string, episodeId: string) {
+    const [row] = await this.db
+      .select({ episode: episodes })
+      .from(episodes)
+      .innerJoin(works, eq(episodes.workId, works.id))
+      .where(and(eq(episodes.id, episodeId), eq(works.authorId, authorId), isNotNull(episodes.deletedAt)));
+    if (!row) throw new NotFoundException("휴지통에서 회차를 찾을 수 없습니다.");
     return row.episode;
   }
 }

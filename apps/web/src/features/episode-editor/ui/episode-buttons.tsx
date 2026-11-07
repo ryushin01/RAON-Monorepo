@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useLayoutEffect, useRef } from "react";
 import { Button, Notice } from "@/shared/ui";
-import { createDraft, deleteDraft, moveEpisode } from "../api/actions";
+import { createDraft, moveEpisode, purgeEpisode, restoreFromTrash, trashDraft } from "../api/actions";
 
 /** 빈 초안을 만들고 그 회차의 편집 화면으로 간다. */
 export function NewEpisodeButton({ workId }: { workId: string }) {
@@ -32,16 +32,31 @@ export function NewEpisodeButton({ workId }: { workId: string }) {
   );
 }
 
-export function DeleteDraftButton({ workId, episodeId, label }: { workId: string; episodeId: string; label: string }) {
+type EpisodeAction = (workId: string, episodeId: string) => Promise<{ ok: true } | { ok: false; message: string }>;
+
+interface EpisodeButtonProps {
+  workId: string;
+  episodeId: string;
+  label: string;
+}
+
+interface ListActionProps extends EpisodeButtonProps {
+  action: EpisodeAction;
+  text: string;
+  confirmMessage?: string;
+}
+
+/** 누르면 회차가 그 목록에서 사라지는 버튼. 처리 중에는 초점을 잃지 않게 aria-disabled로 막는다(KWCAG 6.1.2). */
+function ListActionButton({ action, workId, episodeId, label, text, confirmMessage }: ListActionProps) {
   const router = useRouter();
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const remove = useMutation({
+  const mutation = useMutation({
     mutationFn: async (id: string) => {
-      const result = await deleteDraft(workId, id);
+      const result = await action(workId, id);
       if (!result.ok) throw new Error(result.message);
     },
     onSuccess: () => {
-      // 누른 버튼이 사라지므로 초점을 회차 영역의 제목으로 옮긴다.
+      // 누른 버튼이 사라지므로 초점을 그 영역의 제목으로 옮긴다.
       buttonRef.current?.closest("section")?.querySelector<HTMLElement>("h2")?.focus();
       router.refresh();
     },
@@ -52,16 +67,37 @@ export function DeleteDraftButton({ workId, episodeId, label }: { workId: string
         ref={buttonRef}
         variant="secondary"
         small
-        disabled={remove.isPending}
-        aria-label={`삭제: ${label}`}
+        aria-disabled={mutation.isPending}
+        aria-label={`${text}: ${label}`}
         onClick={() => {
-          if (window.confirm(`${label} 초안을 지울까요? 되돌릴 수 없습니다.`)) remove.mutate(episodeId);
+          if (mutation.isPending) return;
+          if (!confirmMessage || window.confirm(confirmMessage)) mutation.mutate(episodeId);
         }}
       >
-        삭제
+        {text}
       </Button>
-      {remove.error && <Notice tone="error">{remove.error.message}</Notice>}
+      {mutation.error && <Notice tone="error">{mutation.error.message}</Notice>}
     </>
+  );
+}
+
+/** 휴지통에서 되살릴 수 있으므로 묻지 않고 옮긴다. */
+export function TrashDraftButton(props: EpisodeButtonProps) {
+  return <ListActionButton {...props} action={trashDraft} text="휴지통으로" />;
+}
+
+export function RestoreTrashedButton(props: EpisodeButtonProps) {
+  return <ListActionButton {...props} action={restoreFromTrash} text="복원" />;
+}
+
+export function PurgeTrashedButton(props: EpisodeButtonProps) {
+  return (
+    <ListActionButton
+      {...props}
+      action={purgeEpisode}
+      text="완전히 지우기"
+      confirmMessage={`${props.label}을 완전히 지울까요? 버전 기록과 회차 메모도 함께 사라지고 되돌릴 수 없습니다.`}
+    />
   );
 }
 
