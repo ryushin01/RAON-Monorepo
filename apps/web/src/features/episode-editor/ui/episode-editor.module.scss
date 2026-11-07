@@ -180,6 +180,10 @@
   background: var(--surface);
 }
 
+.stage {
+  max-width: 22rem;
+}
+
 .schedule {
   display: grid;
   gap: 0.5rem;

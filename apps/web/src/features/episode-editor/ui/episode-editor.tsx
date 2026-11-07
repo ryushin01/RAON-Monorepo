@@ -6,14 +6,17 @@ import {
   type EpisodeDoc,
   type EpisodeInput,
   type StudioEpisode,
+  WRITING_STAGE_LABEL,
+  WRITING_STAGES,
+  type WritingStage,
 } from "@raon/contracts";
 import { useMutation } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { formatDateTime } from "@/shared/lib";
-import { Button, ButtonLink, Notice, TextAreaField, TextField } from "@/shared/ui";
-import { fetchEpisode, saveEpisode, setEpisodePublished } from "../api/actions";
+import { Button, ButtonLink, Notice, SelectField, TextAreaField, TextField } from "@/shared/ui";
+import { fetchEpisode, saveEpisode, setEpisodePublished, setWritingStage } from "../api/actions";
 import { UNTITLED } from "../model/constants";
 import { clearBackup, type DraftBackup, loggedOutSince, readBackup, writeBackup } from "../model/draft-backup";
 import { DEFAULT_EDITOR_PREFS, readEditorPrefs, subscribeEditorPrefs, toggleEditorPref } from "../model/editor-prefs";
@@ -152,6 +155,8 @@ function EpisodeEditorBody({
   const [title, setTitle] = useState(initial.title === UNTITLED ? "" : initial.title);
   const [authorNote, setAuthorNote] = useState(initial.authorNote ?? "");
   const [isFree, setIsFree] = useState(initial.isFree);
+  // 원고 저장의 응답과 엇갈려 옛 값으로 돌아가지 않게 episode와 따로 둔다.
+  const [writingStageValue, setWritingStageValue] = useState(initial.writingStage);
   const [revision, setRevision] = useState(0);
   const [savedRevision, setSavedRevision] = useState(0);
   const [failedRevision, setFailedRevision] = useState<number | null>(null);
@@ -286,6 +291,20 @@ function EpisodeEditorBody({
             : "공개했습니다.",
       );
       router.refresh();
+    },
+  });
+
+  // 원고 저장과 따로 바로 저장한다. 빠르게 바꿔도 순서대로 보내 마지막 값이 남게 한다.
+  const stage = useMutation({
+    scope: { id: `episode-stage:${initial.id}` },
+    mutationFn: async (next: WritingStage) => {
+      const result = await setWritingStage(initial.id, next);
+      if (!result.ok) throw new Error(result.message);
+      return result.data;
+    },
+    onSuccess: (saved) => {
+      setWritingStageValue(saved.writingStage);
+      setAnnouncement(`집필 단계를 ${WRITING_STAGE_LABEL[saved.writingStage]}로 바꿨습니다.`);
     },
   });
 
@@ -646,6 +665,24 @@ function EpisodeEditorBody({
           </Tool>
           {tools}
         </WritingTools>
+      )}
+
+      {isDraft && !prefs.focus && (
+        <div className={styles.stage}>
+          <SelectField
+            label="집필 단계"
+            hint="작가만 보는 표시입니다. 공개 여부와는 관계가 없습니다."
+            error={stage.error?.message}
+            value={stage.isPending ? stage.variables : writingStageValue}
+            onChange={(event) => stage.mutate(event.target.value as WritingStage)}
+          >
+            {WRITING_STAGES.map((value) => (
+              <option key={value} value={value}>
+                {WRITING_STAGE_LABEL[value]}
+              </option>
+            ))}
+          </SelectField>
+        </div>
       )}
 
       {isDraft && !prefs.focus && (
