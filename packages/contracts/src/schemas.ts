@@ -3,6 +3,7 @@ import { episodeDocSchema } from "./document.js";
 import {
   COIN_PACKAGES,
   genreSchema,
+  MAX_NOTE_PROPERTIES,
   MAX_TAGS,
   roleSchema,
   workFormatSchema,
@@ -111,7 +112,7 @@ export const noteInputSchema = z.object({
     .array(z.string().trim().min(1).max(30, "다른 이름은 30자 이하로 입력해 주세요."))
     .max(10, "다른 이름은 10개까지 입력할 수 있습니다.")
     .transform((aliases) => [...new Set(aliases)]),
-  /** 나이, 소속처럼 이름과 값으로 정리하는 속성. 빠른 참조에 쓴다. */
+  /** 나이, 소속처럼 이름과 값으로 정리하는 속성. 보내지 않으면 고칠 때 기존 값을 그대로 둔다. */
   properties: z
     .array(
       z.strictObject({
@@ -119,8 +120,8 @@ export const noteInputSchema = z.object({
         value: z.string().trim().max(200, "속성 값은 200자 이하로 입력해 주세요."),
       }),
     )
-    .max(30, "속성은 30개까지 입력할 수 있습니다.")
-    .default([]),
+    .max(MAX_NOTE_PROPERTIES, `속성은 ${MAX_NOTE_PROPERTIES}개까지 입력할 수 있습니다.`)
+    .optional(),
   body: z.string().max(20_000, "내용은 20,000자 이하로 입력해 주세요."),
   /** 회차별 메모일 때만 값이 있다. */
   episodeId: z.uuid().nullable(),
