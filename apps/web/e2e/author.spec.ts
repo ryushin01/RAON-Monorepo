@@ -913,6 +913,32 @@ test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ 
   await expect(editorOf(page)).toContainText("끊긴 동안 쓴 글");
 });
 
+test("복선을 에디터에서 심고 회수하며, 설정집 화면에서 진행을 본다", async ({ page }) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `복선 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+
+  await page.getByText("복선", { exact: true }).click();
+  await page.getByRole("textbox", { name: "새 복선 이름" }).fill("깨진 나침반");
+  await page.getByRole("button", { name: "이 회차에 심기" }).click();
+  await expect(page.getByText("‘깨진 나침반’ 복선을 이 회차에 심었습니다.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "회수하지 않은 복선 1개" })).toBeVisible();
+
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await page.getByRole("link", { name: "설정집과 메모" }).click();
+  await expect(page.getByRole("heading", { name: "회수하지 않은 복선 1개" })).toBeVisible();
+  await expect(page.getByText("1화에 심었습니다. 아직 회수하지 않았습니다.")).toBeVisible();
+
+  await page.getByRole("button", { name: "고치기: 깨진 나침반" }).click();
+  await expect(page.getByRole("textbox", { name: /복선 이름/ })).toBeFocused();
+  await page.getByLabel("회수한 회차").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "복선 저장" }).click();
+  await expect(page.getByRole("heading", { name: "회수한 복선 1개" })).toBeVisible();
+  await expect(page.getByText("1화에 심고 1화에서 회수했습니다.")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "복선" })).toBeFocused();
+});
+
 test("초안의 집필 단계를 고르면 작품 관리에 보이고, 다시 열어도 유지되며, 원고 저장과 섞이지 않는다", async ({
   page,
 }) => {

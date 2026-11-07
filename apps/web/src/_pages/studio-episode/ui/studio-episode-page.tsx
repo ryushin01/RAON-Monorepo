@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioEpisode, getStudioWork } from "@/entities/studio/index.server";
 import { EpisodeEditor, Tool } from "@/features/episode-editor";
+import { ForeshadowReference } from "@/features/foreshadow-tracker";
 import { EpisodeMemo, NoteReference } from "@/features/work-notes";
 import { Main } from "@/shared/ui";
 import styles from "./studio-episode.module.scss";
@@ -28,6 +29,13 @@ async function EditorContent({ params }: { params: Params }) {
           <>
             <Tool title="설정집 참조">
               <NoteReference workId={workId} />
+            </Tool>
+            <Tool title="복선">
+              <ForeshadowReference
+                workId={workId}
+                episodeId={episode.id}
+                episodes={[...work.episodes, ...work.trash.map((item) => ({ ...item, trashed: true }))]}
+              />
             </Tool>
             <Tool title="회차 메모">
               <EpisodeMemo workId={workId} episodeId={episode.id} />
