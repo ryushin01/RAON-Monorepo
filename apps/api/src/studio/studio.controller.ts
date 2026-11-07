@@ -17,8 +17,10 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import {
   COVER_MAX_BYTES,
   type EpisodeInput,
+  type EpisodeMetaInput,
   type EpisodeVersionInput,
   episodeInputSchema,
+  episodeMetaInputSchema,
   episodeVersionInputSchema,
   type MoveEpisodeInput,
   moveEpisodeSchema,
@@ -105,6 +107,15 @@ export class StudioController {
     @Body(new ZodPipe(episodeInputSchema)) body: EpisodeInput,
   ) {
     return this.studio.saveEpisode(user.id, episodeId, body);
+  }
+
+  @Put("episodes/:episodeId/meta")
+  episodeMeta(
+    @CurrentUser() user: AuthUser,
+    @Param("episodeId", ParseUUIDPipe) episodeId: string,
+    @Body(new ZodPipe(episodeMetaInputSchema)) body: EpisodeMetaInput,
+  ) {
+    return this.studio.setEpisodeMeta(user.id, episodeId, body);
   }
 
   @Put("episodes/:episodeId/stage")

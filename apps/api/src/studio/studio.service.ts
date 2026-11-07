@@ -4,6 +4,7 @@ import {
   countChars,
   EMPTY_DOC,
   type EpisodeInput,
+  type EpisodeMetaInput,
   type EpisodeVersion,
   type EpisodeVersionSummary,
   type StudioEpisode,
@@ -80,6 +81,8 @@ const toEpisode = (row: typeof episodes.$inferSelect): StudioEpisode => ({
   title: row.title,
   status: row.status,
   writingStage: row.writingStage,
+  episodeType: row.episodeType,
+  pointOfView: row.pointOfView,
   isFree: row.isFree,
   charCount: row.charCount,
   content: row.content,
@@ -130,6 +133,8 @@ export class StudioService {
         title: episodes.title,
         status: episodes.status,
         writingStage: episodes.writingStage,
+        episodeType: episodes.episodeType,
+        pointOfView: episodes.pointOfView,
         isFree: episodes.isFree,
         charCount: episodes.charCount,
         updatedAt: episodes.updatedAt,
@@ -144,17 +149,10 @@ export class StudioService {
       ...toWork(row),
       episodes: list
         .filter((episode) => !episode.deletedAt)
-        .map(({ id, number, title, status, writingStage, isFree, charCount, updatedAt, publishedAt, imageCount }) => ({
-          id,
-          number,
-          title,
-          status,
-          writingStage,
-          isFree,
-          charCount,
+        .map(({ deletedAt: _deletedAt, updatedAt, publishedAt, ...episode }) => ({
+          ...episode,
           updatedAt: updatedAt.toISOString(),
           publishedAt: publishedAt?.toISOString() ?? null,
-          imageCount,
         })),
       trash: list.flatMap(({ id, number, title, charCount, deletedAt }) =>
         deletedAt ? [{ id, number, title, charCount, deletedAt: deletedAt.toISOString() }] : [],
@@ -263,6 +261,18 @@ export class StudioService {
     const [row] = await this.db
       .update(episodes)
       .set({ writingStage: stage })
+      .where(and(eq(episodes.id, episodeId), isNull(episodes.deletedAt)))
+      .returning();
+    if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
+    return toEpisode(row);
+  }
+
+  /** 집필 단계처럼 원고가 아니므로 버전을 남기지 않고 수정 시각도 그대로 둔다. */
+  async setEpisodeMeta(authorId: string, episodeId: string, input: EpisodeMetaInput): Promise<StudioEpisode> {
+    await this.ownedEpisode(authorId, episodeId);
+    const [row] = await this.db
+      .update(episodes)
+      .set(input)
       .where(and(eq(episodes.id, episodeId), isNull(episodes.deletedAt)))
       .returning();
     if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
