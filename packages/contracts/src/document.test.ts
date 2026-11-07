@@ -127,4 +127,9 @@ describe("countCharsWithoutSymbols", () => {
     expect(countCharsWithoutSymbols(docFromText("“안녕, 이안!” 3번… ★"))).toBe(6);
     expect(countCharsWithoutSymbols(docFromText("A+B=2"))).toBe(3);
   });
+
+  it("이모지를 이루는 연결 문자와 변형 선택자도 뺀다", () => {
+    expect(countCharsWithoutSymbols(docFromText("가❤️나"))).toBe(2);
+    expect(countCharsWithoutSymbols(docFromText("가👩‍💻나"))).toBe(2);
+  });
 });
