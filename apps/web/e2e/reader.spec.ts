@@ -269,3 +269,45 @@ test("모드를 바꾸면 그 형식의 첫 화면과 메뉴로 가고, 첫 화�
   );
   await expect(nav.getByRole("link", { name: "웹소설" })).toHaveAttribute("aria-current", "true");
 });
+
+test("웹툰을 세로로 이어 보고, 유료 회차는 이미지 없이 잠기며, 자동 스크롤을 켜고 끈다", async ({ page }) => {
+  await page.goto("/webtoon");
+  await expect(page.getByRole("link", { name: /밤바다 우체국/ }).first()).toBeVisible();
+  await page.goto("/works?format=COMIC&q=밤바다");
+  await page.getByRole("link", { name: "밤바다 우체국" }).click();
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await page.waitForURL(/episodes\/1$/);
+
+  const panels = page.getByRole("article").getByRole("img");
+  await expect(panels).toHaveCount(3);
+  await expect(panels.first()).toHaveAttribute("alt", /달이 뜬 밤/);
+  await expect
+    .poll(() => panels.first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth))
+    .toBeGreaterThan(0);
+  // 글자 본문용 보기 설정은 없다.
+  await expect(page.getByRole("button", { name: /보기 설정/ })).toHaveCount(0);
+  // 칸이 이어져 보이도록 사이에 간격이 없다.
+  const gap = await panels.evaluateAll((items) => {
+    const [first, second] = items.map((item) => item.getBoundingClientRect());
+    return (second?.top ?? 0) - (first?.bottom ?? 0);
+  });
+  expect(Math.abs(gap)).toBeLessThan(1);
+
+  const nav = page.getByRole("navigation", { name: "회차 이동" });
+  await expect(nav.getByText("첫 회차")).toBeVisible();
+  await expect(nav.getByRole("link", { name: /^다음 화: 2화/ })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 500 });
+  const before = await page.evaluate(() => window.scrollY);
+  await nav.getByRole("button", { name: "자동 스크롤" }).click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+  // 직접 스크롤하면 멈춘다.
+  await page.mouse.wheel(0, 10);
+  await expect(nav.getByRole("button", { name: "자동 스크롤" })).toHaveAttribute("aria-pressed", "false");
+
+  await nav.getByRole("link", { name: /^다음 화: 2화/ }).click();
+  await page.waitForURL(/episodes\/2$/);
+  await expect(page.getByText(/유료 회차입니다/)).toBeVisible();
+  await expect(page.getByRole("article").getByRole("img")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "자동 스크롤" })).toHaveCount(0);
+});

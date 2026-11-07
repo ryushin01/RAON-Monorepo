@@ -1,0 +1,17 @@
+.comic {
+  display: flex;
+  flex-direction: column;
+
+  /* 좁은 화면에서 좌우 여백 없이 꽉 채운다. */
+  margin-inline: calc(var(--gutter) * -1);
+
+  @media (width >= 44rem) {
+    margin-inline: 0;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+}

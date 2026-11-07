@@ -125,7 +125,8 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
                   {episode.number}화. {episode.title}
                 </strong>
                 <span className={styles.meta}>
-                  {formatDate(episode.publishedAt)} · {formatNumber(episode.charCount)}자
+                  {formatDate(episode.publishedAt)}
+                  {work.format === "NOVEL" && ` · ${formatNumber(episode.charCount)}자`}
                 </span>
               </Link>
               <span className={styles.price}>

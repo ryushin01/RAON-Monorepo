@@ -20,6 +20,16 @@ test("README 스크린샷", async ({ page }) => {
   await page.waitForLoadState("networkidle");
   await shot(page, "works");
 
+  await page.goto("/webtoon");
+  await page.waitForLoadState("networkidle");
+  await shot(page, "webtoon-home");
+  await page.goto("/works?format=COMIC&q=밤바다");
+  await page.getByRole("link", { name: "밤바다 우체국" }).click();
+  await page.getByRole("link", { name: /^1화/ }).click();
+  await page.waitForURL(/episodes\/1$/);
+  await page.waitForLoadState("networkidle");
+  await shot(page, "webtoon-viewer");
+
   await login(page, READER, "일반 회원");
   await page.goto("/works?q=등대지기");
   await page.getByRole("link", { name: "등대지기의 마지막 항로" }).click();

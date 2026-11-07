@@ -199,3 +199,35 @@
   grid-column: 1 / -1;
   text-align: center;
 }
+
+/* 아래에 붙는 막대가 초점을 받은 요소를 가리지 않게 한다(KWCAG 6.1.2). */
+:global(html):has(.comicBar) {
+  scroll-padding-bottom: 5rem;
+}
+
+.comicBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.25rem var(--gutter);
+  border-top: 1px solid currentcolor;
+  background: var(--viewer-bg);
+  font-size: 0.875rem;
+
+  a,
+  span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-inline: 0.5rem;
+  }
+
+  span {
+    color: var(--viewer-muted);
+  }
+}
