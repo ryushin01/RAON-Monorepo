@@ -10,6 +10,7 @@ import {
   type StudioWorkDetail,
   type WorkExport,
   type WorkInput,
+  type WritingStage,
 } from "@raon/contracts";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { isForeignKeyViolation } from "../common/db-errors.js";
@@ -75,6 +76,7 @@ const toEpisode = (row: typeof episodes.$inferSelect): StudioEpisode => ({
   number: row.number,
   title: row.title,
   status: row.status,
+  writingStage: row.writingStage,
   isFree: row.isFree,
   charCount: row.charCount,
   content: row.content,
@@ -109,6 +111,7 @@ export class StudioService {
         number: episodes.number,
         title: episodes.title,
         status: episodes.status,
+        writingStage: episodes.writingStage,
         isFree: episodes.isFree,
         charCount: episodes.charCount,
         updatedAt: episodes.updatedAt,
@@ -122,11 +125,12 @@ export class StudioService {
       ...toWork(row),
       episodes: list
         .filter((episode) => !episode.deletedAt)
-        .map(({ id, number, title, status, isFree, charCount, updatedAt, publishedAt }) => ({
+        .map(({ id, number, title, status, writingStage, isFree, charCount, updatedAt, publishedAt }) => ({
           id,
           number,
           title,
           status,
+          writingStage,
           isFree,
           charCount,
           updatedAt: updatedAt.toISOString(),
@@ -225,6 +229,18 @@ export class StudioService {
         .returning();
       return toEpisode(row!);
     });
+  }
+
+  /** 원고가 바뀌는 것이 아니므로 버전을 남기지 않고 수정 시각도 그대로 둔다. */
+  async setWritingStage(authorId: string, episodeId: string, stage: WritingStage): Promise<StudioEpisode> {
+    await this.ownedEpisode(authorId, episodeId);
+    const [row] = await this.db
+      .update(episodes)
+      .set({ writingStage: stage })
+      .where(and(eq(episodes.id, episodeId), isNull(episodes.deletedAt)))
+      .returning();
+    if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
+    return toEpisode(row);
   }
 
   /** 덮어쓰기 전의 원고를 남긴다. 빈 원고나 바뀌지 않은 저장은 남기지 않는다. */
@@ -430,9 +446,18 @@ export class StudioService {
         .limit(1);
       if (!neighbor) throw new BadRequestException("더 옮길 수 없습니다.");
       // (작품, 번호) 유일 제약이 있어 임시 번호를 거쳐 맞바꾼다.
-      await tx.update(episodes).set({ number: -1 }).where(eq(episodes.id, current.id));
-      await tx.update(episodes).set({ number: current.number }).where(eq(episodes.id, neighbor.id));
-      await tx.update(episodes).set({ number: neighbor.number }).where(eq(episodes.id, current.id));
+      // 고르는 사이에 휴지통으로 옮겼다면 되돌린다. 복원했을 때 원래 번호로 돌아와야 하기 때문이다.
+      const renumber = async (id: string, number: number) => {
+        const [row] = await tx
+          .update(episodes)
+          .set({ number })
+          .where(and(eq(episodes.id, id), isNull(episodes.deletedAt)))
+          .returning({ id: episodes.id });
+        if (!row) throw new ConflictException("회차가 바뀌었습니다. 다시 시도해 주세요.");
+      };
+      await renumber(current.id, -1);
+      await renumber(neighbor.id, current.number);
+      await renumber(current.id, neighbor.number);
     });
   }
 

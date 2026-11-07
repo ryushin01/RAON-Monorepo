@@ -913,6 +913,25 @@ test("자동 저장이 실패하면 안내하고 다시 시도한다", async ({ 
   await expect(editorOf(page)).toContainText("끊긴 동안 쓴 글");
 });
 
+test("초안의 집필 단계를 고르면 작품 관리에 보이고, 다시 열어도 유지되며, 원고 저장과 섞이지 않는다", async ({
+  page,
+}) => {
+  await login(page, AUTHOR, "작가");
+  await createWork(page, `단계 ${Date.now()}`);
+  await page.getByRole("button", { name: "새 회차 쓰기" }).click();
+  await page.waitForURL(/\/episodes\/[0-9a-f-]{36}$/);
+
+  const select = page.getByLabel("집필 단계");
+  await expect(select).toHaveValue("DRAFTING");
+  await select.selectOption("REVISING");
+  await expect(page.getByRole("status").filter({ hasText: "집필 단계를 퇴고로 바꿨습니다." })).toBeAttached();
+  await page.reload();
+  await expect(page.getByLabel("집필 단계")).toHaveValue("REVISING");
+
+  await page.getByRole("link", { name: "작품 관리로" }).click();
+  await expect(page.getByText("초안 진행: 퇴고 1개")).toBeVisible();
+});
+
 test("초안을 휴지통으로 옮겼다 되살리고, 완전히 지우며, 판매 전 작품을 지울 수 있다", async ({ page }) => {
   const title = `삭제 ${Date.now()}`;
   await login(page, AUTHOR, "작가");

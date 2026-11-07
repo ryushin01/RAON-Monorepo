@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { episodeDocSchema } from "./document.js";
-import { COIN_PACKAGES, genreSchema, MAX_TAGS, roleSchema, workSortSchema } from "./domain.js";
+import { COIN_PACKAGES, genreSchema, MAX_TAGS, roleSchema, workSortSchema, writingStageSchema } from "./domain.js";
 
 const email = z
   .email("이메일 형식을 확인해 주세요.")
@@ -74,6 +74,9 @@ export const episodeInputSchema = z.object({
   isFree: z.boolean(),
 });
 export type EpisodeInput = z.infer<typeof episodeInputSchema>;
+
+export const writingStageInputSchema = z.object({ stage: writingStageSchema });
+export type WritingStageInput = z.infer<typeof writingStageInputSchema>;
 
 export const episodeVersionInputSchema = z.object({
   label: z.string().trim().max(40, "버전 이름은 40자 이하로 입력해 주세요.").nullable(),

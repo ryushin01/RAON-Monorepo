@@ -6,6 +6,7 @@ import {
   type EpisodeVersion,
   type EpisodeVersionSummary,
   type StudioEpisode,
+  type WritingStage,
 } from "@raon/contracts";
 import { revalidatePath, updateTag } from "next/cache";
 import { getSessionToken } from "@/entities/session/index.server";
@@ -134,6 +135,16 @@ export async function moveEpisode(
     updateTag(WORKS_TAG);
     revalidatePath(`/studio/works/${workId}`);
   }
+  return result;
+}
+
+export async function setWritingStage(episodeId: string, stage: WritingStage): Promise<ActionResult<StudioEpisode>> {
+  const token = await getSessionToken();
+  if (!token) return NEED_LOGIN;
+  const result = await toActionResult(() =>
+    apiFetch<StudioEpisode>(`/studio/episodes/${episodeId}/stage`, { method: "PUT", body: { stage }, token }),
+  );
+  if (result.ok) revalidatePath(`/studio/works/${result.data.workId}`);
   return result;
 }
 

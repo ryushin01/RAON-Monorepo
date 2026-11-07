@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/migrations", "!.yarn", "!**/next-env.d.ts", "!**/*.scss"]
+    "includes": ["**", "!**/migrations", "!.yarn", "!**/next-env.d.ts", "!**/*.scss", "!docs/images"]
   },
   "formatter": {
     "indentStyle": "space",

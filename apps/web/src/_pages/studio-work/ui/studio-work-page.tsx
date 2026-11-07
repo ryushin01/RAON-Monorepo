@@ -1,4 +1,4 @@
-import { WORK_STATUS_LABEL } from "@raon/contracts";
+import { WORK_STATUS_LABEL, WRITING_STAGE_LABEL, WRITING_STAGES } from "@raon/contracts";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -34,6 +34,12 @@ async function StudioWorkContent({ params }: { params: Params }) {
   const work = await getStudioWork(workId, token);
   if (!work) notFound();
 
+  const drafts = work.episodes.filter((episode) => episode.status === "DRAFT");
+  const stageSummary = WRITING_STAGES.flatMap((stage) => {
+    const count = drafts.filter((episode) => episode.writingStage === stage).length;
+    return count ? [`${WRITING_STAGE_LABEL[stage]} ${count}개`] : [];
+  }).join(" · ");
+
   return (
     <>
       <div>
@@ -56,6 +62,7 @@ async function StudioWorkContent({ params }: { params: Params }) {
           <h2 tabIndex={-1}>회차</h2>
           <NewEpisodeButton workId={work.id} />
         </div>
+        {stageSummary && <p className={styles.empty}>초안 진행: {stageSummary}</p>}
         {work.episodes.length === 0 ? (
           <p>아직 쓴 회차가 없습니다.</p>
         ) : (
@@ -72,6 +79,7 @@ async function StudioWorkContent({ params }: { params: Params }) {
                 </div>
                 <div className={styles.badges}>
                   <Badge solid={episode.status === "PUBLISHED"}>{episodeLabel(episode)}</Badge>
+                  {episode.status === "DRAFT" && <Badge>{WRITING_STAGE_LABEL[episode.writingStage]}</Badge>}
                   <Badge>{episode.isFree ? "무료" : "유료"}</Badge>
                   <MoveEpisodeButtons
                     workId={work.id}

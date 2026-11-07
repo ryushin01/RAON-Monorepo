@@ -1,0 +1,2 @@
+CREATE TYPE "public"."writing_stage" AS ENUM('IDEA', 'DRAFTING', 'REVISING', 'FINISHED');--> statement-breakpoint
+ALTER TABLE "episodes" ADD COLUMN "writing_stage" "writing_stage" DEFAULT 'DRAFTING' NOT NULL;

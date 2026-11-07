@@ -20,6 +20,7 @@ const meta = {
       number: 3,
       title: "지워진 출항 기록",
       status: "DRAFT",
+      writingStage: "DRAFTING",
       isFree: false,
       charCount: 12,
       content: docFromText("새벽이 되자 줄은 한 칸 더 늘어나 있었다."),

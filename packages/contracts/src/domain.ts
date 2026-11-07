@@ -30,6 +30,17 @@ export const EPISODE_STATUSES = ["DRAFT", "PUBLISHED"] as const;
 export const episodeStatusSchema = z.enum(EPISODE_STATUSES);
 export type EpisodeStatus = z.infer<typeof episodeStatusSchema>;
 
+/** 초안이 어디까지 왔는지 작가가 표시한다. 공개 상태나 독자 화면과는 관계가 없다. */
+export const WRITING_STAGES = ["IDEA", "DRAFTING", "REVISING", "FINISHED"] as const;
+export const writingStageSchema = z.enum(WRITING_STAGES);
+export type WritingStage = z.infer<typeof writingStageSchema>;
+export const WRITING_STAGE_LABEL: Record<WritingStage, string> = {
+  IDEA: "구상",
+  DRAFTING: "초고",
+  REVISING: "퇴고",
+  FINISHED: "완성",
+};
+
 export const WORK_SORTS = ["popular", "latest", "rating"] as const;
 export const workSortSchema = z.enum(WORK_SORTS);
 export type WorkSort = z.infer<typeof workSortSchema>;
