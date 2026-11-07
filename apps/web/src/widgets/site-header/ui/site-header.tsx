@@ -1,6 +1,6 @@
-import { GENRE_LABEL, GENRES } from "@raon/contracts";
 import Link from "next/link";
 import { Suspense } from "react";
+import { ModeNav } from "@/features/mode-switch";
 import { ThemeSwitch } from "@/features/theme-switch";
 import styles from "./site-header.module.scss";
 import { UserMenu } from "./user-menu";
@@ -29,21 +29,10 @@ export function SiteHeader() {
             </Suspense>
           </div>
         </div>
-        <nav className={styles.nav} aria-label="주요 메뉴">
-          <ul>
-            <li>
-              <Link href="/works">전체 작품</Link>
-            </li>
-            <li>
-              <Link href="/works?status=COMPLETED">완결</Link>
-            </li>
-            {GENRES.map((genre) => (
-              <li key={genre}>
-                <Link href={`/works?genre=${genre}`}>{GENRE_LABEL[genre]}</Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {/* 주소의 쿼리를 읽으므로 그 부분만 요청 때 그린다. 자리를 미리 잡아 화면이 밀리지 않게 한다. */}
+        <Suspense fallback={<div className={styles.navPlaceholder} />}>
+          <ModeNav />
+        </Suspense>
       </div>
     </header>
   );

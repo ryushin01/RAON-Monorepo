@@ -6,6 +6,7 @@ import { WorkBanner } from "./work-banner";
 const work = (id: string, title: string): WorkSummary => ({
   id,
   title,
+  format: "NOVEL",
   authorName: "작가",
   genre: "SF",
   status: "ONGOING",

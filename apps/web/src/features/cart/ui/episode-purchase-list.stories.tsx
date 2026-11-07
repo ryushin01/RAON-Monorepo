@@ -36,6 +36,7 @@ const meta = {
     work: {
       id: "w1",
       title: "작품",
+      format: "NOVEL",
       authorName: "작가",
       genre: "SF",
       status: "COMPLETED",

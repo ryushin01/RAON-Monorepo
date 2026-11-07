@@ -8,7 +8,7 @@ export function HomeHero() {
   return (
     <section className={styles.hero} aria-labelledby={titleId}>
       <div className={styles.copy}>
-        <p className={styles.kicker}>웹소설 연재·감상 플랫폼</p>
+        <p className={styles.kicker}>웹툰·웹소설 연재 플랫폼</p>
         <h1 id={titleId} className={styles.title}>
           오늘 밤 읽을 이야기,
           <br />
