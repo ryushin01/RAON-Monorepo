@@ -25,8 +25,6 @@
 }
 
 .state {
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
   font-size: 0.8125rem;
   color: var(--muted);
 }
@@ -44,7 +42,7 @@
 
 .label {
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .group {
@@ -79,8 +77,6 @@
     border: 1px solid transparent;
     border-radius: var(--radius);
     background: transparent;
-    font-family: var(--font-mono);
-    word-spacing: var(--mono-word-spacing);
     font-size: 0.8125rem;
     cursor: pointer;
 
@@ -91,7 +87,7 @@
     &[aria-pressed="true"] {
       background: var(--fg);
       color: var(--bg);
-      font-weight: 700;
+      font-weight: 500;
     }
 
     &:disabled {
@@ -161,7 +157,7 @@
       &::before {
         content: "작가 주석 · 독자에게 보이지 않습니다";
         font-size: 0.8125rem;
-        font-weight: 600;
+        font-weight: 500;
       }
     }
 

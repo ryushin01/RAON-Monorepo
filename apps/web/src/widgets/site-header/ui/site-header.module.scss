@@ -1,59 +1,84 @@
 .header {
-  padding: 0.5rem;
-
-  @media (width >= 48rem) {
-    padding: 0.75rem var(--gutter);
-  }
+  padding: var(--frame) var(--frame) 0;
 }
 
-/* 종이 위에 놓인 듯 가벼운 머리글. 아래 선 하나로만 본문과 나눈다. */
+/* 어두운 프레임. 노치가 위쪽 가장자리에 붙으므로 위 여백이 없다. */
 .panel {
-  max-width: var(--page-width);
-  margin-inline: auto;
-  padding: 0.25rem 0.25rem 0;
-  border-bottom: 1px solid var(--line);
+  padding: 0 var(--gutter) 0.375rem;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+/* 첫 화면에서는 머리글과 프레임이 하나로 이어진다.
+   지나간 화면은 hidden으로 숨겨져 문서에 남으므로(shared/ui/main) 보이는 main만 살핀다. */
+:global(body:has(main:not([hidden]) [data-hero])) .panel {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  background: var(--hero-top);
 }
 
 .top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.25rem 1rem;
-  padding-block: 0.25rem;
+  display: grid;
+  grid-template-areas:
+    "logo"
+    "utility"
+    "search";
+  justify-items: center;
+  gap: 0.25rem;
+  padding-bottom: 0.25rem;
+
+  @media (width >= 64rem) {
+    grid-template-areas: "search logo utility";
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: start;
+    gap: 1.5rem;
+  }
 }
 
 .logo {
-  display: inline-flex;
-  align-items: baseline;
-  min-height: 2.75rem;
-  padding-top: 0.375rem;
-  font-family: var(--font-display);
-  font-size: 1.625rem;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  --bg: var(--canvas);
+  --fg: var(--canvas-fg);
+  position: relative;
+  display: grid;
+  grid-area: logo;
+  place-items: center;
+  width: 13rem;
+  height: 2.875rem;
+  color: var(--canvas-fg);
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
   text-decoration: none;
 
-  // 마침표 자리의 빨간 점. 장식이다.
-  &::after {
-    content: "";
-    width: 0.3125rem;
-    height: 0.3125rem;
-    margin-left: 0.125rem;
-    border-radius: 50%;
-    background: var(--accent);
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    fill: var(--canvas);
+  }
+
+  span {
+    position: relative;
+    margin-inline-end: -0.16em;
+  }
+
+  @media (width >= 64rem) {
+    width: 15rem;
   }
 }
 
 .search {
   display: flex;
-  flex: 1 1 100%;
-  order: 3;
+  grid-area: search;
+  width: 100%;
+  max-width: 28rem;
   min-width: 0;
 
-  @media (width >= 48rem) {
-    flex: 0 1 22rem;
-    order: 0;
+  @media (width >= 64rem) {
+    justify-self: start;
+    max-width: 22rem;
+    margin-top: 0.5rem;
   }
 
   form {
@@ -69,7 +94,7 @@
     min-width: 0;
     min-height: 2.75rem;
     padding-inline: 1.125rem;
-    border: 1px solid var(--line);
+    border: 1px solid var(--panel-rim);
     border-radius: var(--radius-pill);
     background: var(--raised);
     font-size: 0.9375rem;
@@ -89,7 +114,6 @@
     background: var(--fg);
     color: var(--bg);
     font-size: 0.9375rem;
-    font-weight: 500;
     cursor: pointer;
   }
 }
@@ -97,10 +121,17 @@
 .utility {
   display: flex;
   flex-wrap: wrap;
+  grid-area: utility;
   align-items: center;
+  justify-content: center;
   gap: 0 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.9375rem;
+
+  @media (width >= 64rem) {
+    justify-content: flex-end;
+    justify-self: end;
+    margin-top: 0.5rem;
+  }
 }
 
 .utilityLink {
@@ -118,7 +149,6 @@
 
 .who {
   padding-inline: 0.5rem;
-  font-weight: 500;
 }
 
 .placeholder {
@@ -128,5 +158,4 @@
 
 .navPlaceholder {
   min-height: 3.5rem;
-  border-top: 1px solid var(--line);
 }

@@ -8,11 +8,8 @@ import { UserMenu } from "./user-menu";
 export function SiteHeader() {
   return (
     <header className={styles.header}>
-      <div className={styles.panel}>
+      <div className={`on-panel ${styles.panel}`}>
         <div className={styles.top}>
-          <Link href="/" className={styles.logo} aria-label="RAON 첫 화면">
-            RAON
-          </Link>
           <search className={styles.search}>
             <form action="/works">
               <label htmlFor="site-search" className="visually-hidden">
@@ -22,6 +19,13 @@ export function SiteHeader() {
               <button type="submit">검색</button>
             </form>
           </search>
+          <Link href="/" className={styles.logo} aria-label="RAON 첫 화면">
+            {/* 프레임 위쪽을 페이지 바탕색으로 파낸 듯한 노치. 장식이다. */}
+            <svg viewBox="0 0 240 46" preserveAspectRatio="none" aria-hidden="true" data-notch="">
+              <path d="M0 0H240L222 38Q218.5 46 210 46H30Q21.5 46 18 38Z" />
+            </svg>
+            <span>RAON</span>
+          </Link>
           <div className={styles.utility}>
             <ThemeSwitch />
             <Suspense fallback={<span className={styles.placeholder} />}>

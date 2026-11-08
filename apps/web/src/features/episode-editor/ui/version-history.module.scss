@@ -10,8 +10,6 @@
 
 .note {
   color: var(--muted);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
   font-size: 0.8125rem;
 
   &:empty {
@@ -47,8 +45,6 @@
 
   span {
     color: var(--muted);
-    font-family: var(--font-mono);
-    word-spacing: var(--mono-word-spacing);
     font-size: 0.75rem;
   }
 }

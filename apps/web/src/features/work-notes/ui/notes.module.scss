@@ -36,7 +36,7 @@
 
 .label {
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .input {
@@ -57,13 +57,11 @@
 
 .error {
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .note {
   color: var(--muted);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
 
@@ -115,8 +113,6 @@
 .groupTitle {
   padding-bottom: 0.375rem;
   border-bottom: 1px solid var(--fg);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -130,8 +126,6 @@
 
 .category {
   color: var(--muted);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
   font-size: 0.8125rem;
   font-weight: 400;
 }
@@ -166,7 +160,7 @@
   legend {
     margin-bottom: 0.375rem;
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 500;
   }
 }
 

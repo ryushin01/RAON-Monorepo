@@ -6,9 +6,10 @@
 
 .title {
   font-family: var(--font-sans);
-  font-size: 2.25rem;
-  line-height: 1.2;
-  font-weight: 500;
+  font-size: clamp(2.25rem, 1.5rem + 2.5vw, 3.5rem);
+  font-weight: 300;
+  line-height: 1.13;
+  letter-spacing: -0.036em;
 }
 
 .filters {
@@ -27,8 +28,6 @@
   > span {
     min-width: 3rem;
     color: var(--muted);
-    font-family: var(--font-mono);
-    word-spacing: var(--mono-word-spacing);
     font-size: 0.8125rem;
   }
 
@@ -38,9 +37,7 @@
     min-height: 2.5rem;
     padding-inline: 0.75rem;
     border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    word-spacing: var(--mono-word-spacing);
+    border-radius: var(--radius-pill);
     font-size: 0.875rem;
     text-decoration: none;
 
@@ -51,15 +48,13 @@
     &[aria-current="true"] {
       background: var(--fg);
       color: var(--bg);
-      font-weight: 600;
+      font-weight: 500;
     }
   }
 }
 
 .count {
   color: var(--muted);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
   font-size: 0.875rem;
 }
 

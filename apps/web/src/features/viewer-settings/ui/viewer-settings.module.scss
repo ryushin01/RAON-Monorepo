@@ -18,7 +18,7 @@
 .legend {
   padding: 0;
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .options {
@@ -54,7 +54,7 @@
   input:checked + span {
     background: var(--viewer-fg);
     color: var(--viewer-bg);
-    font-weight: 700;
+    font-weight: 500;
   }
 
   input:checked + span::before {
@@ -79,7 +79,7 @@
     border: 1px solid currentcolor;
     border-radius: var(--radius);
     background: transparent;
-    font-weight: 700;
+    font-weight: 500;
     cursor: pointer;
 
     &:disabled {

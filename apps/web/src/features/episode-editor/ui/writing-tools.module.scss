@@ -21,8 +21,6 @@
   summary {
     min-height: 2.75rem;
     padding-block: 0.625rem;
-    font-family: var(--font-mono);
-    word-spacing: var(--mono-word-spacing);
     font-size: 0.875rem;
     cursor: pointer;
   }
@@ -36,8 +34,6 @@
 
 .note {
   color: var(--muted);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
   font-size: 0.8125rem;
 
   &:empty {
@@ -80,7 +76,6 @@
 }
 
 .timer {
-  font-family: var(--font-mono);
   font-size: 1.75rem;
   font-variant-numeric: tabular-nums;
 }

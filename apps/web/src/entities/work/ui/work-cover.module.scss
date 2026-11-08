@@ -9,53 +9,67 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--cover-bg);
-  color: var(--cover-fg);
+  color: #fff;
   container-type: inline-size;
 }
 
-.dark {
-  --cover-bg: #232323;
-  --cover-fg: #f1eee7;
+/* 노을과 흙, 숲의 색. 모두 흰 글자와 대비 4.5:1 이상이다. */
+.teal {
+  --cover-bg: linear-gradient(160deg, #27505f, #0e2a36);
 }
 
-.light {
-  --cover-bg: #f1eee7;
-  --cover-fg: #232323;
+.clay {
+  --cover-bg: linear-gradient(160deg, #a0492a, #4e1f12);
+}
+
+.ochre {
+  --cover-bg: linear-gradient(160deg, #9a6b1f, #4a3009);
+}
+
+.forest {
+  --cover-bg: linear-gradient(160deg, #2f5d46, #12291f);
+}
+
+.plum {
+  --cover-bg: linear-gradient(160deg, #5b3a6e, #25152f);
+}
+
+.dusk {
+  --cover-bg: linear-gradient(160deg, #35507f, #141f38);
+}
+
+.rose {
+  --cover-bg: linear-gradient(160deg, #9c3f55, #3e1622);
 }
 
 .pattern {
   position: absolute;
   inset: 0;
-  opacity: 0.16;
+  opacity: 0.1;
 }
 
 .lines {
-  background: repeating-linear-gradient(0deg, var(--cover-fg) 0 1px, transparent 1px 10%);
+  background: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 10%);
 }
 
 .diagonal {
-  background: repeating-linear-gradient(135deg, var(--cover-fg) 0 1px, transparent 1px 8%);
+  background: repeating-linear-gradient(135deg, #fff 0 1px, transparent 1px 8%);
 }
 
 .circle {
-  background: radial-gradient(circle at 70% 30%, var(--cover-fg) 0 34%, transparent 34.5%);
+  background: radial-gradient(circle at 70% 30%, #fff 0 34%, transparent 34.5%);
 }
 
 .grid {
   background:
-    linear-gradient(var(--cover-fg) 1px, transparent 1px) 0 0 / 100% 16%,
-    linear-gradient(90deg, var(--cover-fg) 1px, transparent 1px) 0 0 / 16% 100%;
+    linear-gradient(#fff 1px, transparent 1px) 0 0 / 100% 16%,
+    linear-gradient(90deg, #fff 1px, transparent 1px) 0 0 / 16% 100%;
 }
 
-/* 무늬가 글자를 가로지르지 않도록 제목과 작가 뒤를 표지 색으로 덮는다. */
 .title {
   position: relative;
-  margin: -0.75rem -0.75rem 0;
-  padding: 0.75rem;
-  background: var(--cover-bg);
-  font-family: var(--font-sans);
   font-size: clamp(0.8125rem, 11cqi, 1.75rem);
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.25;
   word-break: keep-all;
   overflow-wrap: anywhere;
@@ -63,9 +77,6 @@
 
 .author {
   position: relative;
-  margin: 0 -0.75rem -0.75rem;
-  padding: 0.5rem 0.75rem 0.75rem;
-  background: var(--cover-bg);
   font-size: clamp(0.6875rem, 6.5cqi, 0.9375rem);
 }
 

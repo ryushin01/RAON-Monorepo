@@ -7,8 +7,10 @@
 .title {
   margin-top: 0.25rem;
   font-family: var(--font-sans);
-  font-size: 1.75rem;
-  font-weight: 500;
+  font-size: clamp(2rem, 1.25rem + 2.5vw, 3rem);
+  font-weight: 300;
+  line-height: 1.13;
+  letter-spacing: -0.036em;
 }
 
 .notesLink {
@@ -69,7 +71,7 @@
   }
 
   a {
-    font-weight: 600;
+    font-weight: 500;
   }
 
   small {
