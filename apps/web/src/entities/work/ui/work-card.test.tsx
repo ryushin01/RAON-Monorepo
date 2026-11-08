@@ -44,3 +44,10 @@ it("올린 표지가 있으면 이미지를 쓰고, 보조기술에는 숨긴다
   expect(image?.getAttribute("src")).toContain("/api/covers/w1?v=");
   expect(image).toHaveAttribute("alt", "");
 });
+
+it("표지 위에 얹는 형태도 상세로 가고 제목은 제목 요소로 한 번만 쓴다", () => {
+  render(<WorkCard work={work} overlay />);
+  expect(screen.getByRole("link", { name: new RegExp(work.title) })).toHaveAttribute("href", "/works/w1");
+  expect(screen.getAllByText(work.title)).toHaveLength(1);
+  expect(screen.getByRole("heading", { name: work.title })).toBeInTheDocument();
+});

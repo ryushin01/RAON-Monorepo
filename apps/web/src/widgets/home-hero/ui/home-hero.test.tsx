@@ -19,10 +19,12 @@ it("제목 id를 고정하지 않아 숨겨진 화면과 겹치지 않는다", (
   expect(new Set(ids).size).toBe(2);
 });
 
-it("나선은 장식이라 보조 기술에 노출하지 않는다", () => {
-  render(<HomeHero />);
-  const spiral = screen.getByTestId("type-spiral");
-  expect(spiral).toHaveAttribute("aria-hidden", "true");
-  const href = spiral.querySelector("textPath")?.getAttribute("href");
-  expect(href && spiral.querySelector(`[id="${href.slice(1)}"]`)).toBeTruthy();
+it("머리글이 이어질 수 있게 첫 화면임을 표시하고, 넘긴 내용을 그린다", () => {
+  render(
+    <HomeHero>
+      <p>표지 묶음</p>
+    </HomeHero>,
+  );
+  expect(screen.getByRole("region", { name: /라온에서/ })).toHaveAttribute("data-hero");
+  expect(screen.getByText("표지 묶음")).toBeInTheDocument();
 });

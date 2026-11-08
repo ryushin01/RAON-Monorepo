@@ -21,9 +21,10 @@
 
 .title {
   font-family: var(--font-sans);
-  font-size: clamp(1.5rem, 1rem + 2vw, 2.25rem);
-  font-weight: 500;
-  line-height: 1.25;
+  font-size: clamp(2rem, 1.25rem + 2.5vw, 3rem);
+  font-weight: 300;
+  line-height: 1.13;
+  letter-spacing: -0.036em;
 }
 
 .meta {

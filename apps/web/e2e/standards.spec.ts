@@ -156,7 +156,13 @@ test.describe("KWCAG 운용", () => {
           const style = getComputedStyle(item);
           // 선택된 모드 탭처럼 자기 배경이나 움직이는 바탕 표시가 있으면 그 색과 비교한다.
           const indicator = item.querySelector<HTMLElement>("[data-indicator]");
-          const own = indicator ? getComputedStyle(indicator).backgroundColor : style.backgroundColor;
+          // 로고는 바탕을 그리는 노치 도형 위에 있으므로 그 도형의 색과 비교한다.
+          const notch = item.querySelector<SVGElement>("[data-notch]");
+          const own = notch
+            ? getComputedStyle(notch).fill
+            : indicator
+              ? getComputedStyle(indicator).backgroundColor
+              : style.backgroundColor;
           const transparent = isTransparent(own);
           return {
             text: item.textContent || item.getAttribute("placeholder"),

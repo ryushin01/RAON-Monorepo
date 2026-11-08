@@ -35,3 +35,5 @@ const meta = {
 export default meta;
 
 export const Default: StoryObj<typeof meta> = {};
+
+export const Overlay: StoryObj<typeof meta> = { args: { overlay: true } };

@@ -7,8 +7,6 @@
 .count,
 .remaining,
 .reached {
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
   font-size: 0.8125rem;
 }
 
@@ -48,7 +46,7 @@
 }
 
 .reached {
-  font-weight: 600;
+  font-weight: 500;
 
   &:empty {
     display: none;

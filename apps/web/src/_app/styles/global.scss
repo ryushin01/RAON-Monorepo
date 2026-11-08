@@ -1,57 +1,68 @@
-// 종이 같은 오프화이트와 잉크색. 강조는 빨강 하나뿐이고 장식(점, 원, 화살표 원)에만 쓴다.
+// 밝은 회색 바탕과 잉크색. 어두운 판과 첫 화면 프레임이 화면의 대비를 만든다.
 @mixin light-tokens {
-  --bg: #f4f4f2;
-  --fg: #121214;
-  --muted: #5c5c61;
-  --line: #d8d8d4;
-  --surface: #e8e8e5;
-  --raised: #fbfbfa;
-  --panel-bg: #121214;
-  --panel-fg: #f4f4f2;
-  --panel-muted: #b4b4b8;
-  --panel-line: #34343a;
+  --bg: #f8f8f8;
+  --fg: #0f0a01;
+  --muted: #5a5a5a;
+  --line: #e2e2df;
+  --surface: #eeeeec;
+  --raised: #fff;
+  --panel-bg: #08070c;
+  --panel-fg: #fff;
+  --panel-muted: #bdbcc2;
+  --panel-line: #2b2a31;
   --panel-rim: #4a4a50;
+  --panel-surface: #24232a;
+  --panel-raised: #17161c;
 
-  // 빨간 글자가 필요할 때 쓰는 진한 빨강. 바탕과 대비 4.5:1 이상(KWCAG 5.4.3).
-  --accent-text: #c4161c;
+  // 진한 주황 글자. 바탕과 대비 4.5:1 이상(KWCAG 5.4.3).
+  --accent-text: #a84a05;
+
+  // 판 안에서 --bg를 덮어써도 페이지 바탕을 알 수 있게 따로 둔다(머리글의 노치).
+  --canvas: #f8f8f8;
+  --canvas-fg: #0f0a01;
   color-scheme: light;
 }
 
 @mixin dark-tokens {
-  --bg: #121214;
-  --fg: #f4f4f2;
-  --muted: #a6a6ab;
-  --line: #303035;
-  --surface: #1e1e22;
-  --raised: #19191c;
-  --panel-bg: #1e1e22;
-  --panel-fg: #f4f4f2;
-  --panel-muted: #b4b4b8;
-  --panel-line: #3a3a40;
+  --bg: #08070c;
+  --fg: #f8f8f8;
+  --muted: #a8a7ad;
+  --line: #2b2a31;
+  --surface: #1c1b22;
+  --raised: #131218;
+  --panel-bg: #17161c;
+  --panel-fg: #fff;
+  --panel-muted: #bdbcc2;
+  --panel-line: #33323a;
   --panel-rim: #4a4a50;
-  --accent-text: #ff7a7a;
+  --panel-surface: #2a2931;
+  --panel-raised: #201f26;
+  --accent-text: #ffb454;
+  --canvas: #08070c;
+  --canvas-fg: #f8f8f8;
   color-scheme: dark;
 }
 
 :root {
   @include light-tokens;
   --gutter: 1rem;
-  --page-width: 72rem;
+  --page-width: 80rem;
   --radius: 0.875rem;
   --radius-sm: 0.5rem;
-  --radius-lg: 1.25rem;
+  --radius-lg: 1rem;
   --radius-pill: 999px;
 
+  // 화면 가장자리에서 띄운 프레임(머리글, 첫 화면, 어두운 판)의 여백.
+  --frame: 0.5rem;
+
+  // 첫 화면 하늘의 맨 위 색. 머리글이 같은 색으로 이어진다. 흰 글자와 대비 4.5:1 이상.
+  --hero-top: #27505f;
+
   // 장식 전용 강조색이다. 글자나 상태 표시의 유일한 수단으로 쓰지 않는다(KWCAG 5.4.1, 5.4.3).
-  --accent: #ff3b3b;
+  --accent: #ff8a00;
 
-  // 라틴 글꼴에 한글이 없으므로 한글은 Noto Sans KR로 이어진다.
-  --font-sans: var(--font-space-grotesk), var(--font-noto-sans), -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --font-display: var(--font-bricolage), var(--font-noto-sans), -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-
-  // 고정폭 글꼴의 공백이 한글 사이에서 너무 넓어 줄인다.
-  --mono-word-spacing: -0.3em;
-  --font-mono: var(--font-plex-mono), var(--font-noto-sans), ui-monospace, "Apple SD Gothic Neo", "Malgun Gothic", monospace;
+  // Geist에 한글이 없으므로 한글은 Noto Sans KR로 이어진다.
+  --font-sans: var(--font-geist), var(--font-noto-sans), -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --font-serif: var(--font-noto-serif), "AppleMyungjo", "Batang", serif;
   --viewer-size: 18px;
   --viewer-leading: 1.9;
@@ -106,6 +117,7 @@ body {
   font-family: var(--font-sans);
   font-size: 1rem;
   line-height: 1.6;
+  letter-spacing: -0.006em;
   word-break: keep-all;
   -webkit-font-smoothing: antialiased;
 }
@@ -113,9 +125,14 @@ body {
 h1,
 h2,
 h3 {
-  font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.025em;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+h3 {
+  font-weight: 400;
+  letter-spacing: -0.015em;
 }
 
 ::selection {
@@ -163,7 +180,7 @@ textarea {
   border-radius: var(--radius);
   background: var(--fg);
   color: var(--bg);
-  font-weight: 700;
+  font-weight: 500;
   opacity: 0;
   pointer-events: none;
   transform: translateY(-200%);
@@ -173,6 +190,18 @@ textarea {
     pointer-events: auto;
     transform: none;
   }
+}
+
+/* 테마와 상관없이 어두운 판. 안쪽 요소가 그대로 쓰도록 색 토큰을 덮어쓴다. */
+.on-panel {
+  --bg: var(--panel-bg);
+  --fg: var(--panel-fg);
+  --muted: var(--panel-muted);
+  --line: var(--panel-line);
+  --surface: var(--panel-surface);
+  --raised: var(--panel-raised);
+  color: var(--fg);
+  color-scheme: dark;
 }
 
 .page {

@@ -1,73 +1,26 @@
 .footer {
-  margin-top: 5rem;
-  padding-bottom: var(--gutter);
-}
-
-/* 테마와 상관없이 어두운 판이다. 안쪽 요소가 그대로 쓰도록 색 토큰을 덮어쓴다. */
-.panel {
-  --bg: var(--panel-bg);
-  --fg: var(--panel-fg);
-  --muted: var(--panel-muted);
-  --line: var(--panel-line);
-  --surface: #2a2a30;
-  --raised: #1a1a1e;
-  position: relative;
-  display: grid;
-  gap: 3rem;
+  margin: 5rem var(--frame) var(--frame);
   overflow: hidden;
-  padding: clamp(2rem, 1rem + 4vw, 4rem);
   border-radius: var(--radius-lg);
   background: var(--bg);
-  color: var(--fg);
-  color-scheme: dark;
 }
 
-/* 오른쪽 위로 걸쳐 놓인 빨간 원. 글자와 겹치면 대비가 모자라므로 넓은 화면에서만 그린다. */
-.circle {
-  display: none;
-  position: absolute;
-  top: -40%;
-  right: -8%;
-  width: min(42rem, 52%);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--accent);
-
-  @media (width >= 56rem) {
-    display: block;
-  }
+.inner {
+  display: grid;
+  gap: 3rem;
+  padding-block: clamp(3rem, 2rem + 4vw, 6rem) 2rem;
 }
 
 .invite {
-  position: relative;
   display: grid;
   gap: 1.25rem;
   justify-items: start;
-  max-width: 34rem;
-}
-
-.label {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
-  font-size: 0.8125rem;
-
-  &::before {
-    content: "";
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--accent);
-  }
 }
 
 .title {
-  font-size: clamp(2rem, 1rem + 3.5vw, 4rem);
-  line-height: 1.05;
-  letter-spacing: -0.04em;
+  font-size: clamp(2.25rem, 1rem + 4vw, 3.5rem);
+  line-height: 1.13;
+  letter-spacing: -0.036em;
 }
 
 .lead {
@@ -75,24 +28,58 @@
   font-size: 1.0625rem;
 }
 
-.meta {
-  position: relative;
+.bottom {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 0.5rem 2rem;
-  padding-top: 1.5rem;
+  gap: 2rem 4rem;
+  padding-top: 2rem;
   border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-family: var(--font-mono);
-  word-spacing: var(--mono-word-spacing);
-  font-size: 0.8125rem;
+}
 
-  strong {
-    color: var(--fg);
-    font-family: var(--font-display);
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+.meta {
+  color: var(--muted);
+}
+
+.menus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem 4rem;
+}
+
+.menu {
+  display: flex;
+  gap: 2rem;
+
+  > p {
+    padding-block: 0.625rem;
+    color: var(--muted);
+  }
+
+  ul {
+    padding: 0;
+    list-style: none;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.wordmark {
+  display: block;
+  width: 100%;
+
+  text {
+    fill: var(--line);
+    font-size: 440px;
+    font-weight: 300;
   }
 }

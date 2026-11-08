@@ -8,7 +8,7 @@ interface StyleProps {
   variant?: ButtonVariant;
   small?: boolean;
   block?: boolean;
-  /** 이동이나 시작을 알리는 원형 화살표를 붙인다. 장식이라 읽지 않는다. */
+  /** 알약 옆에 원형 화살표를 따로 붙인다. 장식이라 읽지 않는다. */
   arrow?: boolean;
 }
 
@@ -45,7 +45,7 @@ function Arrow() {
 function withArrow(children: ReactNode, arrow?: boolean) {
   return arrow ? (
     <>
-      {children}
+      <span className={styles.label}>{children}</span>
       <Arrow />
     </>
   ) : (

@@ -8,11 +8,24 @@ function hash(value: string): number {
   return result;
 }
 
+const TONES = ["teal", "clay", "ochre", "forest", "plum", "dusk", "rose"] as const;
+
 /**
- * 작품 제목으로 만드는 무채색 표지. 같은 제목은 항상 같은 표지가 된다.
+ * 작품 제목으로 만드는 표지. 같은 제목은 항상 같은 표지가 된다.
  * 카드에 제목과 작가를 글자로 함께 보여 주므로 보조기술에는 숨긴다.
+ * bare는 카드가 표지 위에 제목을 직접 얹을 때 표지의 글자를 뺀다.
  */
-export function WorkCover({ title, authorName, imageUrl }: { title: string; authorName: string; imageUrl?: string }) {
+export function WorkCover({
+  title,
+  authorName,
+  imageUrl,
+  bare,
+}: {
+  title: string;
+  authorName: string;
+  imageUrl?: string;
+  bare?: boolean;
+}) {
   if (imageUrl) {
     return (
       <div className={styles.cover} aria-hidden="true">
@@ -25,13 +38,17 @@ export function WorkCover({ title, authorName, imageUrl }: { title: string; auth
 
   const value = hash(title);
   const pattern = PATTERNS[value % PATTERNS.length] as (typeof PATTERNS)[number];
-  const tone = (value >> 3) % 3 === 0 ? styles.light : styles.dark;
+  const tone = TONES[(value >>> 3) % TONES.length] as (typeof TONES)[number];
 
   return (
-    <div className={`${styles.cover} ${tone}`} aria-hidden="true" data-pattern={pattern}>
+    <div className={`${styles.cover} ${styles[tone]}`} aria-hidden="true" data-pattern={pattern}>
       <div className={`${styles.pattern} ${styles[pattern]}`} />
-      <p className={styles.title}>{title}</p>
-      <p className={styles.author}>{authorName}</p>
+      {!bare && (
+        <>
+          <p className={styles.title}>{title}</p>
+          <p className={styles.author}>{authorName}</p>
+        </>
+      )}
     </div>
   );
 }
