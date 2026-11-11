@@ -26,7 +26,7 @@ flowchart LR
 - 오류 화면: `error.tsx`와 `not-found.tsx`는 `_pages/errors`를, 루트 레이아웃까지 실패할 때의 `global-error.tsx`는 `_app/layouts/global-error-layout`을 내보냅니다. `global-error`에는 웹폰트와 저장된 테마가 적용되지 않습니다.
 - 슬라이스는 `index.ts`로만 가져오고, 서버 전용 코드는 `index.server.ts`로 내보냅니다.
 - 스타일은 Sass CSS Modules입니다. 색은 `_app/styles/global.scss`의 CSS 변수만 씁니다. 밝은 회색(`#F8F8F8`)·잉크(`#0F0A01`)가 기본이고, 머리글, 인기 작품, 푸터, 에디터 도구 모음은 테마와 상관없이 어두운 판입니다. 어두운 판에는 전역 클래스 `on-panel`을 붙여 `--bg`, `--fg` 등을 판 색으로 덮어쓰므로 안쪽 요소를 그대로 재사용합니다. 판 안에서 페이지 바탕이 필요하면 `--canvas`, `--canvas-fg`를 씁니다. 프레임은 화면 가장자리에서 `--frame`만큼 띄웁니다. 모서리는 `--radius-sm`·`--radius`·`--radius-lg`, 버튼·배지·탭은 `--radius-pill`입니다.
-- 글꼴은 Geist(`--font-sans`) 하나로 굵기만 달리합니다. 큰 제목은 300, 본문은 400, 강조는 500까지 씁니다. Geist에 한글이 없어 한글은 Noto Sans KR로 이어지고, 회차 본문은 명조입니다. 섹션 라벨은 `(독자가 고른)`처럼 괄호로 감쌉니다.
+- 글꼴: 화면 글과 코인·연재 정보는 나눔고딕(`--font-sans`), 회차 본문과 에디터는 나눔명조(`--font-serif`), 작품 제목(작품 상세, 뷰어 제목, 표지)은 도현(`--font-display`)입니다. 도현은 굵기가 하나라 `font-synthesis-weight: none`으로 가짜 굵기를 막습니다. 섹션 라벨은 `(독자가 고른)`처럼 괄호로 감쌉니다.
 - 주황 `--accent`는 글자나 상태 표시에 쓰지 않는 장식 전용입니다. 주황 글자가 필요하면 바탕과 대비 4.5:1 이상인 `--accent-text`를 씁니다. 주요 이동 버튼은 `<ButtonLink arrow>`로 알약 옆에 화살표 원을 따로 붙입니다.
 - 첫 화면(`HomeHero`)에는 `data-hero`가 있어 머리글이 같은 하늘색으로 이어집니다(`--hero-top`). 하늘의 모든 색은 흰 글자와 대비 4.5:1 이상을 유지합니다. 표지 묶음은 좁은 화면에서 빼서 작품 목록이 먼저 보이게 합니다. 이미지가 없는 표지는 제목으로 고른 색(`WorkCover`)을 씁니다.
 - 컴포넌트 옆에 스토리와 테스트를 둡니다. 서버에서 데이터를 읽는 async 페이지(`home`, `works`, `work-detail`, `viewer`, `cart`, `my`, `studio-*`)와 `UserMenu`는 Storybook과 Jest에서 그릴 수 없어 E2E로 검사합니다.

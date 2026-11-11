@@ -61,9 +61,12 @@
   // 장식 전용 강조색이다. 글자나 상태 표시의 유일한 수단으로 쓰지 않는다(KWCAG 5.4.1, 5.4.3).
   --accent: #ff8a00;
 
-  // Geist에 한글이 없으므로 한글은 Noto Sans KR로 이어진다.
-  --font-sans: var(--font-geist), var(--font-noto-sans), -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --font-serif: var(--font-noto-serif), "AppleMyungjo", "Batang", serif;
+  // 글꼴을 받기 전이나 받지 못하면 운영체제의 한글 글꼴로 이어진다.
+  --font-sans: var(--font-nanum-gothic), -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-serif: var(--font-nanum-myeongjo), "AppleMyungjo", "Batang", serif;
+
+  // 작품 제목. 도현은 굵기가 하나라 가짜 굵기를 만들지 않는다.
+  --font-display: var(--font-do-hyeon), var(--font-sans);
   --viewer-size: 18px;
   --viewer-leading: 1.9;
 }
