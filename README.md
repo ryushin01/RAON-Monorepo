@@ -1,7 +1,7 @@
 # RAON - 웹툰·웹소설 연재 플랫폼
 
 [![CI](https://github.com/ryushin01/RAON-Monorepo/actions/workflows/ci.yml/badge.svg)](https://github.com/ryushin01/RAON-Monorepo/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.7.1-121214)
+![version](https://img.shields.io/badge/version-0.7.2-121214)
 
 작가가 웹툰과 웹소설을 연재하고, 독자는 하나의 계정과 코인으로 두 모드를 오가며 회차나 작품을 구매해 뷰어에서 보는 플랫폼의 모노레포입니다. **라온**은 ‘즐거운’을 뜻하는 우리말입니다.
 
