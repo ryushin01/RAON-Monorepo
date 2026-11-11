@@ -20,9 +20,10 @@
 }
 
 .title {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: clamp(2rem, 1.25rem + 2.5vw, 3rem);
-  font-weight: 300;
+  font-weight: 400;
+  font-synthesis-weight: none;
   line-height: 1.13;
   letter-spacing: -0.036em;
 }

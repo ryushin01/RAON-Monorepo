@@ -53,6 +53,12 @@
   border-end-end-radius: var(--radius);
   background: linear-gradient(to bottom, transparent, rgb(0 0 0 / 80%) 45%, rgb(0 0 0 / 90%));
   font-size: 0.875rem;
+
+  /* 좁은 카드에서도 화살표가 카드 밖으로 밀리지 않게 글자 칸이 줄어들며 줄을 바꾼다. */
+  > :first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 }
 
 .overlayTitle {

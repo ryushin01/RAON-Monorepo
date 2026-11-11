@@ -117,9 +117,10 @@
 
   h1 {
     margin-top: 0.25rem;
-    font-family: var(--viewer-font);
+    font-family: var(--font-display);
     font-size: 1.625rem;
-    font-weight: 500;
+    font-weight: 400;
+    font-synthesis-weight: none;
     line-height: 1.35;
   }
 }
