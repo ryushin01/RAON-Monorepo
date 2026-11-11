@@ -1,7 +1,7 @@
 import "../styles/global.scss";
 
 import type { Metadata } from "next";
-import { Do_Hyeon, Nanum_Gothic, Nanum_Myeongjo } from "next/font/google";
+import { Do_Hyeon, Gowun_Batang, Nanum_Gothic, Nanum_Myeongjo } from "next/font/google";
 import type { ReactNode } from "react";
 import { PREFERENCES_SCRIPT } from "@/shared/config";
 import { QueryProvider } from "../providers/query-provider";
@@ -30,6 +30,15 @@ const serif = Nanum_Myeongjo({
   display: "swap",
 });
 
+// 뷰어 글꼴 선택지인 고운바탕. 글꼴 선언만 두고, 뷰어에서 고른 독자의 화면에서만 파일을 받는다.
+const batang = Gowun_Batang({
+  variable: "--font-gowun-batang",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  preload: false,
+  display: "swap",
+});
+
 export const rootMetadata: Metadata = {
   title: { default: "RAON 라온", template: "%s | RAON 라온" },
   description: "웹툰과 웹소설을 연재하고 감상하는 플랫폼",
@@ -38,7 +47,11 @@ export const rootMetadata: Metadata = {
 export function RootLayout({ children }: { children: ReactNode }) {
   return (
     // 저장된 테마를 스크립트가 html 속성으로 먼저 적용하므로 이 속성의 불일치는 의도한 것이다.
-    <html lang="ko" className={`${display.variable} ${sans.variable} ${serif.variable}`} suppressHydrationWarning>
+    <html
+      lang="ko"
+      className={`${display.variable} ${sans.variable} ${serif.variable} ${batang.variable}`}
+      suppressHydrationWarning
+    >
       <body>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: 코드에 고정한 문자열이며 사용자 입력이 들어가지 않는다. */}
         <script dangerouslySetInnerHTML={{ __html: PREFERENCES_SCRIPT }} />
