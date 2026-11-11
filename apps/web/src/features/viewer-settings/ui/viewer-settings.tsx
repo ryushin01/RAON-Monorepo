@@ -20,6 +20,8 @@ const THEMES: { value: Settings["theme"]; label: string }[] = [
 
 const FONTS: { value: Settings["font"]; label: string }[] = [
   { value: "serif", label: "명조" },
+  // 획이 부드러운 명조. 고른 독자만 글꼴 파일을 받는다.
+  { value: "batang", label: "고운바탕" },
   { value: "sans", label: "고딕" },
 ];
 

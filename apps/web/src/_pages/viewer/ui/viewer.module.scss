@@ -40,6 +40,10 @@
   --viewer-font: var(--font-sans);
 }
 
+:global(html[data-viewer-font="batang"]) .viewer {
+  --viewer-font: var(--font-batang);
+}
+
 .bar {
   position: sticky;
   top: 0;

@@ -3,7 +3,7 @@ import { readPreference, writePreference } from "@/shared/lib";
 
 export interface ViewerSettings {
   theme: "auto" | "white" | "gray" | "black";
-  font: "serif" | "sans";
+  font: "serif" | "batang" | "sans";
   size: number;
   leading: number;
 }

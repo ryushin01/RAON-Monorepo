@@ -69,6 +69,11 @@
     var(--font-nanum-myeongjo), "AppleMyungjo", "Noto Serif CJK KR", "Batang",
     serif;
 
+  // 뷰어 글꼴 선택지(고운바탕). 고르지 않으면 쓰이지 않는다.
+  --font-batang:
+    var(--font-gowun-batang), "AppleMyungjo", "Noto Serif CJK KR", "Batang",
+    serif;
+
   // 작품 제목. 도현은 굵기가 하나라 가짜 굵기를 만들지 않는다.
   --font-display: var(--font-do-hyeon), var(--font-sans);
   --viewer-size: 18px;

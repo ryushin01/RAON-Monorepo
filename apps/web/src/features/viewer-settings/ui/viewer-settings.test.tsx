@@ -27,3 +27,14 @@ it("고른 값을 html과 저장소에 반영한다", async () => {
   expect(document.cookie).toContain("raon_viewer=");
   expect(JSON.parse(Cookies.get("raon_viewer") ?? "{}")).toMatchObject({ theme: "black", size: 19 });
 });
+
+it("본문 글꼴을 고운바탕으로 바꿀 수 있다", async () => {
+  render(<ViewerSettingsToggle />);
+  await userEvent.click(screen.getByRole("button", { name: "보기 설정" }));
+  const fonts = screen.getByRole("group", { name: "글꼴" });
+  expect(fonts).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("radio", { name: "고운바탕" }));
+
+  expect(document.documentElement.dataset.viewerFont).toBe("batang");
+  expect(JSON.parse(Cookies.get("raon_viewer") ?? "{}")).toMatchObject({ font: "batang" });
+});
