@@ -23,7 +23,7 @@
     "lint:css": "stylelint \"apps/web/src/**/*.scss\""
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.6",
     "stylelint": "^17.0.0",
     "stylelint-config-standard-scss": "17.0.0",
     "turbo": "2.11.10"
