@@ -32,4 +32,9 @@ describe("첫 그림 전 설정 스크립트", () => {
   it("고친 쿠키의 크기는 범위 안으로 맞추고, 숫자가 아니거나 모르는 테마는 적용하지 않습니다", () => {
     expect(run('{"theme":"neon","size":999,"leading":"x"}')).toEqual({ theme: undefined, size: "28px", leading: "" });
   });
+
+  it("숫자 문자열·null·true처럼 숫자형이 아닌 값은 적용하지 않습니다", () => {
+    expect(run('{"size":"20","leading":null}')).toEqual({ theme: undefined, size: "", leading: "" });
+    expect(run('{"size":true}')).toEqual({ theme: undefined, size: "", leading: "" });
+  });
 });
