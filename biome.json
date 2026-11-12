@@ -15,9 +15,9 @@
   },
   "linter": {
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "a11y": {
-        "recommended": true,
+        "preset": "recommended",
         "useValidAriaRole": {
           "level": "error",
           "options": {
