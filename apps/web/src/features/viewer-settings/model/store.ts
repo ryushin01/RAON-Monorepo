@@ -1,31 +1,52 @@
-import { VIEWER_COOKIE } from "@/shared/config";
+import { z } from "zod";
+
+import { VIEWER_COOKIE, VIEWER_FONTS, VIEWER_LIMITS, VIEWER_THEMES } from "@/shared/config";
 import { readPreference, writePreference } from "@/shared/lib";
 
 export interface ViewerSettings {
-  theme: "auto" | "white" | "gray" | "black";
-  font: "serif" | "batang" | "sans";
+  theme: (typeof VIEWER_THEMES)[number];
+  font: (typeof VIEWER_FONTS)[number];
   size: number;
   leading: number;
 }
 
 export const DEFAULT_SETTINGS: ViewerSettings = { theme: "auto", font: "serif", size: 18, leading: 1.9 };
-export const MIN_SIZE = 14;
-export const MAX_SIZE = 28;
-export const MIN_LEADING = 1.5;
-export const MAX_LEADING = 2.4;
+export const MIN_SIZE = VIEWER_LIMITS.size.min;
+export const MAX_SIZE = VIEWER_LIMITS.size.max;
+export const MIN_LEADING = VIEWER_LIMITS.leading.min;
+export const MAX_LEADING = VIEWER_LIMITS.leading.max;
+
+/** 쿠키는 사용자가 고칠 수 있으므로 칸마다 따로 확인하고, 틀린 칸만 기본값으로 돌린다. */
+const SavedSettings = z.object({
+  theme: z.enum(VIEWER_THEMES).catch(DEFAULT_SETTINGS.theme),
+  font: z.enum(VIEWER_FONTS).catch(DEFAULT_SETTINGS.font),
+  size: z.number().catch(DEFAULT_SETTINGS.size),
+  leading: z.number().catch(DEFAULT_SETTINGS.leading),
+});
+
+/** 크기와 줄 간격을 범위 안으로 맞춘다. */
+export function clampSettings(settings: ViewerSettings): ViewerSettings {
+  return {
+    ...settings,
+    size: Math.min(MAX_SIZE, Math.max(MIN_SIZE, settings.size)),
+    leading: Math.round(Math.min(MAX_LEADING, Math.max(MIN_LEADING, settings.leading)) * 10) / 10,
+  };
+}
+
+/** 저장된 쿠키 값을 설정으로 읽는다. 깨졌거나 모르는 값은 기본값으로 돌린다. */
+export function parseViewerSettings(raw: string | null | undefined): ViewerSettings {
+  if (!raw) return DEFAULT_SETTINGS;
+  try {
+    return clampSettings(SavedSettings.parse(JSON.parse(raw)));
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
 
 const listeners = new Set<() => void>();
 let current: ViewerSettings | null = null;
 
-function read(): ViewerSettings {
-  try {
-    const raw = readPreference(VIEWER_COOKIE);
-    if (raw) return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<ViewerSettings>) };
-  } catch {
-    // 값이 깨졌으면 기본값을 쓴다.
-  }
-  return DEFAULT_SETTINGS;
-}
+const read = (): ViewerSettings => parseViewerSettings(readPreference(VIEWER_COOKIE));
 
 function apply(settings: ViewerSettings) {
   const root = document.documentElement;
@@ -46,9 +67,7 @@ export const viewerSettings = {
   },
   getServer: () => DEFAULT_SETTINGS,
   update(patch: Partial<ViewerSettings>) {
-    const next = { ...viewerSettings.get(), ...patch };
-    next.size = Math.min(MAX_SIZE, Math.max(MIN_SIZE, next.size));
-    next.leading = Math.round(Math.min(MAX_LEADING, Math.max(MIN_LEADING, next.leading)) * 10) / 10;
+    const next = clampSettings({ ...viewerSettings.get(), ...patch });
     current = next;
     apply(next);
     writePreference(VIEWER_COOKIE, JSON.stringify(next));
