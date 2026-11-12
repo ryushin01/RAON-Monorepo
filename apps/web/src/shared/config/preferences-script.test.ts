@@ -37,4 +37,8 @@ describe("첫 그림 전 설정 스크립트", () => {
     expect(run('{"size":"20","leading":null}')).toEqual({ theme: undefined, size: "", leading: "" });
     expect(run('{"size":true}')).toEqual({ theme: undefined, size: "", leading: "" });
   });
+
+  it("줄 간격은 스토어처럼 소수 첫째 자리로 반올림합니다", () => {
+    expect(run('{"leading":1.96}').leading).toBe("2");
+  });
 });
