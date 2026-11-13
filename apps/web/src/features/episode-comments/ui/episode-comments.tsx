@@ -1,11 +1,10 @@
 "use client";
 
 import type { CommentSort, EpisodeComment, EpisodeCommentReply } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { formatDate } from "@/shared/lib";
+import { formatDate, useLockedMutation } from "@/shared/lib";
 import { Badge, Button, Notice, TextAreaField } from "@/shared/ui";
 import { addComment, deleteComment, setCommentLike } from "../api/actions";
 import styles from "./episode-comments.module.scss";
@@ -32,7 +31,7 @@ interface ItemContext {
 function LikeButton({ comment, context }: { comment: EpisodeCommentReply; context: ItemContext }) {
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
-  const like = useMutation({
+  const like = useLockedMutation({
     mutationFn: async (liked: boolean) => {
       const result = await setCommentLike(comment.id, liked, context.path);
       if (!result.ok) throw new Error(result.message);
@@ -51,7 +50,7 @@ function LikeButton({ comment, context }: { comment: EpisodeCommentReply; contex
         aria-disabled={busy}
         aria-label={`공감 ${comment.likeCount}: ${comment.authorName}의 글`}
         onClick={() => {
-          if (!busy) like.mutate(!comment.likedByMe);
+          if (!busy) like.run(!comment.likedByMe);
         }}
       >
         {comment.likedByMe ? "✓ " : ""}공감 {comment.likeCount}
@@ -73,7 +72,7 @@ function CommentBody({
   actions?: React.ReactNode;
 }) {
   const router = useRouter();
-  const remove = useMutation({
+  const remove = useLockedMutation({
     mutationFn: async (commentId: string) => {
       const result = await deleteComment(commentId, context.path);
       if (!result.ok) throw new Error(result.message);
@@ -103,7 +102,7 @@ function CommentBody({
             aria-disabled={remove.isPending}
             aria-label={`삭제: ${comment.authorName}의 ${kind}`}
             onClick={() => {
-              if (!remove.isPending) remove.mutate(comment.id);
+              if (!remove.isPending) remove.run(comment.id);
             }}
           >
             삭제
@@ -128,7 +127,7 @@ function ReplyForm({
 }) {
   const router = useRouter();
   const [body, setBody] = useState("");
-  const add = useMutation({
+  const add = useLockedMutation({
     mutationFn: async (text: string) => {
       const result = await addComment(context.episodeId, text, context.path, parentId);
       if (!result.ok) throw new Error(result.message);
@@ -143,7 +142,7 @@ function ReplyForm({
       className={styles.form}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!add.isPending) add.mutate(body);
+        if (!add.isPending) add.run(body);
       }}
     >
       <TextAreaField
@@ -224,7 +223,7 @@ export function EpisodeComments({ episodeId, path, comments, total, loggedIn, so
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [body, setBody] = useState("");
 
-  const add = useMutation({
+  const add = useLockedMutation({
     mutationFn: async (text: string) => {
       const result = await addComment(episodeId, text, path);
       if (!result.ok) throw new Error(result.message);
@@ -253,7 +252,7 @@ export function EpisodeComments({ episodeId, path, comments, total, loggedIn, so
           className={styles.form}
           onSubmit={(event) => {
             event.preventDefault();
-            if (!add.isPending) add.mutate(body);
+            if (!add.isPending) add.run(body);
           }}
         >
           <TextAreaField

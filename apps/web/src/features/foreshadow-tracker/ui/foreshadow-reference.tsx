@@ -1,8 +1,8 @@
 "use client";
 
 import type { Foreshadow, ForeshadowInput } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useRef, useState } from "react";
+import { useLockedMutation } from "@/shared/lib";
 import { Button, Notice, TextField } from "@/shared/ui";
 import { saveForeshadow } from "../api/actions";
 import { describeForeshadow, type EpisodeOption, isResolved, toForeshadowInput } from "../model/foreshadow";
@@ -30,7 +30,7 @@ export function ForeshadowReference({
   const [message, setMessage] = useState("");
   const [titleError, setTitleError] = useState<string>();
   const inputRef = useRef<HTMLInputElement>(null);
-  const save = useMutation({
+  const save = useLockedMutation({
     mutationFn: async ({ id, input }: SaveRequest) => {
       const result = await saveForeshadow(workId, id, input);
       if (!result.ok) throw new Error(result.message);
@@ -43,7 +43,7 @@ export function ForeshadowReference({
   });
 
   const run = (request: SaveRequest) => {
-    if (!save.isPending) save.mutate(request);
+    if (!save.isPending) save.run(request);
   };
 
   const onAdd = (event: FormEvent) => {

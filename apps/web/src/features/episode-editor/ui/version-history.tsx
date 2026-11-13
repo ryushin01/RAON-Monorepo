@@ -1,9 +1,9 @@
 "use client";
 
 import type { EpisodeDoc, EpisodeVersionSummary, StudioEpisode } from "@raon/contracts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { formatDateTime } from "@/shared/lib";
+import { formatDateTime, useLockedMutation } from "@/shared/lib";
 import { Button, Notice, TextField } from "@/shared/ui";
 import { createVersion, deleteVersion, getVersion, listVersions, restoreVersion } from "../api/actions";
 import { type DiffLine, diffParagraphs } from "../model/paragraph-diff";
@@ -73,7 +73,7 @@ export function VersionHistory({
   });
   const refreshList = () => queryClient.invalidateQueries({ queryKey });
 
-  const create = useMutation({
+  const create = useLockedMutation({
     mutationFn: async (name: string) => {
       if (!(await saveFirst())) throw new Error("저장하지 못해 버전을 남기지 않았습니다.");
       const result = await createVersion(episodeId, name.trim() || null);
@@ -87,7 +87,7 @@ export function VersionHistory({
     },
   });
 
-  const open = useMutation({
+  const open = useLockedMutation({
     mutationFn: async (version: EpisodeVersionSummary) => {
       const result = await getVersion(episodeId, version.id);
       if (!result.ok) throw new Error(result.message);
@@ -99,7 +99,7 @@ export function VersionHistory({
     },
   });
 
-  const restore = useMutation({
+  const restore = useLockedMutation({
     mutationFn: async (version: EpisodeVersionSummary) => {
       if (!(await saveFirst())) throw new Error("저장하지 못해 되돌리지 않았습니다.");
       const result = await restoreVersion(episodeId, version.id);
@@ -112,7 +112,7 @@ export function VersionHistory({
     },
   });
 
-  const remove = useMutation({
+  const remove = useLockedMutation({
     mutationFn: async (version: EpisodeVersionSummary) => {
       const result = await deleteVersion(episodeId, version.id);
       if (!result.ok) throw new Error(result.message);
@@ -134,7 +134,7 @@ export function VersionHistory({
         className={styles.form}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!busy) create.mutate(label);
+          if (!busy) create.run(label);
         }}
       >
         <TextField
@@ -180,7 +180,7 @@ export function VersionHistory({
                     aria-label={`비교: ${name}`}
                     aria-disabled={busy}
                     onClick={() => {
-                      if (!busy) open.mutate(version);
+                      if (!busy) open.run(version);
                     }}
                   >
                     비교
@@ -195,7 +195,7 @@ export function VersionHistory({
                       if (busy) return;
                       const warning = isPublic ? " 공개 중인 회차라 독자에게 바로 보입니다." : "";
                       if (window.confirm(`이 버전으로 되돌릴까요? 지금 내용은 새 버전으로 남습니다.${warning}`)) {
-                        restore.mutate(version);
+                        restore.run(version);
                       }
                     }}
                   >
@@ -208,7 +208,7 @@ export function VersionHistory({
                     aria-label={`삭제: ${name}`}
                     aria-disabled={busy}
                     onClick={() => {
-                      if (!busy && window.confirm("이 버전을 지울까요? 되돌릴 수 없습니다.")) remove.mutate(version);
+                      if (!busy && window.confirm("이 버전을 지울까요? 되돌릴 수 없습니다.")) remove.run(version);
                     }}
                   >
                     삭제

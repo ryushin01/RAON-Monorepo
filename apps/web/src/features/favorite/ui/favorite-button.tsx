@@ -1,11 +1,11 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useLockedMutation } from "@/shared/lib";
 import { Button, Notice } from "@/shared/ui";
 import { setFavorite } from "../api/actions";
 
 export function FavoriteButton({ workId, isFavorite }: { workId: string; isFavorite: boolean }) {
-  const toggle = useMutation({
+  const toggle = useLockedMutation({
     mutationFn: async (next: boolean) => {
       const result = await setFavorite(workId, next);
       if (!result.ok) throw new Error(result.message);
@@ -22,7 +22,7 @@ export function FavoriteButton({ workId, isFavorite }: { workId: string; isFavor
         aria-pressed={pressed}
         aria-disabled={toggle.isPending}
         onClick={() => {
-          if (!toggle.isPending) toggle.mutate(!pressed);
+          if (!toggle.isPending) toggle.run(!pressed);
         }}
       >
         {pressed ? "✓ 선호작" : "선호작 추가"}

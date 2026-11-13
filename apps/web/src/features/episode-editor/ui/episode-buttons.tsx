@@ -1,22 +1,25 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useLayoutEffect, useRef } from "react";
-import { Button, Notice } from "@/shared/ui";
+import { useLayoutEffect } from "react";
+import { useLockedMutation } from "@/shared/lib";
+import { Button, ListActionButton, Notice } from "@/shared/ui";
 import { createDraft, moveEpisode, purgeEpisode, restoreFromTrash, trashDraft } from "../api/actions";
 
 /** 빈 초안을 만들고 그 회차의 편집 화면으로 간다. */
 export function NewEpisodeButton({ workId }: { workId: string }) {
   const router = useRouter();
-  const create = useMutation({
-    mutationFn: async (id: string) => {
-      const result = await createDraft(id);
-      if (!result.ok) throw new Error(result.message);
-      return result.data;
+  const create = useLockedMutation(
+    {
+      mutationFn: async (id: string) => {
+        const result = await createDraft(id);
+        if (!result.ok) throw new Error(result.message);
+        return result.data;
+      },
+      onSuccess: (episode) => router.push(`/studio/works/${workId}/episodes/${episode.id}`),
     },
-    onSuccess: (episode) => router.push(`/studio/works/${workId}/episodes/${episode.id}`),
-  });
+    { keepLockedOnSuccess: true },
+  );
   // 이동을 마칠 때까지 막아 초안이 두 개 생기지 않게 하고, 다른 화면에 다녀오면 다시 쓸 수 있게 한다.
   const { reset } = create;
   useLayoutEffect(() => reset, [reset]);
@@ -24,7 +27,7 @@ export function NewEpisodeButton({ workId }: { workId: string }) {
 
   return (
     <>
-      <Button disabled={busy} onClick={() => create.mutate(workId)}>
+      <Button disabled={busy} onClick={() => create.run(workId)}>
         {busy ? "만드는 중…" : "새 회차 쓰기"}
       </Button>
       {create.error && <Notice tone="error">{create.error.message}</Notice>}
@@ -32,71 +35,28 @@ export function NewEpisodeButton({ workId }: { workId: string }) {
   );
 }
 
-type EpisodeAction = (workId: string, episodeId: string) => Promise<{ ok: true } | { ok: false; message: string }>;
-
 interface EpisodeButtonProps {
   workId: string;
   episodeId: string;
   label: string;
 }
 
-interface ListActionProps extends EpisodeButtonProps {
-  action: EpisodeAction;
-  text: string;
-  confirmMessage?: string;
-}
-
-/** 누르면 회차가 그 목록에서 사라지는 버튼. 처리 중에는 초점을 잃지 않게 aria-disabled로 막는다(KWCAG 6.1.2). */
-function ListActionButton({ action, workId, episodeId, label, text, confirmMessage }: ListActionProps) {
-  const router = useRouter();
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const mutation = useMutation({
-    mutationFn: async (id: string) => {
-      const result = await action(workId, id);
-      if (!result.ok) throw new Error(result.message);
-    },
-    onSuccess: () => {
-      // 누른 버튼이 사라지므로 초점을 그 영역의 제목으로 옮긴다.
-      buttonRef.current?.closest("section")?.querySelector<HTMLElement>("h2")?.focus();
-      router.refresh();
-    },
-  });
-  return (
-    <>
-      <Button
-        ref={buttonRef}
-        variant="secondary"
-        small
-        aria-disabled={mutation.isPending}
-        aria-label={`${text}: ${label}`}
-        onClick={() => {
-          if (mutation.isPending) return;
-          if (!confirmMessage || window.confirm(confirmMessage)) mutation.mutate(episodeId);
-        }}
-      >
-        {text}
-      </Button>
-      {mutation.error && <Notice tone="error">{mutation.error.message}</Notice>}
-    </>
-  );
-}
-
 /** 휴지통에서 되살릴 수 있으므로 묻지 않고 옮긴다. */
-export function TrashDraftButton(props: EpisodeButtonProps) {
-  return <ListActionButton {...props} action={trashDraft} text="휴지통으로" />;
+export function TrashDraftButton({ workId, episodeId, label }: EpisodeButtonProps) {
+  return <ListActionButton action={() => trashDraft(workId, episodeId)} text="휴지통으로" target={label} />;
 }
 
-export function RestoreTrashedButton(props: EpisodeButtonProps) {
-  return <ListActionButton {...props} action={restoreFromTrash} text="복원" />;
+export function RestoreTrashedButton({ workId, episodeId, label }: EpisodeButtonProps) {
+  return <ListActionButton action={() => restoreFromTrash(workId, episodeId)} text="복원" target={label} />;
 }
 
-export function PurgeTrashedButton(props: EpisodeButtonProps) {
+export function PurgeTrashedButton({ workId, episodeId, label }: EpisodeButtonProps) {
   return (
     <ListActionButton
-      {...props}
-      action={purgeEpisode}
+      action={() => purgeEpisode(workId, episodeId)}
       text="완전히 지우기"
-      confirmMessage={`${props.label}을 완전히 지울까요? 버전 기록과 회차 메모도 함께 사라지고 되돌릴 수 없습니다.`}
+      target={label}
+      confirmMessage={`${label}을 완전히 지울까요? 버전 기록과 회차 메모도 함께 사라지고 되돌릴 수 없습니다.`}
     />
   );
 }
@@ -112,17 +72,15 @@ interface MoveProps {
 /** 끌어 놓기 대신 버튼으로 옮긴다. 키보드와 단일 포인터로 쓸 수 있다(KWCAG 6.1.1, 6.5.1). */
 export function MoveEpisodeButtons({ workId, episodeId, label, canMoveUp, canMoveDown }: MoveProps) {
   const router = useRouter();
-  const move = useMutation({
+  const move = useLockedMutation({
     mutationFn: async (direction: "up" | "down") => {
       const result = await moveEpisode(workId, episodeId, direction);
       if (!result.ok) throw new Error(result.message);
     },
     onSuccess: () => router.refresh(),
   });
-  // disabled는 키보드 초점을 빼앗으므로(KWCAG 6.1.2) 처리 중에는 aria-disabled로 표시하고 코드에서 막는다.
-  const go = (direction: "up" | "down") => {
-    if (!move.isPending) move.mutate(direction);
-  };
+  // disabled는 키보드 초점을 빼앗으므로(KWCAG 6.1.2) 처리 중에는 aria-disabled로 표시하고, 빠르게 두 번 누르면 잠금으로 막는다.
+  const go = (direction: "up" | "down") => move.run(direction);
   return (
     <>
       <Button

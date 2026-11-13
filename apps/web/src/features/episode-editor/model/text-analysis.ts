@@ -1,4 +1,4 @@
-import type { EpisodeBlock, EpisodeDoc } from "@raon/contracts";
+import { docParagraphs, type EpisodeDoc } from "@raon/contracts";
 
 export type ParagraphKind = "dialogue" | "monologue" | "description";
 
@@ -7,19 +7,9 @@ export type ParagraphStats = Record<ParagraphKind, { paragraphs: number; chars: 
 const DIALOGUE_START = /^["“「『]/;
 const MONOLOGUE_START = /^['‘]/;
 
+/** 단락 글자(앞뒤 공백 제거). 단락을 뽑는 규칙은 contracts의 docParagraphs와 같다. */
 export function paragraphTexts(doc: EpisodeDoc): string[] {
-  const texts: string[] = [];
-  const visit = (block: EpisodeBlock) => {
-    if (block.type === "horizontalRule" || block.type === "authorComment") return;
-    if (block.type === "blockquote") {
-      block.content.forEach(visit);
-      return;
-    }
-    const text = (block.content ?? []).map((inline) => (inline.type === "text" ? inline.text : "\n")).join("");
-    if (text.trim()) texts.push(text.trim());
-  };
-  doc.content.forEach(visit);
-  return texts;
+  return docParagraphs(doc).map((text) => text.trim());
 }
 
 /** 첫 글자로 단락을 나눈다. 큰따옴표는 대사, 작은따옴표는 독백, 나머지는 서술이다. */

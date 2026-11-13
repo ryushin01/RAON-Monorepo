@@ -1,9 +1,9 @@
 "use client";
 
 import type { WorkStatus } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { useLockedMutation } from "@/shared/lib";
 import { Button, Notice } from "@/shared/ui";
 import { setWorkStatus } from "../api/actions";
 import styles from "./work-form.module.scss";
@@ -11,7 +11,7 @@ import styles from "./work-form.module.scss";
 export function WorkStatusControl({ workId, status }: { workId: string; status: WorkStatus }) {
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
-  const change = useMutation({
+  const change = useLockedMutation({
     mutationFn: async (next: "ONGOING" | "COMPLETED") => {
       const result = await setWorkStatus(workId, next);
       if (!result.ok) throw new Error(result.message);
@@ -24,7 +24,7 @@ export function WorkStatusControl({ workId, status }: { workId: string; status: 
 
   return (
     <div className={styles.status}>
-      <Button variant="secondary" disabled={change.isPending || refreshing} onClick={() => change.mutate(next)}>
+      <Button variant="secondary" disabled={change.isPending || refreshing} onClick={() => change.run(next)}>
         {next === "COMPLETED" ? "완결로 바꾸기" : "연재 중으로 되돌리기"}
       </Button>
       {change.error && <Notice tone="error">{change.error.message}</Notice>}

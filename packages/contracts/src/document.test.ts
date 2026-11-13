@@ -3,6 +3,7 @@ import {
   countCharsWithoutSymbols,
   countCharsWithSpaces,
   docFromText,
+  docParagraphs,
   docToText,
   EMPTY_DOC,
   episodeDocSchema,
@@ -87,6 +88,22 @@ describe("docToText", () => {
         ],
       }),
     ).toBe("첫\n줄\n\n인용");
+  });
+});
+
+describe("docParagraphs", () => {
+  it("글자가 있는 단락을 차례로 뽑고, 작가 주석은 빼며 앞뒤 공백은 그대로 둔다", () => {
+    expect(
+      docParagraphs({
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "  대사  " }] },
+          { type: "authorComment", content: [{ type: "text", text: "메모" }] },
+          { type: "paragraph", content: [{ type: "text", text: "   " }] },
+          { type: "blockquote", content: [{ type: "paragraph", content: [{ type: "text", text: "인용" }] }] },
+        ],
+      } as Parameters<typeof docParagraphs>[0]),
+    ).toEqual(["  대사  ", "인용"]);
   });
 });
 

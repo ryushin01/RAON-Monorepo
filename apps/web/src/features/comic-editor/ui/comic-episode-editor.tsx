@@ -7,9 +7,10 @@ import {
   type ComicImage,
   type StudioEpisode,
 } from "@raon/contracts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useRef, useState } from "react";
+import { useLockedMutation } from "@/shared/lib";
 import { Button, ButtonLink, Notice, SortableList, TextAreaField, TextField } from "@/shared/ui";
 import {
   deleteImage,
@@ -47,21 +48,21 @@ interface RowProps {
 function ImageRow({ episodeId, image, index, count, onChanged, focusAfterRemove }: RowProps) {
   const label = `${index + 1}번째 이미지`;
   const [alt, setAlt] = useState(image.alt);
-  const save = useMutation({
+  const save = useLockedMutation({
     mutationFn: async (next: string) => {
       const result = await updateImageAlt(episodeId, image.id, next);
       if (!result.ok) throw new Error(result.message);
     },
     onSuccess: () => onChanged(`${label}의 설명을 저장했습니다.`),
   });
-  const move = useMutation({
+  const move = useLockedMutation({
     mutationFn: async (direction: "up" | "down") => {
       const result = await moveImage(episodeId, image.id, direction);
       if (!result.ok) throw new Error(result.message);
     },
     onSuccess: () => onChanged(`${label}를 옮겼습니다.`),
   });
-  const remove = useMutation({
+  const remove = useLockedMutation({
     mutationFn: async (id: string) => {
       const result = await deleteImage(episodeId, id);
       if (!result.ok) throw new Error(result.message);
@@ -102,7 +103,7 @@ function ImageRow({ episodeId, image, index, count, onChanged, focusAfterRemove 
             aria-label={`설명 저장: ${label}`}
             aria-disabled={busy}
             onClick={() => {
-              if (!busy) save.mutate(alt);
+              if (!busy) save.run(alt);
             }}
           >
             설명 저장
@@ -113,7 +114,7 @@ function ImageRow({ episodeId, image, index, count, onChanged, focusAfterRemove 
             aria-label={`위로: ${label}`}
             aria-disabled={busy || index === 0}
             onClick={() => {
-              if (!busy && index > 0) move.mutate("up");
+              if (!busy && index > 0) move.run("up");
             }}
           >
             위로
@@ -124,7 +125,7 @@ function ImageRow({ episodeId, image, index, count, onChanged, focusAfterRemove 
             aria-label={`아래로: ${label}`}
             aria-disabled={busy || index === count - 1}
             onClick={() => {
-              if (!busy && index < count - 1) move.mutate("down");
+              if (!busy && index < count - 1) move.run("down");
             }}
           >
             아래로
@@ -135,7 +136,7 @@ function ImageRow({ episodeId, image, index, count, onChanged, focusAfterRemove 
             aria-label={`삭제: ${label}`}
             aria-disabled={busy}
             onClick={() => {
-              if (!busy && window.confirm(`${label}를 지울까요? 되돌릴 수 없습니다.`)) remove.mutate(image.id);
+              if (!busy && window.confirm(`${label}를 지울까요? 되돌릴 수 없습니다.`)) remove.run(image.id);
             }}
           >
             삭제
@@ -179,7 +180,7 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
     setMessage(text);
   };
 
-  const upload = useMutation({
+  const upload = useLockedMutation({
     mutationFn: async ({ files, alt }: { files: File[]; alt: string }) => {
       // 순서를 지키려고 한 장씩 차례로 올린다. 실패하면 앞서 올린 장은 남기고 멈춘다.
       for (const [index, file] of files.entries()) {
@@ -201,7 +202,7 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
     onSettled: () => refresh(),
   });
 
-  const save = useMutation({
+  const save = useLockedMutation({
     mutationFn: async (input: { title: string; authorNote: string | null; isFree: boolean }) => {
       const result = await saveComicEpisode(episode, input);
       if (!result.ok) throw new Error(result.message);
@@ -212,7 +213,7 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
       setMessage("회차 정보를 저장했습니다.");
     },
   });
-  const publish = useMutation({
+  const publish = useLockedMutation({
     mutationFn: async (published: boolean) => {
       const result = await setComicPublished(episode.workId, episode.id, published);
       if (!result.ok) throw new Error(result.message);
@@ -246,7 +247,7 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
       event.currentTarget.querySelector<HTMLElement>("textarea")?.focus();
       return;
     }
-    upload.mutate({ files, alt: newAlt.trim() });
+    upload.run({ files, alt: newAlt.trim() });
   };
 
   const list = images.data ?? [];
@@ -268,7 +269,7 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
             small
             aria-disabled={busy}
             onClick={() => {
-              if (!busy) save.mutate({ title: title.trim(), authorNote: authorNote.trim() || null, isFree });
+              if (!busy) save.run({ title: title.trim(), authorNote: authorNote.trim() || null, isFree });
             }}
           >
             저장
@@ -278,7 +279,7 @@ export function ComicEpisodeEditor({ episode: initial }: { episode: StudioEpisod
             variant={isDraft ? "primary" : "secondary"}
             aria-disabled={busy}
             onClick={() => {
-              if (!busy) publish.mutate(isDraft);
+              if (!busy) publish.run(isDraft);
             }}
           >
             {isDraft ? "공개하기" : "비공개로 바꾸기"}

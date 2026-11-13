@@ -1,9 +1,9 @@
 "use client";
 
 import { MAX_NOTE_PROPERTIES, NOTE_KINDS, type NoteKind, type WorkNote, type WorkSearchResult } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
+import { useFocusInvalidField, useLockedMutation } from "@/shared/lib";
 import { Button, Notice, SelectField, TextAreaField, TextField } from "@/shared/ui";
 import { deleteNote, saveNote, searchWork } from "../api/actions";
 import { NoteProperties } from "./note-properties";
@@ -48,7 +48,7 @@ function NoteForm({
   const [rows, setRows] = useState(() => (note?.properties ?? []).map(({ name, value }) => newRow(name, value)));
   const addRowRef = useRef<HTMLButtonElement>(null);
   const sentRowIds = useRef<number[]>([]);
-  const save = useMutation({
+  const save = useLockedMutation({
     mutationFn: async (form: FormData) => {
       // 이름과 값을 모두 비운 행은 없는 것으로 친다. 서버의 오류 위치는 이 목록 기준이다.
       const sent = rows.filter(({ name, value }) => name.trim() || value.trim());
@@ -80,18 +80,11 @@ function NoteForm({
     setRows((current) => current.map((row) => (row.id === id ? { ...row, [field]: text } : row)));
 
   // 처음 열 때와 오류가 있을 때 해당 칸으로 초점을 옮긴다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 새 오류가 올 때마다 초점을 다시 옮기려고 넣었다.
-  useEffect(() => {
-    // 두 선택자를 한 번에 쓰면 문서 순서상 앞에 있는 제목 칸이 오류 칸보다 먼저 잡힌다.
-    const form = formRef.current;
-    (
-      form?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? form?.querySelector<HTMLElement>('[name="title"]')
-    )?.focus();
-  }, [fieldErrors]);
+  useFocusInvalidField(formRef, fieldErrors, '[name="title"]');
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!save.isPending) save.mutate(new FormData(event.currentTarget));
+    if (!save.isPending) save.run(new FormData(event.currentTarget));
   };
 
   return (
@@ -209,7 +202,7 @@ function WorkSearch({ workId, onOpenNote }: { workId: string; onOpenNote: (id: s
   const inputId = useId();
   const [query, setQuery] = useState("");
   const [inputError, setInputError] = useState("");
-  const search = useMutation({
+  const search = useLockedMutation({
     mutationFn: async (q: string) => {
       const result = await searchWork(workId, q);
       if (!result.ok) throw new Error(result.message);
@@ -231,7 +224,7 @@ function WorkSearch({ workId, onOpenNote }: { workId: string; onOpenNote: (id: s
               return;
             }
             setInputError("");
-            if (!search.isPending) search.mutate(query.trim());
+            if (!search.isPending) search.run(query.trim());
           }}
         >
           <label htmlFor={inputId} className={styles.label}>
@@ -315,7 +308,7 @@ export function NotesManager({
   const [message, setMessage] = useState("");
   const listHeading = useRef<HTMLHeadingElement>(null);
 
-  const remove = useMutation({
+  const remove = useLockedMutation({
     mutationFn: async (note: WorkNote) => {
       const result = await deleteNote(note.id);
       if (!result.ok) throw new Error(result.message);
@@ -425,7 +418,7 @@ export function NotesManager({
                       aria-disabled={remove.isPending}
                       onClick={() => {
                         if (!remove.isPending && window.confirm(`‘${note.title}’ 문서를 지울까요?`)) {
-                          remove.mutate(note);
+                          remove.run(note);
                         }
                       }}
                     >

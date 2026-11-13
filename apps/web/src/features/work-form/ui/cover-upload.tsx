@@ -1,10 +1,10 @@
 "use client";
 
 import { COVER_MAX_BYTES, COVER_MIME_TYPES, type StudioWork } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { coverSrc, WorkCover } from "@/entities/work";
+import { useFocusInvalidField, useLockedMutation } from "@/shared/lib";
 import { Button, Notice, TextField } from "@/shared/ui";
 import { deleteCover, uploadCover } from "../api/actions";
 import styles from "./work-form.module.scss";
@@ -25,7 +25,7 @@ export function CoverUpload({ work }: { work: StudioWork }) {
   const [fileError, setFileError] = useState<string>();
   const [saved, setSaved] = useState("");
 
-  const upload = useMutation({
+  const upload = useLockedMutation({
     mutationFn: async (data: FormData) => {
       const result = await uploadCover(work.id, data);
       if (!result.ok) throw new Error(result.message);
@@ -36,7 +36,7 @@ export function CoverUpload({ work }: { work: StudioWork }) {
       router.refresh();
     },
   });
-  const remove = useMutation({
+  const remove = useLockedMutation({
     mutationFn: async (workId: string) => {
       const result = await deleteCover(workId);
       if (!result.ok) throw new Error(result.message);
@@ -58,13 +58,11 @@ export function CoverUpload({ work }: { work: StudioWork }) {
     const data = new FormData();
     data.append("file", file);
     remove.reset();
-    upload.mutate(data);
+    upload.run(data);
   };
 
   // 오류를 그린 뒤에 그 칸으로 초점을 옮긴다.
-  useEffect(() => {
-    if (fileError) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [fileError]);
+  useFocusInvalidField(formRef, fileError);
 
   const busy = upload.isPending || remove.isPending;
   const error = upload.error ?? remove.error;
@@ -94,7 +92,7 @@ export function CoverUpload({ work }: { work: StudioWork }) {
               onClick={() => {
                 upload.reset();
                 setSaved("");
-                remove.mutate(work.id);
+                remove.run(work.id);
               }}
             >
               표지 지우기

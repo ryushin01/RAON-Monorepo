@@ -1,12 +1,12 @@
 "use client";
 
 import type { Cart } from "@raon/contracts";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { CART_QUERY_KEY } from "@/entities/cart";
-import { formatCoins } from "@/shared/lib";
+import { formatCoins, useLockedMutation } from "@/shared/lib";
 import { Button, ButtonLink, Notice } from "@/shared/ui";
 import { checkout, removeFromCart } from "../api/actions";
 import styles from "./cart-view.module.scss";
@@ -24,7 +24,7 @@ export function CartView({ cart }: { cart: Cart }) {
     router.refresh();
   };
 
-  const remove = useMutation({
+  const remove = useLockedMutation({
     mutationFn: async (itemId: string) => {
       const result = await removeFromCart(itemId);
       if (!result.ok) throw new Error(result.message);
@@ -36,17 +36,20 @@ export function CartView({ cart }: { cart: Cart }) {
     },
   });
 
-  const pay = useMutation({
-    mutationFn: async (idempotencyKey: string) => {
-      const result = await checkout(idempotencyKey);
-      if (!result.ok) throw new Error(result.message);
+  const pay = useLockedMutation(
+    {
+      mutationFn: async (idempotencyKey: string) => {
+        const result = await checkout(idempotencyKey);
+        if (!result.ok) throw new Error(result.message);
+      },
+      onSuccess: () => {
+        setOrderKey(crypto.randomUUID());
+        void queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
+        router.push("/my?purchased=1");
+      },
     },
-    onSuccess: () => {
-      setOrderKey(crypto.randomUUID());
-      void queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
-      router.push("/my?purchased=1");
-    },
-  });
+    { keepLockedOnSuccess: true },
+  );
 
   if (cart.items.length === 0) {
     return (
@@ -77,7 +80,7 @@ export function CartView({ cart }: { cart: Cart }) {
                 variant="secondary"
                 small
                 disabled={remove.isPending}
-                onClick={() => remove.mutate(item.id)}
+                onClick={() => remove.run(item.id)}
                 aria-label={`빼기: ${item.workTitle} ${name}`}
               >
                 빼기
@@ -105,7 +108,7 @@ export function CartView({ cart }: { cart: Cart }) {
           </p>
         )}
         {(pay.error ?? remove.error) && <Notice tone="error">{(pay.error ?? remove.error)?.message}</Notice>}
-        <Button block disabled={pay.isPending || shortage > 0 || blocked} onClick={() => pay.mutate(orderKey)}>
+        <Button block disabled={pay.isPending || shortage > 0 || blocked} onClick={() => pay.run(orderKey)}>
           {pay.isPending ? "결제 중…" : `${formatCoins(cart.total)} 결제하기`}
         </Button>
       </section>

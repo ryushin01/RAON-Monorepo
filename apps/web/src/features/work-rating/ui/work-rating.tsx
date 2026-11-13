@@ -1,8 +1,8 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { useLockedMutation } from "@/shared/lib";
 import { Button, Notice } from "@/shared/ui";
 import { setRating } from "../api/actions";
 import styles from "./work-rating.module.scss";
@@ -13,7 +13,7 @@ const SCORES = [1, 2, 3, 4, 5] as const;
 export function WorkRating({ workId, myRating }: { workId: string; myRating: number | null }) {
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
-  const rate = useMutation({
+  const rate = useLockedMutation({
     mutationFn: async (score: number | null) => {
       const result = await setRating(workId, score);
       if (!result.ok) throw new Error(result.message);
@@ -40,7 +40,7 @@ export function WorkRating({ workId, myRating }: { workId: string; myRating: num
             aria-pressed={current === score}
             aria-disabled={busy}
             onClick={() => {
-              if (!busy) rate.mutate(current === score ? null : score);
+              if (!busy) rate.run(current === score ? null : score);
             }}
           >
             {score}점

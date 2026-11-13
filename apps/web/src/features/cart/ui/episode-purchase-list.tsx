@@ -1,12 +1,12 @@
 "use client";
 
 import { EPISODE_TYPE_LABEL, type Role, type WorkAccess, type WorkDetail } from "@raon/contracts";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { CART_QUERY_KEY } from "@/entities/cart";
-import { formatCoins, formatDate, formatNumber } from "@/shared/lib";
+import { formatCoins, formatDate, formatNumber, useLockedMutation } from "@/shared/lib";
 import { Badge, Button, ButtonLink, Notice } from "@/shared/ui";
 import { addToCart } from "../api/actions";
 import styles from "./purchase-panel.module.scss";
@@ -28,7 +28,7 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
 
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const add = useMutation({
+  const add = useLockedMutation({
     mutationFn: async (input: Add) => {
       const result = await addToCart(input);
       if (!result.ok) throw new Error(result.message);
@@ -90,7 +90,7 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
             <Button
               variant="secondary"
               disabled={add.isPending}
-              onClick={() => add.mutate({ kind: "WORK", workId: work.id })}
+              onClick={() => add.run({ kind: "WORK", workId: work.id })}
             >
               작품 전체 담기
             </Button>
@@ -164,7 +164,7 @@ export function EpisodePurchaseList({ work, access, role }: Props) {
             </Button>
             <Button
               disabled={selected.size === 0 || add.isPending}
-              onClick={() => add.mutate({ kind: "EPISODES", workId: work.id, episodeIds: [...selected] })}
+              onClick={() => add.run({ kind: "EPISODES", workId: work.id, episodeIds: [...selected] })}
             >
               {add.isPending ? "담는 중…" : "장바구니 담기"}
             </Button>
