@@ -202,10 +202,10 @@ yarn lint && yarn typecheck && yarn test && yarn build && yarn build-storybook &
 
 `.github/dependabot.yml`이 npm 패키지와 GitHub Actions를 매주 확인하고, 부 버전·패치는 한 PR로 묶습니다(열린 PR 5개까지). 아래 패키지는 이유가 있어 일부 갱신을 받지 않습니다.
 
-| 패키지 | 받지 않는 갱신 | 이유 |
-| --- | --- | --- |
-| `typescript` | 주 버전 | 도구용 TypeScript는 6에 고정하고, 타입 검사는 별칭 패키지 `typescript-7`로 돌립니다 |
-| `@types/node` | 주 버전 | 프로젝트 기준 Node 버전(`.node-version`)에 맞춥니다 |
-| `react`, `react-dom` | 주·부 버전 | React 19.2로 정한 프로젝트라 19.2의 패치만 받습니다 |
-| `stylelint` | 주 버전 | `stylelint-config-standard-scss`가 새 주 버전을 지원할 때 함께 올립니다 |
-| `postgres` | 주 버전 | CI는 PGlite로만 돌아 postgres 드라이버를 검사하지 못합니다. 실제 PostgreSQL로 확인한 뒤 올립니다 |
+| 패키지               | 받지 않는 갱신 | 이유                                                                                             |
+| -------------------- | -------------- | ------------------------------------------------------------------------------------------------ |
+| `typescript`         | 주 버전        | 도구용 TypeScript는 6에 고정하고, 타입 검사는 별칭 패키지 `typescript-7`로 돌립니다              |
+| `@types/node`        | 주 버전        | 프로젝트 기준 Node 버전(`.node-version`)에 맞춥니다                                              |
+| `react`, `react-dom` | 주·부 버전     | React 19.2로 정한 프로젝트라 19.2의 패치만 받습니다                                              |
+| `stylelint`          | 주 버전        | `stylelint-config-standard-scss`가 새 주 버전을 지원할 때 함께 올립니다                          |
+| `postgres`           | 주 버전        | CI는 PGlite로만 돌아 postgres 드라이버를 검사하지 못합니다. 실제 PostgreSQL로 확인한 뒤 올립니다 |
