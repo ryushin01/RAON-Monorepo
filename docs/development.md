@@ -30,7 +30,10 @@ flowchart LR
 - 주황 `--accent`는 글자나 상태 표시에 쓰지 않는 장식 전용입니다. 주황 글자가 필요하면 바탕과 대비 4.5:1 이상인 `--accent-text`를 씁니다. 주요 이동 버튼은 `<ButtonLink arrow>`로 알약 옆에 화살표 원을 따로 붙입니다.
 - 첫 화면(`HomeHero`)에는 `data-hero`가 있어 머리글이 같은 하늘색으로 이어집니다(`--hero-top`). 하늘의 모든 색은 흰 글자와 대비 4.5:1 이상을 유지합니다. 표지 묶음은 좁은 화면에서 빼서 작품 목록이 먼저 보이게 합니다. 이미지가 없는 표지는 제목으로 고른 색(`WorkCover`)을 씁니다.
 - 컴포넌트 옆에 스토리와 테스트를 둡니다. 서버에서 데이터를 읽는 async 페이지(`home`, `works`, `work-detail`, `viewer`, `cart`, `my`, `studio-*`)와 `UserMenu`는 Storybook과 Jest에서 그릴 수 없어 E2E로 검사합니다.
-- 저장 요청은 `useMutation`의 `mutate(data)`로 데이터를 직접 넘기고, `isPending`으로 중복 제출을 막습니다.
+- 버튼과 폼이 보내는 요청은 `useLockedMutation`(`shared/lib`)으로 만들고 `run(data)`로 데이터를 직접 넘깁니다. `isPending`은 다음 렌더에야 바뀌어 빠르게 두 번 누르면 두 번 보내므로 ref로 잠급니다. 실패하면 잠금을 풀고, 성공한 뒤 화면을 떠나는 동작(작품 만들기·결제·로그인)은 `keepLockedOnSuccess`로 성공해도 잠가 둡니다. 다녀온 화면은 숨겨 두었다가 다시 보여 주므로(React Activity), 화면이 숨겨지면 잠금을 풉니다. 중복 실행은 `fireEvent.click`을 연달아 부르는 테스트로 확인합니다. 에디터 자동 저장은 `use-autosave`가 따로 잠급니다.
+- 누르면 그 항목이 목록에서 사라지는 버튼(휴지통으로, 복원, 완전히 지우기)은 `ListActionButton`(`shared/ui`)을 씁니다. 처리 중에는 `aria-disabled`로 막아 초점을 잃지 않고, 성공하면 그 영역의 제목으로 초점을 옮깁니다.
+- 폼 오류를 그린 뒤 첫 번째 잘못된 칸으로 초점을 옮기는 일은 `useFocusInvalidField`(`shared/lib`)가 맡습니다.
+- 엔티티끼리는 `@x` 교차 공개 API로만 가져옵니다(예: `entities/session/@x/episode.ts`).
 
 ## 구매 규칙
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { CART_QUERY_KEY } from "@/entities/cart";
+import { useLockedMutation } from "@/shared/lib";
 import { Button, Notice } from "@/shared/ui";
 import { addToCart } from "../api/actions";
 
@@ -10,7 +11,7 @@ import { addToCart } from "../api/actions";
 export function AddEpisodeButton({ workId, episodeId }: { workId: string; episodeId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const add = useMutation({
+  const add = useLockedMutation({
     mutationFn: async (input: { workId: string; episodeId: string }) => {
       const result = await addToCart({ kind: "EPISODES", workId: input.workId, episodeIds: [input.episodeId] });
       if (!result.ok) throw new Error(result.message);
@@ -22,7 +23,7 @@ export function AddEpisodeButton({ workId, episodeId }: { workId: string; episod
   });
   return (
     <>
-      <Button disabled={add.isPending} onClick={() => add.mutate({ workId, episodeId })}>
+      <Button disabled={add.isPending} onClick={() => add.run({ workId, episodeId })}>
         {add.isPending ? "담는 중…" : "장바구니에 담고 결제하기"}
       </Button>
       {add.error && <Notice tone="error">{add.error.message}</Notice>}

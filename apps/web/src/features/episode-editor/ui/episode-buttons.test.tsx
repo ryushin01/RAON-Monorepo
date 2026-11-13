@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { createDraft, moveEpisode, purgeEpisode, restoreFromTrash, trashDraft } from "../api/actions";
@@ -83,4 +83,15 @@ it("회차를 버튼으로 옮기고, 끝에서는 그쪽 버튼을 막는다", 
   expect(moveEpisode).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "아래로: 1화" }));
   await waitFor(() => expect(moveEpisode).toHaveBeenCalledWith("w1", "e1", "down"));
+});
+
+it("빠르게 두 번 눌러도 한 칸만 옮긴다", async () => {
+  (moveEpisode as jest.Mock).mockClear().mockReturnValue(new Promise(() => {}));
+  wrap(<MoveEpisodeButtons workId="w1" episodeId="e1" label="1화" canMoveUp={false} canMoveDown />);
+  const down = screen.getByRole("button", { name: "아래로: 1화" });
+  fireEvent.click(down);
+  fireEvent.click(down);
+  await waitFor(() => expect(moveEpisode).toHaveBeenCalledTimes(1));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(moveEpisode).toHaveBeenCalledTimes(1);
 });

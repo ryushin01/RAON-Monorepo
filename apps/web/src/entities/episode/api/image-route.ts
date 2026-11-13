@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSessionToken } from "@/entities/session/index.server";
+import { getSessionToken } from "@/entities/session/@x/episode";
 import { apiRaw } from "@/shared/api/index.server";
 
 type Params = Promise<{ episodeId: string; imageId: string }>;

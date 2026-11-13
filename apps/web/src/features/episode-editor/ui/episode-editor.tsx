@@ -15,7 +15,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
-import { formatDateTime } from "@/shared/lib";
+import { formatDateTime, useLockedMutation } from "@/shared/lib";
 import { Button, ButtonLink, Notice, SelectField, TextAreaField, TextField } from "@/shared/ui";
 import { fetchEpisode, listSettingNotes, saveEpisode, setEpisodePublished, setWritingStage } from "../api/actions";
 import { UNTITLED } from "../model/constants";
@@ -320,7 +320,7 @@ function EpisodeEditorBody({
     },
   });
 
-  const publish = useMutation({
+  const publish = useLockedMutation({
     mutationFn: async ({ published, publishAt }: { published: boolean; publishAt?: string }) => {
       const result = await setEpisodePublished(episode.workId, initial.id, published, publishAt);
       if (!result.ok) throw new Error(result.message);
@@ -468,12 +468,12 @@ function EpisodeEditorBody({
       const saved = await save.mutateAsync(request).catch(() => null);
       if (!saved) return;
     }
-    publish.mutate({ published: true, publishAt });
+    publish.run({ published: true, publishAt });
   };
 
   const onCancelSchedule = () => {
     // 화면이 갱신되기 직전에 눌러도 이미 공개된 회차를 내리지 않게 한 번 더 확인한다.
-    if (isScheduled(episode.publishedAt)) publish.mutate({ published: false });
+    if (isScheduled(episode.publishedAt)) publish.run({ published: false });
     else setNow(Date.now());
   };
 
@@ -560,7 +560,7 @@ function EpisodeEditorBody({
               </Button>
             </>
           ) : (
-            <Button variant="secondary" small disabled={busy} onClick={() => publish.mutate({ published: false })}>
+            <Button variant="secondary" small disabled={busy} onClick={() => publish.run({ published: false })}>
               비공개로 바꾸기
             </Button>
           )}

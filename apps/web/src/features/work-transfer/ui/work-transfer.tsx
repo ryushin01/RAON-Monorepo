@@ -1,10 +1,9 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { EXPORT_FORMATS, type ExportFormat, exportFileName, exportMimeType, renderWorkFile } from "@/entities/episode";
-import { downloadFile } from "@/shared/lib";
+import { downloadFile, useLockedMutation } from "@/shared/lib";
 import { Button, Notice, SelectField } from "@/shared/ui";
 import { fetchWorkExport, importEpisode } from "../api/actions";
 import { ImportError, parseImportFile } from "../model/import-file";
@@ -19,7 +18,7 @@ export function WorkTransfer({ workId }: { workId: string }) {
   const [message, setMessage] = useState("");
   const [fileError, setFileError] = useState("");
 
-  const exportWork = useMutation({
+  const exportWork = useLockedMutation({
     mutationFn: async () => {
       const result = await fetchWorkExport(workId);
       if (!result.ok) throw new Error(result.message);
@@ -38,7 +37,7 @@ export function WorkTransfer({ workId }: { workId: string }) {
     onError: () => setMessage(""),
   });
 
-  const importFile = useMutation({
+  const importFile = useLockedMutation({
     mutationFn: async (file: File) => {
       const { title, content } = parseImportFile(file.name, new Uint8Array(await file.arrayBuffer()));
       const result = await importEpisode(workId, { title, content, authorNote: null, isFree: false });
@@ -64,7 +63,7 @@ export function WorkTransfer({ workId }: { workId: string }) {
       return;
     }
     setFileError("");
-    if (!importFile.isPending) importFile.mutate(file);
+    if (!importFile.isPending) importFile.run(file);
   };
 
   return (
@@ -73,7 +72,7 @@ export function WorkTransfer({ workId }: { workId: string }) {
         className={styles.form}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!exportWork.isPending) exportWork.mutate();
+          if (!exportWork.isPending) exportWork.run();
         }}
       >
         <SelectField label="형식" value={format} onChange={(event) => setFormat(event.target.value as ExportFormat)}>

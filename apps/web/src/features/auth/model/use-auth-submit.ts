@@ -1,7 +1,7 @@
 import type { Role } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useRef } from "react";
+import { type FormEvent, useRef } from "react";
 import type { ActionResult } from "@/shared/api";
+import { useFocusInvalidField, useLockedMutation } from "@/shared/lib";
 
 export class AuthError extends Error {
   constructor(
@@ -21,24 +21,25 @@ export function useAuthSubmit<Input>(
   read: (form: FormData) => Input,
 ) {
   const formRef = useRef<HTMLFormElement>(null);
-  const mutation = useMutation({
-    mutationFn: async (input: Input) => {
-      const result = await send(input);
-      if (!result.ok) throw new AuthError(result.message, result.fieldErrors);
-      return result.data.path;
+  const mutation = useLockedMutation(
+    {
+      mutationFn: async (input: Input) => {
+        const result = await send(input);
+        if (!result.ok) throw new AuthError(result.message, result.fieldErrors);
+        return result.data.path;
+      },
+      onSuccess: (path) => window.location.assign(path),
     },
-    onSuccess: (path) => window.location.assign(path),
-  });
+    { keepLockedOnSuccess: true },
+  );
   const fieldErrors = mutation.error instanceof AuthError ? mutation.error.fieldErrors : undefined;
   const busy = mutation.isPending || mutation.isSuccess;
 
-  useEffect(() => {
-    if (fieldErrors) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [fieldErrors]);
+  useFocusInvalidField(formRef, fieldErrors);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!busy) mutation.mutate(read(new FormData(event.currentTarget)));
+    if (!busy) mutation.run(read(new FormData(event.currentTarget)));
   };
 
   return { formRef, onSubmit, busy, fieldErrors, formError: fieldErrors ? undefined : mutation.error?.message };

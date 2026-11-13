@@ -11,6 +11,7 @@ import type { z } from "zod";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
 import { episodes, workNotes, works } from "../db/schema.js";
+import { assertWorkOwner } from "./ownership.js";
 
 type ParsedNote = z.output<typeof noteInputSchema>;
 
@@ -52,7 +53,7 @@ export class NotesService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
   async list(authorId: string, workId: string): Promise<WorkNote[]> {
-    await this.assertOwner(authorId, workId);
+    await assertWorkOwner(this.db, authorId, workId);
     const rows = await this.db
       .select()
       .from(workNotes)
@@ -62,7 +63,7 @@ export class NotesService {
   }
 
   async create(authorId: string, workId: string, input: ParsedNote): Promise<WorkNote> {
-    await this.assertOwner(authorId, workId);
+    await assertWorkOwner(this.db, authorId, workId);
     await this.assertEpisodeLink(workId, input);
     return this.db.transaction(async (tx) => {
       // 동시에 만들어도 개수 제한을 넘지 않도록 작품 행을 잠근 뒤 센다.
@@ -117,7 +118,7 @@ export class NotesService {
   }
 
   async search(authorId: string, workId: string, query: string): Promise<WorkSearchResult> {
-    await this.assertOwner(authorId, workId);
+    await assertWorkOwner(this.db, authorId, workId);
     const [episodeRows, noteRows] = await Promise.all([
       this.db
         .select({ id: episodes.id, number: episodes.number, title: episodes.title, content: episodes.content })
@@ -150,14 +151,6 @@ export class NotesService {
       .from(episodes)
       .where(and(eq(episodes.id, input.episodeId), eq(episodes.workId, workId), isNull(episodes.deletedAt)));
     if (!row) throw new BadRequestException("이 작품의 회차가 아닙니다.");
-  }
-
-  private async assertOwner(authorId: string, workId: string) {
-    const [row] = await this.db
-      .select({ id: works.id })
-      .from(works)
-      .where(and(eq(works.id, workId), eq(works.authorId, authorId), isNull(works.deletedAt)));
-    if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
   }
 
   private async ownedNote(authorId: string, noteId: string) {

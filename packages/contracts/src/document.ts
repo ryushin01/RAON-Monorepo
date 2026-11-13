@@ -94,8 +94,11 @@ export function stripAuthorComments(doc: EpisodeDoc): EpisodeDoc {
   return { ...doc, content: doc.content.filter((block) => block.type !== "authorComment") };
 }
 
-/** 문서의 글자만 뽑는다. 단락 사이는 빈 줄, 줄바꿈은 줄바꿈 한 번이다. 구분선과 작가 주석은 뺀다. */
-export function docToText(doc: EpisodeDoc): string {
+/**
+ * 글자가 있는 단락을 차례로 뽑는다. 인용 안의 단락도 꺼내고, 구분선과 작가 주석은 뺀다.
+ * 단락 안의 줄바꿈은 \n이다. 앞뒤 공백은 그대로 둔다.
+ */
+export function docParagraphs(doc: EpisodeDoc): string[] {
   const paragraphs: string[] = [];
   const visit = (block: EpisodeBlock) => {
     if (block.type === "horizontalRule" || block.type === "authorComment") return;
@@ -107,7 +110,12 @@ export function docToText(doc: EpisodeDoc): string {
     if (text.trim()) paragraphs.push(text);
   };
   doc.content.forEach(visit);
-  return paragraphs.join("\n\n");
+  return paragraphs;
+}
+
+/** 문서의 글자만 뽑는다. 단락 사이는 빈 줄, 줄바꿈은 줄바꿈 한 번이다. 구분선과 작가 주석은 뺀다. */
+export function docToText(doc: EpisodeDoc): string {
+  return docParagraphs(doc).join("\n\n");
 }
 
 /** 줄바꿈은 글자가 아니라 줄바꿈 노드로 넣는다. 그래야 뷰어와 글자 수가 에디터와 같아진다. */

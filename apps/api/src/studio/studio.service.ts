@@ -21,6 +21,7 @@ import { detectImageType } from "../common/image.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
 import { episodeImages, episodes, episodeVersions, orderItems, workCovers, works } from "../db/schema.js";
+import { assertWorkOwner, findOwnedEpisode } from "./ownership.js";
 
 /** 자동 버전은 이 간격마다 하나만 남긴다. 초안은 입력이 멈출 때마다 저장되기 때문이다. */
 export const AUTO_VERSION_INTERVAL_MS = 10 * 60 * 1000;
@@ -699,29 +700,13 @@ export class StudioService {
     if (countChars(input.content) === 0) throw new BadRequestException("본문을 쓴 뒤에 공개할 수 있습니다.");
   }
 
-  private async assertOwner(authorId: string, workId: string) {
-    const [row] = await this.db
-      .select({ id: works.id })
-      .from(works)
-      .where(and(eq(works.id, workId), eq(works.authorId, authorId), isNull(works.deletedAt)));
-    if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
+  /** 작가 본인의 작품인지 확인한다. 테스트가 경쟁 상황을 흉내 내려고 이 메서드를 가로채므로 메서드로 둔다. */
+  private assertOwner(authorId: string, workId: string) {
+    return assertWorkOwner(this.db, authorId, workId);
   }
 
   private async ownedEpisode(authorId: string, episodeId: string) {
-    const [row] = await this.db
-      .select({ episode: episodes })
-      .from(episodes)
-      .innerJoin(works, eq(episodes.workId, works.id))
-      .where(
-        and(
-          eq(episodes.id, episodeId),
-          eq(works.authorId, authorId),
-          isNull(episodes.deletedAt),
-          isNull(works.deletedAt),
-        ),
-      );
-    if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
-    return row.episode;
+    return (await findOwnedEpisode(this.db, authorId, episodeId)).episode;
   }
 
   private async trashedEpisode(authorId: string, episodeId: string) {

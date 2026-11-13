@@ -4,7 +4,8 @@ import { and, asc, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { detectImageType, readImageSize } from "../common/image.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
-import { episodeImages, episodes, works } from "../db/schema.js";
+import { episodeImages, episodes } from "../db/schema.js";
+import { findOwnedEpisode } from "./ownership.js";
 
 const imageColumns = {
   id: episodeImages.id,
@@ -181,19 +182,7 @@ export class ComicsService {
   }
 
   private async ownedComicEpisode(authorId: string, episodeId: string) {
-    const [row] = await this.db
-      .select({ episode: episodes, format: works.format })
-      .from(episodes)
-      .innerJoin(works, eq(episodes.workId, works.id))
-      .where(
-        and(
-          eq(episodes.id, episodeId),
-          eq(works.authorId, authorId),
-          isNull(episodes.deletedAt),
-          isNull(works.deletedAt),
-        ),
-      );
-    if (!row) throw new NotFoundException("회차를 찾을 수 없습니다.");
+    const row = await findOwnedEpisode(this.db, authorId, episodeId);
     if (row.format !== "COMIC") throw new BadRequestException("웹툰 회차가 아닙니다.");
     return row.episode;
   }

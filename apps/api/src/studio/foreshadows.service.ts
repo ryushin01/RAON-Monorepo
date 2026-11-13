@@ -5,6 +5,7 @@ import { isForeignKeyViolation } from "../common/db-errors.js";
 import type { Database } from "../db/database.js";
 import { DB } from "../db/database.module.js";
 import { episodes, foreshadows, works } from "../db/schema.js";
+import { assertWorkOwner } from "./ownership.js";
 
 const MAX_FORESHADOWS = 200;
 
@@ -23,7 +24,7 @@ export class ForeshadowsService {
   constructor(@Inject(DB) private readonly db: Database) {}
 
   async list(authorId: string, workId: string): Promise<Foreshadow[]> {
-    await this.assertOwner(authorId, workId);
+    await assertWorkOwner(this.db, authorId, workId);
     const rows = await this.db
       .select()
       .from(foreshadows)
@@ -33,7 +34,7 @@ export class ForeshadowsService {
   }
 
   async create(authorId: string, workId: string, input: ForeshadowInput): Promise<Foreshadow> {
-    await this.assertOwner(authorId, workId);
+    await assertWorkOwner(this.db, authorId, workId);
     await this.assertEpisodes(workId, input);
     return this.linked(() =>
       this.db.transaction(async (tx) => {
@@ -93,14 +94,6 @@ export class ForeshadowsService {
       if (isForeignKeyViolation(error)) throw new BadRequestException("이 작품의 회차가 아닙니다.");
       throw error;
     }
-  }
-
-  private async assertOwner(authorId: string, workId: string) {
-    const [row] = await this.db
-      .select({ id: works.id })
-      .from(works)
-      .where(and(eq(works.id, workId), eq(works.authorId, authorId), isNull(works.deletedAt)));
-    if (!row) throw new NotFoundException("작품을 찾을 수 없습니다.");
   }
 
   private async owned(authorId: string, id: string) {

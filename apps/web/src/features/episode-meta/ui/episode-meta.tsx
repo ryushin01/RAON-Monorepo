@@ -7,8 +7,8 @@ import {
   type EpisodeType,
   type StudioEpisode,
 } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
+import { useLockedMutation } from "@/shared/lib";
 import { Button, SelectField, TextField } from "@/shared/ui";
 import { saveEpisodeMeta } from "../api/actions";
 import styles from "./episode-meta.module.scss";
@@ -25,7 +25,7 @@ export function EpisodeMeta({
   const [episodeType, setEpisodeType] = useState<EpisodeType>(episode.episodeType);
   const [pointOfView, setPointOfView] = useState(episode.pointOfView);
   const [message, setMessage] = useState("");
-  const save = useMutation({
+  const save = useLockedMutation({
     mutationFn: async (input: EpisodeMetaInput) => {
       const result = await saveEpisodeMeta(episode.id, input);
       if (!result.ok) throw new Error(result.fieldErrors?.pointOfView ?? result.message);
@@ -37,7 +37,7 @@ export function EpisodeMeta({
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (!save.isPending) save.mutate({ episodeType, pointOfView });
+    if (!save.isPending) save.run({ episodeType, pointOfView });
   };
 
   return (

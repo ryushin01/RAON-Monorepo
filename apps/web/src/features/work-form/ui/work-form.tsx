@@ -10,9 +10,9 @@ import {
   WORK_FORMATS,
   type WorkFormat,
 } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useRef } from "react";
+import { type FormEvent, useRef } from "react";
+import { useFocusInvalidField, useLockedMutation } from "@/shared/lib";
 import { Button, Notice, SelectField, TextAreaField, TextField } from "@/shared/ui";
 import { saveWork } from "../api/actions";
 import styles from "./work-form.module.scss";
@@ -31,7 +31,7 @@ class FormError extends Error {
 export function WorkForm({ work }: { work?: StudioWork }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const save = useMutation({
+  const save = useLockedMutation({
     mutationFn: async (draft: Draft) => {
       const result = await saveWork(work?.id ?? null, draft);
       if (!result.ok) throw new FormError(result.message, result.fieldErrors);
@@ -52,7 +52,7 @@ export function WorkForm({ work }: { work?: StudioWork }) {
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    save.mutate({
+    save.run({
       format: work?.format ?? (String(form.get("format")) as WorkFormat),
       title: String(form.get("title")),
       synopsis: String(form.get("synopsis")),
@@ -68,9 +68,7 @@ export function WorkForm({ work }: { work?: StudioWork }) {
   const tagError = Object.entries(fieldErrors ?? {}).find(([key]) => key.startsWith("tags"))?.[1];
 
   // 오류가 있으면 첫 번째 잘못된 입력 칸으로 초점을 옮긴다.
-  useEffect(() => {
-    if (fieldErrors) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [fieldErrors]);
+  useFocusInvalidField(formRef, fieldErrors);
 
   return (
     <form ref={formRef} className={styles.form} onSubmit={onSubmit} noValidate>

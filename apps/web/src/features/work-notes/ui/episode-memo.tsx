@@ -1,7 +1,7 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useLockedMutation } from "@/shared/lib";
 import { Button, Notice, TextAreaField } from "@/shared/ui";
 import { saveNote } from "../api/actions";
 import styles from "./notes.module.scss";
@@ -17,7 +17,7 @@ export function EpisodeMemo({ workId, episodeId }: { workId: string; episodeId: 
   const [draft, setDraft] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  const save = useMutation({
+  const save = useLockedMutation({
     mutationFn: async (body: string) => {
       const result = await saveNote(workId, memo?.id ?? null, {
         kind: "MEMO",
@@ -56,7 +56,7 @@ export function EpisodeMemo({ workId, episodeId }: { workId: string; episodeId: 
           type="button"
           aria-disabled={save.isPending || !ready}
           onClick={() => {
-            if (!save.isPending && ready) save.mutate(draft ?? memo?.body ?? "");
+            if (!save.isPending && ready) save.run(draft ?? memo?.body ?? "");
           }}
         >
           메모 저장

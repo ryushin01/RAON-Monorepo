@@ -1,17 +1,16 @@
 "use client";
 
 import { type ChargeInput, COIN_PACKAGES } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useLayoutEffect } from "react";
-import { formatCoins } from "@/shared/lib";
+import { formatCoins, useLockedMutation } from "@/shared/lib";
 import { Button, Notice } from "@/shared/ui";
 import { chargeCoins } from "../api/actions";
 import styles from "./charge-coins.module.scss";
 
 export function ChargeCoins() {
   const router = useRouter();
-  const charge = useMutation({
+  const charge = useLockedMutation({
     mutationFn: async (input: ChargeInput) => {
       const result = await chargeCoins(input);
       if (!result.ok) throw new Error(result.message);
@@ -33,7 +32,7 @@ export function ChargeCoins() {
             key={amount}
             variant="secondary"
             disabled={charge.isPending}
-            onClick={() => charge.mutate({ amount, idempotencyKey: crypto.randomUUID() })}
+            onClick={() => charge.run({ amount, idempotencyKey: crypto.randomUUID() })}
           >
             {formatCoins(amount)} 충전
           </Button>

@@ -1,8 +1,8 @@
 "use client";
 
 import type { Foreshadow } from "@raon/contracts";
-import { useMutation } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
+import { useFocusInvalidField, useLockedMutation } from "@/shared/lib";
 import { Button, Notice, SelectField, TextAreaField, TextField } from "@/shared/ui";
 import { deleteForeshadow, saveForeshadow } from "../api/actions";
 import { describeForeshadow, type EpisodeOption, isResolved } from "../model/foreshadow";
@@ -58,7 +58,7 @@ function ForeshadowForm({
   onCancel: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const save = useMutation({
+  const save = useLockedMutation({
     mutationFn: async (form: FormData) => {
       const result = await saveForeshadow(workId, foreshadow?.id ?? null, {
         title: String(form.get("title")),
@@ -74,18 +74,11 @@ function ForeshadowForm({
   const fieldErrors = save.error instanceof FormError ? save.error.fieldErrors : undefined;
 
   // 처음 열 때와 오류가 있을 때 해당 칸으로 초점을 옮긴다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 새 오류가 올 때마다 초점을 다시 옮기려고 넣었다.
-  useEffect(() => {
-    // 두 선택자를 한 번에 쓰면 문서 순서상 앞에 있는 제목 칸이 오류 칸보다 먼저 잡힌다.
-    const form = formRef.current;
-    (
-      form?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? form?.querySelector<HTMLElement>('[name="title"]')
-    )?.focus();
-  }, [fieldErrors]);
+  useFocusInvalidField(formRef, fieldErrors, '[name="title"]');
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!save.isPending) save.mutate(new FormData(event.currentTarget));
+    if (!save.isPending) save.run(new FormData(event.currentTarget));
   };
 
   return (
@@ -141,7 +134,7 @@ export function ForeshadowManager({ workId, episodes }: { workId: string; episod
   const [editing, setEditing] = useState<Foreshadow | "new" | null>(null);
   const [message, setMessage] = useState("");
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const remove = useMutation({
+  const remove = useLockedMutation({
     mutationFn: async (foreshadow: Foreshadow) => {
       const result = await deleteForeshadow(foreshadow.id);
       if (!result.ok) throw new Error(result.message);
@@ -227,7 +220,7 @@ export function ForeshadowManager({ workId, episodes }: { workId: string; episod
                       aria-disabled={remove.isPending}
                       onClick={() => {
                         if (!remove.isPending && window.confirm(`‘${foreshadow.title}’ 복선을 지울까요?`)) {
-                          remove.mutate(foreshadow);
+                          remove.run(foreshadow);
                         }
                       }}
                     >
