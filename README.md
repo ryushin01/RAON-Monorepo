@@ -121,3 +121,12 @@ packages/
 | [접근성·표준 점검표](docs/accessibility.md)    | KWCAG 2.2 33개 항목 대조 결과와 숨겨진 화면 규칙               |
 | [시퀀스 다이어그램](docs/sequence-diagrams.md) | 장바구니 코인 결제, 회차 열기와 유료 본문 차단, AI 문단 다듬기 |
 | [버전 기록](CHANGELOG.md)                      | 버전별 변경 내용                                               |
+
+## 출처
+
+| 자료                          | 저작자                                     | 사용 허락   | 원본                                                                  |
+| ----------------------------- | ------------------------------------------ | ----------- | --------------------------------------------------------------------- |
+| Do Hyeon(도현) 글꼴           | The Do Hyeon Project Authors(우아한형제들) | SIL OFL 1.1 | [Google Fonts](https://fonts.google.com/specimen/Do+Hyeon)            |
+| Gowun Batang(고운바탕) 글꼴   | The Gowun Batang Project Authors(류양희)   | SIL OFL 1.1 | [yangheeryu/Gowun-Batang](https://github.com/yangheeryu/Gowun-Batang) |
+| Nanum Gothic(나눔고딕) 글꼴   | NHN(네이버), 디자인 산돌커뮤니케이션       | SIL OFL 1.1 | [Google Fonts](https://fonts.google.com/specimen/Nanum+Gothic)        |
+| Nanum Myeongjo(나눔명조) 글꼴 | NHN(네이버), 디자인 FONTRIX                | SIL OFL 1.1 | [Google Fonts](https://fonts.google.com/specimen/Nanum+Myeongjo)      |
