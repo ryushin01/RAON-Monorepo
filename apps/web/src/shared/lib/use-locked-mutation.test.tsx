@@ -81,16 +81,21 @@ it("성공 뒤 화면을 떠나는 동작은 성공해도 잠금을 유지하고
   await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
 });
 
+const leaveRequest = jest.fn();
+
+/** 성공하면 화면을 떠나는 버튼(성공해도 잠가 둔다) */
+function Leave() {
+  const mutation = useLockedMutation({ mutationFn: () => leaveRequest() }, { keepLockedOnSuccess: true });
+  return (
+    <button type="button" onClick={() => mutation.run()}>
+      휴지통으로 옮기기
+    </button>
+  );
+}
+
 it("성공 뒤 잠가 둔 버튼도 화면이 숨겨졌다가 다시 보이면 다시 누를 수 있다", async () => {
-  const request = jest.fn().mockResolvedValue("완료");
-  function Leave() {
-    const mutation = useLockedMutation({ mutationFn: () => request() }, { keepLockedOnSuccess: true });
-    return (
-      <button type="button" onClick={() => mutation.run()}>
-        휴지통으로 옮기기
-      </button>
-    );
-  }
+  leaveRequest.mockResolvedValue("완료");
+  const client = new QueryClient();
   const view = (mode: "visible" | "hidden") => (
     <QueryClientProvider client={client}>
       <Activity mode={mode}>
@@ -98,19 +103,18 @@ it("성공 뒤 잠가 둔 버튼도 화면이 숨겨졌다가 다시 보이면 �
       </Activity>
     </QueryClientProvider>
   );
-  const client = new QueryClient();
   const { rerender } = render(view("visible"));
   const button = screen.getByRole("button", { name: "휴지통으로 옮기기" });
 
   act(() => button.click());
-  await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(leaveRequest).toHaveBeenCalledTimes(1));
   act(() => button.click());
   await new Promise((resolve) => setTimeout(resolve, 20));
-  expect(request).toHaveBeenCalledTimes(1);
+  expect(leaveRequest).toHaveBeenCalledTimes(1);
 
   // 다른 화면에 다녀오면(숨겼다가 다시 보이면) 잠금이 풀린다.
   rerender(view("hidden"));
   rerender(view("visible"));
   act(() => screen.getByRole("button", { name: "휴지통으로 옮기기", hidden: true }).click());
-  await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(leaveRequest).toHaveBeenCalledTimes(2));
 });
