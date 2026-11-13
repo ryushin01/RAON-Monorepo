@@ -1,7 +1,7 @@
 # RAON - 웹툰·웹소설 연재 플랫폼
 
 [![CI](https://github.com/ryushin01/RAON-Monorepo/actions/workflows/ci.yml/badge.svg)](https://github.com/ryushin01/RAON-Monorepo/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-0.7.5-121214)
+![version](https://img.shields.io/badge/version-0.7.6-121214)
 
 작가가 웹툰과 웹소설을 연재하고, 독자는 하나의 계정과 코인으로 두 모드를 오가며 회차나 작품을 구매해 뷰어에서 보는 플랫폼의 모노레포입니다. **라온**은 ‘즐거운’을 뜻하는 우리말입니다.
 
@@ -74,7 +74,7 @@
 | 웹 (`apps/web`)  | Next.js 16(App Router, Turbopack, `use cache`, Server Actions), React 19.2(Compiler), TanStack Query, Sass, Tiptap, js-cookie |
 | API (`apps/api`) | NestJS 12, Drizzle ORM, PostgreSQL(개발·테스트는 PGlite), JWT                                                                 |
 | 언어             | TypeScript 7(타입 검사), TypeScript 6(도구용)                                                                                 |
-| 품질             | Biome, Stylelint, Jest, Playwright, axe, Storybook, CodeRabbit, GitHub Actions                                                |
+| 품질             | Biome, Stylelint, Steiger, Jest, Playwright, axe, Storybook, CodeRabbit, GitHub Actions                                       |
 
 ## 시작하기
 
@@ -92,14 +92,14 @@ yarn dev        # 웹 http://localhost:3100, API http://localhost:4000
 | 일반 회원 | `reader@raon.test` |
 | 작가      | `author@raon.test` |
 
-| 명령                           | 내용                                              |
-| ------------------------------ | ------------------------------------------------- |
-| `yarn lint` / `yarn typecheck` | Biome 검사, TypeScript 7 타입 검사                |
-| `yarn test`                    | 단위·API 통합 테스트(Jest)                        |
-| `yarn build`                   | 프로덕션 빌드                                     |
-| `yarn e2e`                     | 프로덕션 빌드 기준 E2E(사용자 흐름, 접근성, 넘침) |
-| `yarn storybook`               | Storybook 실행                                    |
-| `yarn screenshots`             | README 스크린샷 다시 찍기                         |
+| 명령                           | 내용                                                           |
+| ------------------------------ | -------------------------------------------------------------- |
+| `yarn lint` / `yarn typecheck` | Biome·Stylelint·FSD 구조(Steiger) 검사, TypeScript 7 타입 검사 |
+| `yarn test`                    | 단위·API 통합 테스트(Jest)                                     |
+| `yarn build`                   | 프로덕션 빌드                                                  |
+| `yarn e2e`                     | 프로덕션 빌드 기준 E2E(사용자 흐름, 접근성, 넘침)              |
+| `yarn storybook`               | Storybook 실행                                                 |
+| `yarn screenshots`             | README 스크린샷 다시 찍기                                      |
 
 ## 프로젝트 구조
 

@@ -25,6 +25,8 @@ flowchart LR
 - Next의 `src/app` 라우트 파일은 `_app`, `_pages`를 다시 내보내기만 합니다.
 - 오류 화면: `error.tsx`와 `not-found.tsx`는 `_pages/errors`를, 루트 레이아웃까지 실패할 때의 `global-error.tsx`는 `_app/layouts/global-error-layout`을 내보냅니다. `global-error`에는 웹폰트와 저장된 테마가 적용되지 않습니다.
 - 슬라이스는 `index.ts`로만 가져오고, 서버 전용 코드는 `index.server.ts`로 내보냅니다.
+- 한 곳에서만 쓰는 코드는 그 슬라이스에 둡니다. 예를 들어 뷰어 화면에서만 쓰는 자동 넘기기·댓글·조회 기록·뷰어 설정은 `_pages/viewer`의 `ui`·`api`·`model`에 있습니다. 두 곳 이상에서 쓰게 되면 `features`·`widgets`로 올립니다.
+- `yarn lint`가 Steiger(`apps/web/steiger.config.mjs`)로 FSD 규칙을 검사합니다. `_app`·`_pages` 이름 때문에 나는 `fsd/typo-in-layer-name`만 끄고, Next의 `src/app`은 검사에서 뺍니다.
 - 스타일은 Sass CSS Modules입니다. 색은 `_app/styles/global.scss`의 CSS 변수만 씁니다. 밝은 회색(`#F8F8F8`)·잉크(`#0F0A01`)가 기본이고, 머리글, 인기 작품, 푸터, 에디터 도구 모음은 테마와 상관없이 어두운 판입니다. 어두운 판에는 전역 클래스 `on-panel`을 붙여 `--bg`, `--fg` 등을 판 색으로 덮어쓰므로 안쪽 요소를 그대로 재사용합니다. 판 안에서 페이지 바탕이 필요하면 `--canvas`, `--canvas-fg`를 씁니다. 프레임은 화면 가장자리에서 `--frame`만큼 띄웁니다. 모서리는 `--radius-sm`·`--radius`·`--radius-lg`, 버튼·배지·탭은 `--radius-pill`입니다.
 - 글꼴: 화면 글과 코인·연재 정보는 나눔고딕(`--font-sans`), 회차 본문과 에디터는 나눔명조(`--font-serif`), 작품 제목(작품 상세, 뷰어 제목, 표지)은 도현(`--font-display`)입니다. 도현은 굵기가 하나라 `font-synthesis-weight: none`으로 가짜 굵기를 막습니다. 섹션 라벨은 `(독자가 고른)`처럼 괄호로 감쌉니다.
 - 주황 `--accent`는 글자나 상태 표시에 쓰지 않는 장식 전용입니다. 주황 글자가 필요하면 바탕과 대비 4.5:1 이상인 `--accent-text`를 씁니다. 주요 이동 버튼은 `<ButtonLink arrow>`로 알약 옆에 화살표 원을 따로 붙입니다.
@@ -107,7 +109,7 @@ yarn workspace @raon/api db:reset   # 개발 DB를 지우고 다음 실행 때 �
 
 ## 조회수
 
-서버 렌더링마다 세면 새로고침이나 댓글 등록만으로 늘어나므로, 뷰어 화면이 탭 하나에 회차당 한 번 기록 요청을 보냅니다(`features/episode-view`). 작가 본인과 읽을 수 없는 회차는 세지 않습니다.
+서버 렌더링마다 세면 새로고침이나 댓글 등록만으로 늘어나므로, 뷰어 화면이 탭 하나에 회차당 한 번 기록 요청을 보냅니다(`_pages/viewer`의 `ViewTracker`). 작가 본인과 읽을 수 없는 회차는 세지 않습니다.
 
 ## 요청 크기
 
@@ -123,7 +125,7 @@ yarn workspace @raon/api db:reset   # 개발 DB를 지우고 다음 실행 때 �
 
 - 회차에 유형(본편, 프롤로그, 에필로그, 외전, 공지)을 둡니다. 독자에게 글자로 보이고, 번호와 가격에는 영향이 없습니다.
 - 시점은 작가만 보는 짧은 표시입니다(웹소설만). 독자 응답에는 넣지 않습니다.
-- 집필 단계처럼 원고가 아니므로 저장 API를 따로 두고, 버전을 남기지 않으며 수정 시각도 바꾸지 않습니다. `features/episode-meta`를 `_pages/studio-episode`가 조합합니다.
+- 집필 단계처럼 원고가 아니므로 저장 API를 따로 두고, 버전을 남기지 않으며 수정 시각도 바꾸지 않습니다. `_pages/studio-episode`의 `EpisodeMeta`가 맡습니다.
 
 ## 집필 단계
 

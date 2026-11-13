@@ -5,9 +5,9 @@ import { Suspense } from "react";
 import { getLibrary, getWallet } from "@/entities/cart/index.server";
 import { requireUser } from "@/entities/session/index.server";
 import { getFavorites, getReading } from "@/entities/work/index.server";
-import { ChargeCoins } from "@/features/wallet";
 import { formatCoins, formatDate } from "@/shared/lib";
 import { Main, Notice } from "@/shared/ui";
+import { ChargeCoins } from "./charge-coins";
 import styles from "./my.module.scss";
 
 export const myMetadata: Metadata = { title: "내 서재" };
