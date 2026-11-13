@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/entities/session/index.server";
 import { getStudioEpisode, getStudioWork } from "@/entities/studio/index.server";
-import { ComicEpisodeEditor } from "@/features/comic-editor";
 import { EpisodeEditor, Tool } from "@/features/episode-editor";
-import { EpisodeMeta } from "@/features/episode-meta";
 import { ForeshadowReference } from "@/features/foreshadow-tracker";
 import { EpisodeMemo, NoteReference } from "@/features/work-notes";
 import { Main } from "@/shared/ui";
+import { ComicEpisodeEditor } from "./comic-episode-editor";
+import { EpisodeMeta } from "./episode-meta";
 import styles from "./studio-episode.module.scss";
 
 export const studioEpisodeMetadata: Metadata = { title: "회차 쓰기" };

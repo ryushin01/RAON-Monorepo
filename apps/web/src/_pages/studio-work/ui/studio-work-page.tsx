@@ -21,10 +21,10 @@ import {
   TrashDraftButton,
 } from "@/features/episode-editor";
 import { CoverUpload, DeleteWorkButton, WorkForm, WorkStatusControl } from "@/features/work-form";
-import { WorkTransfer } from "@/features/work-transfer";
 import { formatCoins, formatDate, formatDateTime, formatNumber } from "@/shared/lib";
 import { Badge, Main } from "@/shared/ui";
 import styles from "./studio-work.module.scss";
+import { WorkTransfer } from "./work-transfer";
 
 export const studioWorkMetadata: Metadata = { title: "작품 관리" };
 

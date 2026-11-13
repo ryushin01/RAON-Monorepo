@@ -10,9 +10,9 @@ import { parseMode } from "@/features/mode-switch";
 import { MODE_COOKIE } from "@/shared/config";
 import { formatCompact, formatDate } from "@/shared/lib";
 import { ButtonLink, Main } from "@/shared/ui";
-import { HomeHero } from "@/widgets/home-hero";
-import { type BannerSlide, WorkBanner } from "@/widgets/work-banner";
 import styles from "./home.module.scss";
+import { HomeHero } from "./home-hero";
+import { type BannerSlide, WorkBanner } from "./work-banner";
 
 export const homeMetadata: Metadata = { title: { absolute: "RAON 라온 | 웹툰·웹소설 연재 플랫폼" } };
 export const webtoonHomeMetadata: Metadata = { title: "웹툰" };

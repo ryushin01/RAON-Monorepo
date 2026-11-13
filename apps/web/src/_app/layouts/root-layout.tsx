@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Do_Hyeon, Gowun_Batang, Nanum_Gothic, Nanum_Myeongjo } from "next/font/google";
 import type { ReactNode } from "react";
 import { PREFERENCES_SCRIPT } from "@/shared/config";
-import { QueryProvider } from "../providers/query-provider";
+import { QueryProvider } from "../query-client/query-provider";
 
 // 작품 제목은 웹툰 말풍선 같은 도현, 소설 본문은 오래 읽어도 편한 나눔명조, 화면 글과 코인·연재 정보는 나눔고딕.
 // 한글 글꼴은 글자 묶음별 조각 파일이라 미리 받지 않고(preload: false) 화면에 쓰인 조각만 받는다.

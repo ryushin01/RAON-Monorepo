@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ModeNav } from "@/features/mode-switch";
-import { ThemeSwitch } from "@/features/theme-switch";
 import styles from "./site-header.module.scss";
+import { ThemeSwitch } from "./theme-switch";
 import { UserMenu } from "./user-menu";
 
 export function SiteHeader() {

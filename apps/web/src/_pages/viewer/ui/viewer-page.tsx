@@ -8,13 +8,13 @@ import { getComments, getEpisode } from "@/entities/episode/index.server";
 import { getCurrentUser, getSessionToken } from "@/entities/session/index.server";
 import { getWork } from "@/entities/work/index.server";
 import { AddEpisodeButton } from "@/features/cart";
-import { ComicAutoScroll } from "@/features/comic-autoscroll";
-import { EpisodeComments } from "@/features/episode-comments";
-import { ViewTracker } from "@/features/episode-view";
-import { ViewerSettingsToggle } from "@/features/viewer-settings";
 import { formatCoins, formatDate } from "@/shared/lib";
 import { ButtonLink, Main, Notice } from "@/shared/ui";
+import { ComicAutoScroll } from "./comic-auto-scroll";
+import { EpisodeComments } from "./episode-comments";
+import { ViewTracker } from "./view-tracker";
 import styles from "./viewer.module.scss";
+import { ViewerSettingsToggle } from "./viewer-settings-toggle";
 
 type Params = Promise<{ workId: string; number: string }>;
 

@@ -8,11 +8,11 @@ import { getCurrentUser, getSessionToken } from "@/entities/session/index.server
 import { coverSrc, WorkCover } from "@/entities/work";
 import { getWork } from "@/entities/work/index.server";
 import { EpisodePurchaseList } from "@/features/cart";
-import { FavoriteButton } from "@/features/favorite";
-import { WorkRating } from "@/features/work-rating";
 import { formatCompact, formatNumber } from "@/shared/lib";
 import { Badge, ButtonLink, Main } from "@/shared/ui";
+import { FavoriteButton } from "./favorite-button";
 import styles from "./work-detail.module.scss";
+import { WorkRating } from "./work-rating";
 
 type Params = Promise<{ workId: string }>;
 
