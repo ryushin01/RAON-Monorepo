@@ -193,3 +193,19 @@ KWCAG 대조 결과와 Next의 숨겨진 화면 때문에 지켜야 할 규칙�
 ```bash
 yarn lint && yarn typecheck && yarn test && yarn build && yarn build-storybook && yarn e2e
 ```
+
+## 뷰어 설정
+
+뷰어 설정(배경·글꼴·글자 크기·줄 간격)은 쿠키에 저장합니다. 크기·줄 간격의 범위와 테마·글꼴 목록은 `apps/web/src/shared/config`의 `VIEWER_LIMITS`·`VIEWER_THEMES`·`VIEWER_FONTS` 한곳에 두고, 설정 화면(zod로 칸마다 확인)과 첫 그림 전 스크립트(`PREFERENCES_SCRIPT`)가 함께 씁니다. 고친 쿠키라도 알려진 값만 적용하고, 숫자는 범위 안으로 맞추며 줄 간격은 소수 첫째 자리로 반올림합니다.
+
+## 의존성 갱신 (Dependabot)
+
+`.github/dependabot.yml`이 npm 패키지와 GitHub Actions를 매주 확인하고, 부 버전·패치는 한 PR로 묶습니다(열린 PR 5개까지). 아래 패키지는 이유가 있어 일부 갱신을 받지 않습니다.
+
+| 패키지               | 받지 않는 갱신 | 이유                                                                                             |
+| -------------------- | -------------- | ------------------------------------------------------------------------------------------------ |
+| `typescript`         | 주 버전        | 도구용 TypeScript는 6에 고정하고, 타입 검사는 별칭 패키지 `typescript-7`로 돌립니다              |
+| `@types/node`        | 주 버전        | 프로젝트 기준 Node 버전(`.node-version`)에 맞춥니다                                              |
+| `react`, `react-dom` | 주·부 버전     | React 19.2로 정한 프로젝트라 19.2의 패치만 받습니다                                              |
+| `stylelint`          | 주 버전        | `stylelint-config-standard-scss`가 새 주 버전을 지원할 때 함께 올립니다                          |
+| `postgres`           | 주 버전        | CI는 PGlite로만 돌아 postgres 드라이버를 검사하지 못합니다. 실제 PostgreSQL로 확인한 뒤 올립니다 |
