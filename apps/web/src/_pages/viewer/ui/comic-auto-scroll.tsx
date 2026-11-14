@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { SelectChevron } from "@/shared/ui";
 import styles from "./comic-auto-scroll.module.scss";
 
 const SPEEDS = [
@@ -80,18 +81,21 @@ export function ComicAutoScroll() {
       <label htmlFor={speedId} className="visually-hidden">
         자동 스크롤 속도
       </label>
-      <select
-        id={speedId}
-        className={styles.speed}
-        value={speedIndex}
-        onChange={(event) => setSpeedIndex(Number(event.target.value))}
-      >
-        {SPEEDS.map(({ label }, index) => (
-          <option key={label} value={index}>
-            {label}
-          </option>
-        ))}
-      </select>
+      <span className={styles.speedWrap}>
+        <select
+          id={speedId}
+          className={styles.speed}
+          value={speedIndex}
+          onChange={(event) => setSpeedIndex(Number(event.target.value))}
+        >
+          {SPEEDS.map(({ label }, index) => (
+            <option key={label} value={index}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <SelectChevron />
+      </span>
     </div>
   );
 }
