@@ -124,9 +124,10 @@ packages/
 
 ## 출처
 
-| 자료                          | 저작자                                     | 사용 허락   | 원본                                                                  |
-| ----------------------------- | ------------------------------------------ | ----------- | --------------------------------------------------------------------- |
-| Do Hyeon(도현) 글꼴           | The Do Hyeon Project Authors(우아한형제들) | SIL OFL 1.1 | [Google Fonts](https://fonts.google.com/specimen/Do+Hyeon)            |
-| Gowun Batang(고운바탕) 글꼴   | The Gowun Batang Project Authors(류양희)   | SIL OFL 1.1 | [yangheeryu/Gowun-Batang](https://github.com/yangheeryu/Gowun-Batang) |
-| Nanum Gothic(나눔고딕) 글꼴   | NHN(네이버), 디자인 산돌커뮤니케이션       | SIL OFL 1.1 | [Google Fonts](https://fonts.google.com/specimen/Nanum+Gothic)        |
-| Nanum Myeongjo(나눔명조) 글꼴 | NHN(네이버), 디자인 FONTRIX                | SIL OFL 1.1 | [Google Fonts](https://fonts.google.com/specimen/Nanum+Myeongjo)      |
+| 자료                                | 저작자                                     | 사용 허락                                | 원본                                                                                                                                                           |
+| ----------------------------------- | ------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 왕관 아이콘 (파비콘·홈 화면 아이콘) | Magnific                                   | Flaticon 무료 라이선스(저작자 표기 조건) | [Flaticon "Crown"](https://www.flaticon.com/free-icon/crown_2665606) — [Crown icons created by Magnific - Flaticon](https://www.flaticon.com/free-icons/crown) |
+| Do Hyeon(도현) 글꼴                 | The Do Hyeon Project Authors(우아한형제들) | SIL OFL 1.1                              | [Google Fonts](https://fonts.google.com/specimen/Do+Hyeon)                                                                                                     |
+| Gowun Batang(고운바탕) 글꼴         | The Gowun Batang Project Authors(류양희)   | SIL OFL 1.1                              | [yangheeryu/Gowun-Batang](https://github.com/yangheeryu/Gowun-Batang)                                                                                          |
+| Nanum Gothic(나눔고딕) 글꼴         | NHN(네이버), 디자인 산돌커뮤니케이션       | SIL OFL 1.1                              | [Google Fonts](https://fonts.google.com/specimen/Nanum+Gothic)                                                                                                 |
+| Nanum Myeongjo(나눔명조) 글꼴       | NHN(네이버), 디자인 FONTRIX                | SIL OFL 1.1                              | [Google Fonts](https://fonts.google.com/specimen/Nanum+Myeongjo)                                                                                               |
