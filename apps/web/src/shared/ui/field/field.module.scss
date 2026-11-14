@@ -24,6 +24,31 @@
   }
 }
 
+/* 셀렉트: 화살표(SelectChevron)를 글자 왼쪽 간격(테두리 + 안쪽 여백)만큼 오른쪽 끝에서 띄우고, 오른쪽 안쪽 여백은 화살표 자리만큼 넓힙니다. */
+.selectWrap {
+  --select-inset: calc(1px + 0.75rem);
+  position: relative;
+
+  &:has([aria-invalid="true"]) {
+    --select-inset: calc(2px + 0.75rem);
+  }
+}
+
+.select {
+  appearance: none;
+  padding-inline-end: calc(0.75rem + 12px + 0.5rem);
+}
+
+.chevron {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: var(--select-inset, 0);
+  width: 12px;
+  height: 8px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 textarea.control {
   min-height: 8rem;
   resize: vertical;
