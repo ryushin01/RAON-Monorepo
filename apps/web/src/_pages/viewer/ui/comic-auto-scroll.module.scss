@@ -15,7 +15,8 @@
   font-size: 0.8125rem;
 }
 
-/* 속도 셀렉트: 화살표(SelectChevron)를 글자 왼쪽 간격(테두리 1px + 안쪽 여백 0.5rem)만큼 띄웁니다. */
+/* 속도 셀렉트: 화살표(SelectChevron)를 글자 왼쪽 간격(테두리 1px + 안쪽 여백 0.5rem)만큼 띄웁니다.
+   감싼 요소는 div입니다. 웹툰 막대의 `span` 규칙(안쪽 여백)이 붙으면 화살표 기준이 셀렉트보다 넓어집니다. */
 .speedWrap {
   --select-inset: calc(1px + 0.5rem);
   position: relative;

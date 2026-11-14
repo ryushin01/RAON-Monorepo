@@ -81,7 +81,7 @@ export function ComicAutoScroll() {
       <label htmlFor={speedId} className="visually-hidden">
         자동 스크롤 속도
       </label>
-      <span className={styles.speedWrap}>
+      <div className={styles.speedWrap}>
         <select
           id={speedId}
           className={styles.speed}
@@ -95,7 +95,7 @@ export function ComicAutoScroll() {
           ))}
         </select>
         <SelectChevron />
-      </span>
+      </div>
     </div>
   );
 }
